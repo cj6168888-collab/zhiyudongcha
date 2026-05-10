@@ -16,7 +16,7 @@ import { storageAdapter } from '../../storage/adapter';
 import { taskOrchestrator } from '../task-orchestrator';
 import { getDatabase } from '../../db';
 import { pendingActions } from '@shared/schema';
-import { eq, gt, lt } from 'drizzle-orm';
+import { and, eq, gt, lt } from 'drizzle-orm';
 import type { AssistantResponse, DraftItem } from './HybridAssistant';
 
 const logger = createServiceLogger('ConversationActionExecutor');
@@ -171,9 +171,10 @@ export class ConversationActionExecutor {
    * 用户确认草案后，按 responseId 取出并顺序执行所有条目。
    * 执行完成后从 pending_actions 中删除（无论成功失败）。
    */
-  async executeDraftByResponseId(responseId: string): Promise<ExecutionResult[] | null> {
+  async executeDraftByResponseId(responseId: string, userId?: string): Promise<ExecutionResult[] | null> {
     const entry = this.drafts.get(responseId);
     if (!entry) return null;
+    if (userId && entry.userId !== userId) return null;
     if (Date.now() > entry.expiresAt) {
       this.drafts.delete(responseId);
       void this.dbDelete(responseId);
@@ -193,9 +194,10 @@ export class ConversationActionExecutor {
    * 用户确认后，按 responseId 取出并执行挂起的动作。
    * 执行完成后从 pending 中删除（无论成功失败）。
    */
-  async executeByResponseId(responseId: string): Promise<ExecutionResult | null> {
+  async executeByResponseId(responseId: string, userId?: string): Promise<ExecutionResult | null> {
     const entry = this.pending.get(responseId);
     if (!entry) return null;
+    if (userId && entry.userId !== userId) return null;
     if (Date.now() > entry.expiresAt) {
       this.pending.delete(responseId);
       void this.dbDelete(responseId);
@@ -204,6 +206,24 @@ export class ConversationActionExecutor {
     this.pending.delete(responseId);
     void this.dbDelete(responseId);
     return this.dispatch(entry.action, entry.actionParams, entry.userId);
+  }
+
+  async discardByResponseId(responseId: string, userId?: string): Promise<boolean> {
+    let discarded = false;
+    const pendingEntry = this.pending.get(responseId);
+    if (pendingEntry && (!userId || pendingEntry.userId === userId)) {
+      this.pending.delete(responseId);
+      discarded = true;
+    }
+
+    const draftEntry = this.drafts.get(responseId);
+    if (draftEntry && (!userId || draftEntry.userId === userId)) {
+      this.drafts.delete(responseId);
+      discarded = true;
+    }
+
+    discarded = await this.dbDelete(responseId, userId) || discarded;
+    return discarded;
   }
 
   async execute(
@@ -268,13 +288,19 @@ export class ConversationActionExecutor {
     return rows;
   }
 
-  private async dbDelete(id: string): Promise<void> {
+  private async dbDelete(id: string, userId?: string): Promise<boolean> {
     const db = getDatabase();
-    if (!db) return;
+    if (!db) return false;
     try {
-      await db.delete(pendingActions).where(eq(pendingActions.id, id));
+      await db.delete(pendingActions).where(
+        userId
+          ? and(eq(pendingActions.id, id), eq(pendingActions.userId, userId))
+          : eq(pendingActions.id, id),
+      );
+      return true;
     } catch (err) {
       logger.warn({ err, id }, 'Failed to delete pending action from DB');
+      return false;
     }
   }
 

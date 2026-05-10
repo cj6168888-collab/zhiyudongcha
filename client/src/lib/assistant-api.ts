@@ -55,6 +55,11 @@ export interface DraftConfirmResult {
   executions: AssistantExecution[];
 }
 
+export interface AssistantDiscardResult {
+  success: boolean;
+  discarded: boolean;
+}
+
 export interface AssistantPendingSummary {
   success: boolean;
   count: number;
@@ -103,6 +108,11 @@ export async function denyAssistantAction(responseId: string): Promise<Assistant
 
 export async function confirmAssistantDraft(responseId: string): Promise<DraftConfirmResult> {
   const res = await apiRequest("POST", "/api/assistant/draft/confirm", { responseId });
+  return await res.json();
+}
+
+export async function discardAssistantPending(responseId: string): Promise<AssistantDiscardResult> {
+  const res = await apiRequest("POST", "/api/assistant/pending/discard", { responseId });
   return await res.json();
 }
 

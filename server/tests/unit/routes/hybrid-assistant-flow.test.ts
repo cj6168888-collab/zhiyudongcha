@@ -331,6 +331,44 @@ describe('Hybrid Assistant first product loop', () => {
     );
   });
 
+  it('removes a pending action after deny authorization', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-deny-project',
+        type: 'confirm',
+        message: '需要您确认是否创建项目',
+        action: 'create_project',
+        actionParams: {
+          title: '待取消项目',
+        },
+      }),
+    );
+
+    const app = createApp();
+
+    await request(app)
+      .post('/api/assistant')
+      .send({ message: '帮我创建一个需要取消的项目' })
+      .expect(200);
+
+    await request(app)
+      .post('/api/assistant/authorize')
+      .send({ responseId: 'resp-deny-project', action: 'deny' })
+      .expect(200);
+
+    const pendingSummary = await request(app)
+      .get('/api/assistant/pending')
+      .expect(200);
+
+    expect(storageAdapter.createProject).not.toHaveBeenCalled();
+    expect(pendingSummary.body).toMatchObject({
+      success: true,
+      count: 0,
+      pending: [],
+      draft: [],
+    });
+  });
+
   // ── CRON 循环任务执行 ──────────────────────────────────────────────────────
 
   it('creates CRON task with proper trigger config', async () => {
@@ -556,6 +594,43 @@ describe('Hybrid Assistant first product loop', () => {
       success: true,
       action: 'create_task',
     });
+  });
+
+  it('discards a stored draft without executing it', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue({
+      id: 'resp-draft-discard',
+      handler: 'ai',
+      type: 'draft',
+      message: '我理解了以下 1 项内容，请确认后我来执行：',
+      draftItems: [
+        { action: 'create_project', label: '创建项目：暂不执行', actionParams: { title: '暂不执行', description: '' } },
+      ],
+    } as any);
+
+    const app = createApp();
+
+    await request(app)
+      .post('/api/assistant')
+      .send({ message: '先起草一个项目但不要执行' })
+      .expect(200);
+
+    const discardResponse = await request(app)
+      .post('/api/assistant/pending/discard')
+      .send({ responseId: 'resp-draft-discard' })
+      .expect(200);
+
+    const pendingSummary = await request(app)
+      .get('/api/assistant/pending')
+      .expect(200);
+
+    expect(discardResponse.body).toMatchObject({ success: true, discarded: true });
+    expect(storageAdapter.createProject).not.toHaveBeenCalled();
+    expect(pendingSummary.body.success).toBe(true);
+    expect(pendingSummary.body.draft).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'resp-draft-discard' }),
+      ]),
+    );
   });
 
   it('returns 404 for /draft/confirm with unknown responseId', async () => {
