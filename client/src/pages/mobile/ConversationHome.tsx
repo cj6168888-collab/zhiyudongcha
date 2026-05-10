@@ -9,7 +9,9 @@ import {
   FolderKanban,
   Loader2,
   Monitor,
+  Pencil,
   RefreshCw,
+  Save,
   ScanLine,
   ShieldCheck,
   UserRound,
@@ -40,6 +42,7 @@ import {
   formatExecutionSummary,
   getAssistantPendingSummary,
   sendAssistantMessage,
+  updateAssistantDraft,
   type AssistantResponse,
   type DraftItem,
 } from "@/lib/assistant-api";
@@ -98,7 +101,7 @@ interface FailedSend {
   createdAt: number;
 }
 
-type ActiveAction = "approve" | "deny" | "confirmDraft" | "denyDraft" | null;
+type ActiveAction = "approve" | "deny" | "confirmDraft" | "denyDraft" | "saveDraft" | null;
 
 const ACTION_META: Record<string, { label: string; icon: typeof FolderKanban }> = {
   create_project: { label: "项目", icon: FolderKanban },
@@ -168,6 +171,30 @@ function errorDetail(error: unknown, fallback: string) {
   return fallback;
 }
 
+function cloneDraftItems(items: DraftItem[]) {
+  return items.map((item) => ({
+    ...item,
+    actionParams: { ...item.actionParams },
+  }));
+}
+
+function draftPrimaryField(action: DraftItem["action"]) {
+  if (action === "create_task") return { key: "name", label: "任务名" };
+  if (action === "save_memory") return { key: "content", label: "记忆内容" };
+  if (action === "create_person") return { key: "name", label: "姓名" };
+  return { key: "title", label: "项目名" };
+}
+
+function draftSecondaryField(action: DraftItem["action"]) {
+  if (action === "create_project" || action === "create_task") return { key: "description", label: "说明" };
+  if (action === "create_person") return { key: "role", label: "角色" };
+  return null;
+}
+
+function draftItemLabel(item: DraftItem) {
+  return describePendingAction(item.action, item.actionParams);
+}
+
 export default function ConversationHome() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -205,6 +232,8 @@ export default function ConversationHome() {
   const [failedSend, setFailedSend] = useState<FailedSend | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<ActiveAction>(null);
+  const [draftEditing, setDraftEditing] = useState(false);
+  const [draftEdits, setDraftEdits] = useState<DraftItem[]>([]);
   const streamEndRef = useRef<HTMLDivElement>(null);
 
   const activeService = useMemo(
@@ -254,17 +283,22 @@ export default function ConversationHome() {
         reason: message,
         action: firstPending.action ?? undefined,
       });
+      setDraftEditing(false);
+      setDraftEdits([]);
       setActionError(null);
       return;
     }
 
     const firstDraft = assistantPending?.draft?.find((item) => item.items?.length);
     if (firstDraft?.items?.length) {
+      const items = firstDraft.items.map(normalizeDraftItem);
       setPendingDraft({
         responseId: firstDraft.id,
         message: `我恢复了一份待确认草案，共 ${firstDraft.items.length} 项。`,
-        items: firstDraft.items.map(normalizeDraftItem),
+        items,
       });
+      setDraftEditing(false);
+      setDraftEdits(cloneDraftItems(items));
       setActionError(null);
     }
   }, [assistantPending, pendingConfirmation, pendingDraft]);
@@ -283,23 +317,30 @@ export default function ConversationHome() {
         action: response.action,
       });
       setPendingDraft(null);
+      setDraftEditing(false);
+      setDraftEdits([]);
       void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
       return;
     }
 
     if (response.type === "draft" && response.draftItems?.length) {
+      const items = response.draftItems.map(normalizeDraftItem);
       setPendingDraft({
         responseId: response.id,
         message: response.message,
-        items: response.draftItems,
+        items,
       });
       setPendingConfirmation(null);
+      setDraftEditing(false);
+      setDraftEdits(cloneDraftItems(items));
       void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
       return;
     }
 
     setPendingConfirmation(null);
     setPendingDraft(null);
+    setDraftEditing(false);
+    setDraftEdits([]);
   };
 
   const handleSend = async (overrideText?: string, options?: { appendUser?: boolean }) => {
@@ -312,6 +353,8 @@ export default function ConversationHome() {
     setInputText("");
     setPendingConfirmation(null);
     setPendingDraft(null);
+    setDraftEditing(false);
+    setDraftEdits([]);
     setFailedSend(null);
     setActionError(null);
 
@@ -399,6 +442,8 @@ export default function ConversationHome() {
         timestamp: Date.now(),
       });
       setPendingDraft(null);
+      setDraftEditing(false);
+      setDraftEdits([]);
       void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
       void queryClient.invalidateQueries({ queryKey: ["/api/hp/balance"] });
     } catch (error) {
@@ -417,9 +462,59 @@ export default function ConversationHome() {
       await discardAssistantPending(pendingDraft.responseId);
       addMessage({ role: "assistant", content: "好的，已取消这份草案。", timestamp: Date.now() });
       setPendingDraft(null);
+      setDraftEditing(false);
+      setDraftEdits([]);
       void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
     } catch (error) {
       setActionError(`取消草案失败：${errorDetail(error, "请稍后重试")}`);
+    } finally {
+      setActiveAction(null);
+    }
+  };
+
+  const handleStartDraftEdit = () => {
+    if (!pendingDraft || isBusy) return;
+    setDraftEdits(cloneDraftItems(pendingDraft.items));
+    setDraftEditing(true);
+    setActionError(null);
+  };
+
+  const handleCancelDraftEdit = () => {
+    if (!pendingDraft || isBusy) return;
+    setDraftEdits(cloneDraftItems(pendingDraft.items));
+    setDraftEditing(false);
+    setActionError(null);
+  };
+
+  const handleDraftFieldChange = (index: number, key: string, value: string) => {
+    setDraftEdits((items) =>
+      items.map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+        const actionParams = { ...item.actionParams, [key]: value };
+        return {
+          ...item,
+          label: draftItemLabel({ ...item, actionParams }),
+          actionParams,
+        };
+      }),
+    );
+  };
+
+  const handleSaveDraftEdits = async () => {
+    if (!pendingDraft || isBusy) return;
+    const items = draftEdits.map(normalizeDraftItem);
+    try {
+      setActiveAction("saveDraft");
+      setActionError(null);
+      const result = await updateAssistantDraft(pendingDraft.responseId, items);
+      const updatedItems = (result.draft.items ?? items).map(normalizeDraftItem);
+      setPendingDraft({ ...pendingDraft, items: updatedItems });
+      setDraftEdits(cloneDraftItems(updatedItems));
+      setDraftEditing(false);
+      addMessage({ role: "assistant", content: `已保存草案修改，共 ${updatedItems.length} 项。`, timestamp: Date.now() });
+      void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
+    } catch (error) {
+      setActionError(`草案保存失败：${errorDetail(error, "请稍后重试")}`);
     } finally {
       setActiveAction(null);
     }
@@ -498,7 +593,7 @@ export default function ConversationHome() {
                   <p className="mt-1 text-[10px] text-red-100/50">
                     {failedSend.detail} · 第 {failedSend.attempts} 次失败
                   </p>
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" className="h-9 bg-red-500 text-xs hover:bg-red-600" onClick={handleRetryFailedSend} disabled={isBusy}>
                       {isProcessing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
                       重试发送
@@ -536,7 +631,7 @@ export default function ConversationHome() {
                       {actionError}
                     </p>
                   )}
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" className="h-9 bg-emerald-500 text-xs hover:bg-emerald-600" onClick={handleApprove} disabled={isBusy}>
                       {activeAction === "approve" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-1 h-3.5 w-3.5" />}
                       确认执行
@@ -564,16 +659,43 @@ export default function ConversationHome() {
                     </p>
                   )}
                   <div className="mt-3 space-y-2">
-                    {pendingDraft.items.map((item, index) => {
+                    {(draftEditing ? draftEdits : pendingDraft.items).map((item, index) => {
                       const meta = ACTION_META[item.action] ?? { label: item.action, icon: CircleDot };
                       const Icon = meta.icon;
+                      const primary = draftPrimaryField(item.action);
+                      const secondary = draftSecondaryField(item.action);
                       return (
-                        <div key={`${item.action}-${index}`} className="flex items-center gap-2 rounded-md bg-black/20 px-2.5 py-2">
-                          <Icon className="h-4 w-4 shrink-0 text-blue-200" />
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-bold text-white">{item.label}</p>
-                            <p className="text-[10px] text-blue-100/50">{meta.label}</p>
+                        <div key={`${item.action}-${index}`} className="rounded-md bg-black/20 px-2.5 py-2">
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-4 w-4 shrink-0 text-blue-200" />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-xs font-bold text-white">{item.label}</p>
+                              <p className="text-[10px] text-blue-100/50">{meta.label}</p>
+                            </div>
                           </div>
+                          {draftEditing && (
+                            <div className="mt-2 space-y-2">
+                              <label className="block">
+                                <span className="text-[10px] font-bold text-blue-100/60">{primary.label}</span>
+                                <input
+                                  value={String(item.actionParams[primary.key] ?? "")}
+                                  onChange={(event) => handleDraftFieldChange(index, primary.key, event.target.value)}
+                                  className="mt-1 h-9 w-full rounded-md border border-white/10 bg-white/[0.06] px-2.5 text-xs text-white outline-none focus:border-blue-300/40"
+                                />
+                              </label>
+                              {secondary && (
+                                <label className="block">
+                                  <span className="text-[10px] font-bold text-blue-100/60">{secondary.label}</span>
+                                  <textarea
+                                    value={String(item.actionParams[secondary.key] ?? "")}
+                                    onChange={(event) => handleDraftFieldChange(index, secondary.key, event.target.value)}
+                                    rows={2}
+                                    className="mt-1 w-full resize-none rounded-md border border-white/10 bg-white/[0.06] px-2.5 py-2 text-xs text-white outline-none focus:border-blue-300/40"
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -583,15 +705,34 @@ export default function ConversationHome() {
                       {actionError}
                     </p>
                   )}
-                  <div className="mt-3 flex gap-2">
-                    <Button size="sm" className="h-9 bg-blue-500 text-xs hover:bg-blue-600" onClick={handleConfirmDraft} disabled={isBusy}>
-                      {activeAction === "confirmDraft" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-1 h-3.5 w-3.5" />}
-                      全部执行
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleDenyDraft} disabled={isBusy}>
-                      {activeAction === "denyDraft" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <X className="mr-1 h-3.5 w-3.5" />}
-                      取消
-                    </Button>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {draftEditing ? (
+                      <>
+                        <Button size="sm" className="h-9 bg-blue-500 text-xs hover:bg-blue-600" onClick={handleSaveDraftEdits} disabled={isBusy}>
+                          {activeAction === "saveDraft" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}
+                          保存修改
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleCancelDraftEdit} disabled={isBusy}>
+                          <X className="mr-1 h-3.5 w-3.5" />
+                          放弃
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button size="sm" className="h-9 bg-blue-500 text-xs hover:bg-blue-600" onClick={handleConfirmDraft} disabled={isBusy}>
+                          {activeAction === "confirmDraft" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-1 h-3.5 w-3.5" />}
+                          全部执行
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleStartDraftEdit} disabled={isBusy}>
+                          <Pencil className="mr-1 h-3.5 w-3.5" />
+                          修改
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleDenyDraft} disabled={isBusy}>
+                          {activeAction === "denyDraft" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <X className="mr-1 h-3.5 w-3.5" />}
+                          取消
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

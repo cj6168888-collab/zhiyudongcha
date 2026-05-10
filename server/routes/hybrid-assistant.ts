@@ -363,6 +363,38 @@ router.delete('/authorizations/:id', (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/assistant/draft/update
+ *
+ * 用户在移动端修改草案条目后，保存回 pending_actions，随后确认执行使用修改后的版本。
+ */
+router.post('/draft/update', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as unknown as { user?: { id?: string } }).user?.id || 'default';
+    const { responseId, items } = req.body;
+    if (!responseId) {
+      res.status(400).json({ success: false, error: 'responseId is required' });
+      return;
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      res.status(400).json({ success: false, error: 'items must be a non-empty array' });
+      return;
+    }
+
+    const updatedDraft = await conversationActionExecutor.updateDraftByResponseId(responseId, items, userId);
+    if (!updatedDraft) {
+      res.status(404).json({ success: false, error: '草案不存在或已过期' });
+      return;
+    }
+
+    logger.info({ responseId, itemCount: updatedDraft.items?.length ?? 0 }, 'Draft updated');
+    res.json({ success: true, draft: updatedDraft });
+  } catch (error) {
+    logger.error({ err: error }, 'Draft update failed');
+    res.status(500).json({ success: false, error: '草案保存失败' });
+  }
+});
+
+/**
  * POST /api/assistant/draft/confirm
  *
  * 用户确认草案后执行所有条目

@@ -38,6 +38,8 @@ interface DraftEntry {
   createdAt: number;
 }
 
+type StoredDraftItem = { action: string; label?: string; actionParams: Record<string, unknown> };
+
 export interface ExecutionResult {
   success: boolean;
   action: string;
@@ -144,7 +146,7 @@ export class ConversationActionExecutor {
   async storeDraft(responseId: string, items: DraftItem[], userId: string): Promise<void> {
     const expiresAt = Date.now() + PENDING_TTL_MS;
     const createdAt = Date.now();
-    const itemData = items.map(i => ({ action: i.action, label: i.label, actionParams: i.actionParams }));
+    const itemData = this.normalizeDraftItems(items);
     this.drafts.set(responseId, { items: itemData, userId, expiresAt, createdAt });
     logger.debug({ responseId, count: items.length }, 'Draft stored');
 
@@ -188,6 +190,36 @@ export class ConversationActionExecutor {
       if (result) results.push(result);
     }
     return results;
+  }
+
+  async updateDraftByResponseId(
+    responseId: string,
+    items: StoredDraftItem[],
+    userId?: string,
+  ): Promise<PendingActionSnapshot | null> {
+    const entry = this.drafts.get(responseId);
+    if (!entry) return null;
+    if (userId && entry.userId !== userId) return null;
+    if (Date.now() > entry.expiresAt) {
+      this.drafts.delete(responseId);
+      void this.dbDelete(responseId);
+      return null;
+    }
+
+    const itemData = this.normalizeDraftItems(items);
+    if (itemData.length === 0) return null;
+    const updatedEntry = { ...entry, items: itemData };
+    this.drafts.set(responseId, updatedEntry);
+    await this.dbUpdateDraft(responseId, itemData, userId);
+
+    return {
+      id: responseId,
+      entryType: 'draft',
+      action: null,
+      items: itemData,
+      expiresAt: new Date(updatedEntry.expiresAt),
+      createdAt: new Date(updatedEntry.createdAt),
+    };
   }
 
   /**
@@ -302,6 +334,34 @@ export class ConversationActionExecutor {
       logger.warn({ err, id }, 'Failed to delete pending action from DB');
       return false;
     }
+  }
+
+  private async dbUpdateDraft(id: string, items: StoredDraftItem[], userId?: string): Promise<boolean> {
+    const db = getDatabase();
+    if (!db) return false;
+    try {
+      await db.update(pendingActions)
+        .set({ items })
+        .where(
+          userId
+            ? and(eq(pendingActions.id, id), eq(pendingActions.userId, userId))
+            : eq(pendingActions.id, id),
+        );
+      return true;
+    } catch (err) {
+      logger.warn({ err, id }, 'Failed to update draft in DB');
+      return false;
+    }
+  }
+
+  private normalizeDraftItems(items: StoredDraftItem[]): StoredDraftItem[] {
+    return items
+      .filter((item) => item && typeof item.action === 'string' && item.actionParams && typeof item.actionParams === 'object')
+      .map((item) => ({
+        action: item.action,
+        label: typeof item.label === 'string' ? item.label.trim() : undefined,
+        actionParams: item.actionParams ?? {},
+      }));
   }
 
   private async dispatch(

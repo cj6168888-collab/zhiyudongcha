@@ -55,6 +55,18 @@ export interface DraftConfirmResult {
   executions: AssistantExecution[];
 }
 
+export interface DraftUpdateResult {
+  success: boolean;
+  draft: {
+    id: string;
+    entryType: "draft";
+    action: null;
+    items: DraftItem[];
+    expiresAt: string;
+    createdAt: string;
+  };
+}
+
 export interface AssistantDiscardResult {
   success: boolean;
   discarded: boolean;
@@ -108,6 +120,11 @@ export async function denyAssistantAction(responseId: string): Promise<Assistant
 
 export async function confirmAssistantDraft(responseId: string): Promise<DraftConfirmResult> {
   const res = await apiRequest("POST", "/api/assistant/draft/confirm", { responseId });
+  return await res.json();
+}
+
+export async function updateAssistantDraft(responseId: string, items: DraftItem[]): Promise<DraftUpdateResult> {
+  const res = await apiRequest("POST", "/api/assistant/draft/update", { responseId, items });
   return await res.json();
 }
 

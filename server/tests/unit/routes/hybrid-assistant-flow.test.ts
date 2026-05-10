@@ -552,6 +552,62 @@ describe('Hybrid Assistant first product loop', () => {
     );
   });
 
+  it('updates a stored draft before execution', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue({
+      id: 'resp-draft-update',
+      handler: 'ai',
+      type: 'draft',
+      message: '我理解了以下 1 项内容，请确认后我来执行：',
+      draftItems: [
+        { action: 'create_project', label: '创建项目：旧项目', actionParams: { title: '旧项目', description: '' } },
+      ],
+    } as any);
+
+    const app = createApp();
+
+    await request(app)
+      .post('/api/assistant')
+      .send({ message: '先起草一个项目' })
+      .expect(200);
+
+    const updateResponse = await request(app)
+      .post('/api/assistant/draft/update')
+      .send({
+        responseId: 'resp-draft-update',
+        items: [
+          {
+            action: 'create_project',
+            label: '创建项目：新项目',
+            actionParams: { title: '新项目', description: '修改后的说明' },
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(updateResponse.body).toMatchObject({
+      success: true,
+      draft: {
+        id: 'resp-draft-update',
+        items: [
+          {
+            action: 'create_project',
+            label: '创建项目：新项目',
+            actionParams: { title: '新项目', description: '修改后的说明' },
+          },
+        ],
+      },
+    });
+
+    await request(app)
+      .post('/api/assistant/draft/confirm')
+      .send({ responseId: 'resp-draft-update' })
+      .expect(200);
+
+    expect(storageAdapter.createProject).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '新项目', description: '修改后的说明' }),
+    );
+  });
+
   it('executes all draft items after /draft/confirm', async () => {
     vi.mocked(hybridAssistant.processMessage).mockResolvedValue({
       id: 'resp-draft-2',
