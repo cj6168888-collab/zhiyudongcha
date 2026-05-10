@@ -104,6 +104,14 @@ interface FailedSend {
 
 type ActiveAction = "approve" | "deny" | "confirmDraft" | "denyDraft" | "saveDraft" | null;
 
+interface PendingQueueItem {
+  id: string;
+  kind: "pending" | "draft";
+  label: string;
+  meta: string;
+  itemCount?: number;
+}
+
 const ACTION_META: Record<string, { label: string; icon: typeof FolderKanban }> = {
   create_project: { label: "项目", icon: FolderKanban },
   create_task: { label: "任务", icon: Check },
@@ -196,6 +204,12 @@ function draftItemLabel(item: DraftItem) {
   return describePendingAction(item.action, item.actionParams);
 }
 
+function draftQueueLabel(items?: DraftItem[]) {
+  const firstItem = items?.[0];
+  if (!firstItem) return "待确认草案";
+  return firstItem.label || describePendingAction(firstItem.action, firstItem.actionParams);
+}
+
 export default function ConversationHome() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -245,6 +259,8 @@ export default function ConversationHome() {
   const [activeAction, setActiveAction] = useState<ActiveAction>(null);
   const [draftEditing, setDraftEditing] = useState(false);
   const [draftEdits, setDraftEdits] = useState<DraftItem[]>([]);
+  const [selectedPendingId, setSelectedPendingId] = useState<string | null>(null);
+  const [consumedPendingIds, setConsumedPendingIds] = useState<string[]>([]);
   const streamEndRef = useRef<HTMLDivElement>(null);
   const lastVoiceTranscriptRef = useRef("");
 
@@ -270,8 +286,33 @@ export default function ConversationHome() {
         ? "本机在线"
         : "未绑定";
   const deviceHealthy = onlineBoundDevices.length > 0 || hasNativeDeviceSignal;
+  const rawPendingQueue = useMemo<PendingQueueItem[]>(() => {
+    const pending = (assistantPending?.pending ?? []).map((item) => ({
+      id: item.id,
+      kind: "pending" as const,
+      label: describePendingAction(item.action, item.actionParams),
+      meta: actionLabel(item.action),
+    }));
+    const drafts = (assistantPending?.draft ?? [])
+      .filter((item) => item.items?.length)
+      .map((item) => {
+        const items = item.items?.map(normalizeDraftItem) ?? [];
+        return {
+          id: item.id,
+          kind: "draft" as const,
+          label: draftQueueLabel(items),
+          meta: `草案 · ${items.length} 项`,
+          itemCount: items.length,
+        };
+      });
+    return [...pending, ...drafts];
+  }, [assistantPending]);
+  const pendingQueue = useMemo(
+    () => rawPendingQueue.filter((item) => !consumedPendingIds.includes(item.id)),
+    [rawPendingQueue, consumedPendingIds],
+  );
   const localPendingCount = (pendingConfirmation ? 1 : 0) + (pendingDraft ? 1 : 0);
-  const pendingCount = Math.max(assistantPending?.count ?? 0, localPendingCount);
+  const pendingCount = Math.max(pendingQueue.length, localPendingCount);
   const isBusy = isProcessing || activeAction !== null;
   const brainLabel = modelStatus?.cloud?.ready
     ? `云端就绪 · ${modelStatus.cloud.availableProviders.length} 源`
@@ -301,12 +342,76 @@ export default function ConversationHome() {
     setVoiceNotice("语音已写入输入框");
   }, [voiceTranscript]);
 
-  useEffect(() => {
-    if (pendingConfirmation || pendingDraft) return;
+  const selectPendingQueueItem = (responseId: string) => {
+    if (isBusy) return;
 
-    const firstPending = assistantPending?.pending?.[0];
+    const pendingItem = assistantPending?.pending?.find((item) => item.id === responseId);
+    if (pendingItem) {
+      const message = describePendingAction(pendingItem.action, pendingItem.actionParams);
+      setSelectedPendingId(responseId);
+      setPendingConfirmation({
+        responseId: pendingItem.id,
+        message,
+        reason: message,
+        action: pendingItem.action ?? undefined,
+      });
+      setPendingDraft(null);
+      setDraftEditing(false);
+      setDraftEdits([]);
+      setActionError(null);
+      return;
+    }
+
+    const draftItem = assistantPending?.draft?.find((item) => item.id === responseId && item.items?.length);
+    if (draftItem?.items?.length) {
+      const items = draftItem.items.map(normalizeDraftItem);
+      setSelectedPendingId(responseId);
+      setPendingDraft({
+        responseId: draftItem.id,
+        message: `我恢复了一份待确认草案，共 ${draftItem.items.length} 项。`,
+        items,
+      });
+      setPendingConfirmation(null);
+      setDraftEditing(false);
+      setDraftEdits(cloneDraftItems(items));
+      setActionError(null);
+    }
+  };
+
+  const consumePendingItem = (responseId: string) => {
+    setConsumedPendingIds((current) => current.includes(responseId) ? current : [...current, responseId]);
+    setSelectedPendingId((current) => current === responseId ? null : current);
+  };
+
+  useEffect(() => {
+    setConsumedPendingIds((current) => {
+      const activeIds = new Set(rawPendingQueue.map((item) => item.id));
+      const next = current.filter((id) => activeIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [rawPendingQueue]);
+
+  useEffect(() => {
+    const activeResponseId = pendingConfirmation?.responseId ?? pendingDraft?.responseId ?? null;
+    if (activeResponseId && pendingQueue.some((item) => item.id === activeResponseId)) {
+      if (selectedPendingId !== activeResponseId) setSelectedPendingId(activeResponseId);
+      return;
+    }
+
+    if (activeResponseId && !rawPendingQueue.some((item) => item.id === activeResponseId)) {
+      return;
+    }
+
+    const firstQueueItem = pendingQueue[0];
+    if (!firstQueueItem) {
+      setSelectedPendingId(null);
+      return;
+    }
+
+    const firstPending = assistantPending?.pending?.find((item) => item.id === firstQueueItem.id);
     if (firstPending) {
       const message = describePendingAction(firstPending.action, firstPending.actionParams);
+      setSelectedPendingId(firstPending.id);
       setPendingConfirmation({
         responseId: firstPending.id,
         message,
@@ -319,9 +424,10 @@ export default function ConversationHome() {
       return;
     }
 
-    const firstDraft = assistantPending?.draft?.find((item) => item.items?.length);
+    const firstDraft = assistantPending?.draft?.find((item) => item.id === firstQueueItem.id && item.items?.length);
     if (firstDraft?.items?.length) {
       const items = firstDraft.items.map(normalizeDraftItem);
+      setSelectedPendingId(firstDraft.id);
       setPendingDraft({
         responseId: firstDraft.id,
         message: `我恢复了一份待确认草案，共 ${firstDraft.items.length} 项。`,
@@ -331,7 +437,7 @@ export default function ConversationHome() {
       setDraftEdits(cloneDraftItems(items));
       setActionError(null);
     }
-  }, [assistantPending, pendingConfirmation, pendingDraft]);
+  }, [assistantPending, pendingConfirmation, pendingDraft, pendingQueue, rawPendingQueue, selectedPendingId]);
 
   const appendAssistantResponse = (response: AssistantResponse, executionSummary?: string | null) => {
     const content = executionSummary ? `${response.message}\n\n${executionSummary}` : response.message;
@@ -340,6 +446,8 @@ export default function ConversationHome() {
     setActionError(null);
 
     if (response.type === "confirm") {
+      setSelectedPendingId(response.id);
+      setConsumedPendingIds((current) => current.filter((id) => id !== response.id));
       setPendingConfirmation({
         responseId: response.id,
         message: response.message,
@@ -355,6 +463,8 @@ export default function ConversationHome() {
 
     if (response.type === "draft" && response.draftItems?.length) {
       const items = response.draftItems.map(normalizeDraftItem);
+      setSelectedPendingId(response.id);
+      setConsumedPendingIds((current) => current.filter((id) => id !== response.id));
       setPendingDraft({
         responseId: response.id,
         message: response.message,
@@ -369,6 +479,7 @@ export default function ConversationHome() {
 
     setPendingConfirmation(null);
     setPendingDraft(null);
+    setSelectedPendingId(null);
     setDraftEditing(false);
     setDraftEdits([]);
   };
@@ -383,6 +494,7 @@ export default function ConversationHome() {
     setInputText("");
     setPendingConfirmation(null);
     setPendingDraft(null);
+    setSelectedPendingId(null);
     setDraftEditing(false);
     setDraftEdits([]);
     setFailedSend(null);
@@ -430,6 +542,7 @@ export default function ConversationHome() {
         content: summary ? `${result.message}\n\n${summary}` : result.message,
         timestamp: Date.now(),
       });
+      consumePendingItem(pendingConfirmation.responseId);
       setPendingConfirmation(null);
       void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
       void queryClient.invalidateQueries({ queryKey: ["/api/hp/balance"] });
@@ -448,6 +561,7 @@ export default function ConversationHome() {
       setActionError(null);
       await denyAssistantAction(pendingConfirmation.responseId);
       addMessage({ role: "assistant", content: "好的，已取消这次执行。", timestamp: Date.now() });
+      consumePendingItem(pendingConfirmation.responseId);
       setPendingConfirmation(null);
       void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
     } catch (error) {
@@ -471,6 +585,7 @@ export default function ConversationHome() {
         content: failed > 0 ? `已完成 ${succeeded} 项，${failed} 项失败。` : `已完成全部 ${succeeded} 项。`,
         timestamp: Date.now(),
       });
+      consumePendingItem(pendingDraft.responseId);
       setPendingDraft(null);
       setDraftEditing(false);
       setDraftEdits([]);
@@ -491,6 +606,7 @@ export default function ConversationHome() {
       setActionError(null);
       await discardAssistantPending(pendingDraft.responseId);
       addMessage({ role: "assistant", content: "好的，已取消这份草案。", timestamp: Date.now() });
+      consumePendingItem(pendingDraft.responseId);
       setPendingDraft(null);
       setDraftEditing(false);
       setDraftEdits([]);
@@ -658,6 +774,39 @@ export default function ConversationHome() {
             </div>
           )}
 
+          {pendingQueue.length > 1 && (
+            <div className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-black text-slate-300">待确认队列</p>
+                <p className="text-[10px] text-slate-500">{pendingQueue.length} 项</p>
+              </div>
+              <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1">
+                {pendingQueue.map((item, index) => {
+                  const active = item.id === selectedPendingId || item.id === pendingConfirmation?.responseId || item.id === pendingDraft?.responseId;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => selectPendingQueueItem(item.id)}
+                      disabled={isBusy}
+                      className={cn(
+                        "w-36 shrink-0 rounded-lg border px-2.5 py-2 text-left active:bg-white/10 disabled:opacity-60",
+                        active
+                          ? "border-violet-300/40 bg-violet-300/15"
+                          : "border-white/10 bg-black/20"
+                      )}
+                    >
+                      <p className="text-[10px] font-bold text-slate-500">
+                        {index + 1} · {item.kind === "draft" ? "草案" : "确认"}
+                      </p>
+                      <p className="mt-1 truncate text-xs font-black text-white">{item.label}</p>
+                      <p className="mt-0.5 truncate text-[10px] text-slate-500">{item.meta}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {pendingConfirmation && (
             <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-3">
               <div className="flex items-start gap-2">
@@ -672,9 +821,9 @@ export default function ConversationHome() {
                       动作：{pendingConfirmation.action}
                     </p>
                   )}
-                  {assistantPending?.count && assistantPending.count > 1 && (
+                  {pendingQueue.length > 1 && (
                     <p className="mt-1 text-[10px] text-amber-100/55">
-                      队列中还有 {assistantPending.count - 1} 项待处理。
+                      队列中还有 {pendingQueue.length - 1} 项待处理。
                     </p>
                   )}
                   {actionError && (
@@ -704,9 +853,9 @@ export default function ConversationHome() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-black text-blue-100">草案待确认</p>
                   <p className="mt-1 text-xs text-blue-50/75">我整理了 {pendingDraft.items.length} 项，确认后一并写入或执行。</p>
-                  {assistantPending?.count && assistantPending.count > 1 && (
+                  {pendingQueue.length > 1 && (
                     <p className="mt-1 text-[10px] text-blue-100/55">
-                      队列中还有 {assistantPending.count - 1} 项待处理。
+                      队列中还有 {pendingQueue.length - 1} 项待处理。
                     </p>
                   )}
                   <div className="mt-3 space-y-2">
