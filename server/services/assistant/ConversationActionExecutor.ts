@@ -28,12 +28,14 @@ interface PendingEntry {
   actionParams: Record<string, unknown>;
   userId: string;
   expiresAt: number;
+  createdAt: number;
 }
 
 interface DraftEntry {
-  items: Array<{ action: string; actionParams: Record<string, unknown> }>;
+  items: Array<{ action: string; label?: string; actionParams: Record<string, unknown> }>;
   userId: string;
   expiresAt: number;
+  createdAt: number;
 }
 
 export interface ExecutionResult {
@@ -43,6 +45,16 @@ export interface ExecutionResult {
   entityId?: string;
   entityData?: Record<string, unknown>;
   errorMessage?: string;
+}
+
+export interface PendingActionSnapshot {
+  id: string;
+  entryType: 'pending' | 'draft';
+  action: string | null;
+  actionParams?: Record<string, unknown>;
+  items?: Array<{ action: string; label?: string; actionParams: Record<string, unknown> }>;
+  expiresAt: Date;
+  createdAt: Date;
 }
 
 export class ConversationActionExecutor {
@@ -70,13 +82,15 @@ export class ConversationActionExecutor {
             actionParams: (row.actionParams as Record<string, unknown>) ?? {},
             userId: row.userId,
             expiresAt,
+            createdAt: row.createdAt instanceof Date ? row.createdAt.getTime() : new Date(String(row.createdAt)).getTime(),
           });
           loaded++;
         } else if (row.entryType === 'draft' && row.items) {
           this.drafts.set(row.id, {
-            items: row.items as Array<{ action: string; actionParams: Record<string, unknown> }>,
+            items: row.items as Array<{ action: string; label?: string; actionParams: Record<string, unknown> }>,
             userId: row.userId,
             expiresAt,
+            createdAt: row.createdAt instanceof Date ? row.createdAt.getTime() : new Date(String(row.createdAt)).getTime(),
           });
           loaded++;
         }
@@ -99,6 +113,7 @@ export class ConversationActionExecutor {
       actionParams: response.actionParams ?? {},
       userId,
       expiresAt,
+      createdAt: Date.now(),
     });
     logger.debug({ responseId, action: response.action }, 'Pending action stored');
 
@@ -128,8 +143,9 @@ export class ConversationActionExecutor {
    */
   async storeDraft(responseId: string, items: DraftItem[], userId: string): Promise<void> {
     const expiresAt = Date.now() + PENDING_TTL_MS;
-    const itemData = items.map(i => ({ action: i.action, actionParams: i.actionParams }));
-    this.drafts.set(responseId, { items: itemData, userId, expiresAt });
+    const createdAt = Date.now();
+    const itemData = items.map(i => ({ action: i.action, label: i.label, actionParams: i.actionParams }));
+    this.drafts.set(responseId, { items: itemData, userId, expiresAt, createdAt });
     logger.debug({ responseId, count: items.length }, 'Draft stored');
 
     const db = getDatabase();
@@ -209,6 +225,47 @@ export class ConversationActionExecutor {
     } catch (err) {
       logger.warn({ err }, 'Failed to GC expired pending actions');
     }
+  }
+
+  listActive(userId: string): PendingActionSnapshot[] {
+    const now = Date.now();
+    const rows: PendingActionSnapshot[] = [];
+
+    for (const [id, entry] of this.pending.entries()) {
+      if (entry.expiresAt <= now) {
+        this.pending.delete(id);
+        void this.dbDelete(id);
+        continue;
+      }
+      if (entry.userId !== userId) continue;
+      rows.push({
+        id,
+        entryType: 'pending',
+        action: entry.action,
+        actionParams: entry.actionParams,
+        expiresAt: new Date(entry.expiresAt),
+        createdAt: new Date(entry.createdAt),
+      });
+    }
+
+    for (const [id, entry] of this.drafts.entries()) {
+      if (entry.expiresAt <= now) {
+        this.drafts.delete(id);
+        void this.dbDelete(id);
+        continue;
+      }
+      if (entry.userId !== userId) continue;
+      rows.push({
+        id,
+        entryType: 'draft',
+        action: null,
+        items: entry.items,
+        expiresAt: new Date(entry.expiresAt),
+        createdAt: new Date(entry.createdAt),
+      });
+    }
+
+    return rows;
   }
 
   private async dbDelete(id: string): Promise<void> {

@@ -3,6 +3,8 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AssistantResponse } from '../../../services/assistant/HybridAssistant';
 
+const mockGetDatabase = vi.hoisted(() => vi.fn());
+
 vi.mock('../../../services/task-orchestrator', () => ({
   taskOrchestrator: {
     createTask: vi.fn(),
@@ -55,6 +57,10 @@ vi.mock('../../../services/assistant/ConversationExecutionEventRecorder', () => 
   },
 }));
 
+vi.mock('../../../db', () => ({
+  getDatabase: mockGetDatabase,
+}));
+
 import hybridAssistantRouter from '../../../routes/hybrid-assistant';
 import { hybridAssistant } from '../../../services/assistant/HybridAssistant';
 import { conversationExecutionEventRecorder } from '../../../services/assistant/ConversationExecutionEventRecorder';
@@ -81,6 +87,7 @@ function makeAssistantResponse(overrides: Partial<AssistantResponse>): Assistant
 describe('Hybrid Assistant first product loop', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetDatabase.mockReturnValue(undefined);
     vi.mocked(storageAdapter.createProject).mockResolvedValue({
       id: 'project-1',
       title: '增长计划',
@@ -150,6 +157,40 @@ describe('Hybrid Assistant first product loop', () => {
         execution: expect.objectContaining({ action: 'create_project', success: true }),
       }),
     );
+  });
+
+  it('returns a safe pending summary for the current user', async () => {
+    const response = await request(createApp())
+      .get('/api/assistant/pending')
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      success: true,
+      count: 0,
+      pending: [],
+      draft: [],
+    });
+  });
+
+  it('keeps pending summary safe when the pending table is unavailable', async () => {
+    mockGetDatabase.mockReturnValue({
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn().mockRejectedValue(new Error('relation "pending_actions" does not exist')),
+        })),
+      })),
+    });
+
+    const response = await request(createApp())
+      .get('/api/assistant/pending')
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      success: true,
+      count: 0,
+      pending: [],
+      draft: [],
+    });
   });
 
   it('executes create_task returned by AI', async () => {
@@ -245,6 +286,25 @@ describe('Hybrid Assistant first product loop', () => {
       },
     });
     expect(storageAdapter.createProject).not.toHaveBeenCalled();
+
+    const pendingSummary = await request(createApp())
+      .get('/api/assistant/pending')
+      .expect(200);
+
+    expect(pendingSummary.body).toMatchObject({
+      success: true,
+      count: 1,
+      pending: [
+        {
+          id: 'resp-confirm-project',
+          entryType: 'pending',
+          action: 'create_project',
+          actionParams: {
+            title: '待确认项目',
+          },
+        },
+      ],
+    });
 
     const approvedResponse = await request(createApp())
       .post('/api/assistant/authorize')
@@ -432,6 +492,26 @@ describe('Hybrid Assistant first product loop', () => {
       response: { id: 'resp-draft', type: 'draft' },
     });
     expect(response.body.execution).toBeUndefined();
+
+    const pendingSummary = await request(createApp())
+      .get('/api/assistant/pending')
+      .expect(200);
+
+    expect(pendingSummary.body.draft).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'resp-draft',
+          entryType: 'draft',
+          items: expect.arrayContaining([
+            expect.objectContaining({
+              action: 'create_project',
+              label: '创建项目：增长平台',
+              actionParams: expect.objectContaining({ title: '增长平台' }),
+            }),
+          ]),
+        }),
+      ]),
+    );
   });
 
   it('executes all draft items after /draft/confirm', async () => {

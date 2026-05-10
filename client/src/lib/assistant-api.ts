@@ -55,6 +55,27 @@ export interface DraftConfirmResult {
   executions: AssistantExecution[];
 }
 
+export interface AssistantPendingSummary {
+  success: boolean;
+  count: number;
+  pending: Array<{
+    id: string;
+    entryType: "pending";
+    action: string | null;
+    actionParams?: Record<string, unknown>;
+    expiresAt: string;
+    createdAt: string;
+  }>;
+  draft: Array<{
+    id: string;
+    entryType: "draft";
+    action: string | null;
+    items?: DraftItem[];
+    expiresAt: string;
+    createdAt: string;
+  }>;
+}
+
 export async function sendAssistantMessage(message: string): Promise<AssistantChatResult> {
   const res = await apiRequest("POST", "/api/assistant", {
     message,
@@ -82,6 +103,11 @@ export async function denyAssistantAction(responseId: string): Promise<Assistant
 
 export async function confirmAssistantDraft(responseId: string): Promise<DraftConfirmResult> {
   const res = await apiRequest("POST", "/api/assistant/draft/confirm", { responseId });
+  return await res.json();
+}
+
+export async function getAssistantPendingSummary(): Promise<AssistantPendingSummary> {
+  const res = await apiRequest("GET", "/api/assistant/pending");
   return await res.json();
 }
 

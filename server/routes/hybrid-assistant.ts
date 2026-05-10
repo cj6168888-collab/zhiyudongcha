@@ -14,11 +14,105 @@ import { conversationService } from '../services/conversation/ConversationServic
 import { conversationProcessor } from '../services/conversation/ConversationProcessor';
 import { createServiceLogger } from '../lib/logger';
 import { attachRole } from '../middleware/auth';
+import { getDatabase } from '../db';
+import { pendingActions } from '@shared/schema';
+import { and, eq, gt } from 'drizzle-orm';
 
 const router = Router();
 const logger = createServiceLogger('HybridAssistantRoutes');
 
 router.use(attachRole);
+
+/**
+ * GET /api/assistant/pending
+ *
+ * 查询当前用户仍在有效期内的待确认动作和草案摘要。
+ * 只读状态接口，不执行任何动作。
+ */
+router.get('/pending', async (req: Request, res: Response) => {
+  const emptySummary = { success: true, count: 0, pending: [], draft: [] };
+  const userId = (req as unknown as { user?: { id?: string } }).user?.id || 'default';
+
+  try {
+    const db = getDatabase();
+    const rowsById = new Map<string, {
+      id: string;
+      entryType: string;
+      action: string | null;
+      actionParams?: unknown;
+      items?: unknown;
+      expiresAt: Date;
+      createdAt: Date;
+    }>();
+
+    const addRows = (rows: Array<{
+      id: string;
+      entryType: string;
+      action: string | null;
+      actionParams?: unknown;
+      items?: unknown;
+      expiresAt: Date;
+      createdAt: Date;
+    }>) => {
+      for (const row of rows) {
+        rowsById.set(row.id, row);
+      }
+    };
+
+    addRows(conversationActionExecutor.listActive(userId));
+
+    if (!db) {
+      const rows = Array.from(rowsById.values());
+      const pending = rows.filter((row) => row.entryType === 'pending');
+      const draft = rows.filter((row) => row.entryType === 'draft');
+      res.json({ success: true, count: rows.length, pending, draft });
+      return;
+    }
+
+    const result = await db
+      .select({
+        id: pendingActions.id,
+        entryType: pendingActions.entryType,
+        action: pendingActions.action,
+        actionParams: pendingActions.actionParams,
+        items: pendingActions.items,
+        expiresAt: pendingActions.expiresAt,
+        createdAt: pendingActions.createdAt,
+      })
+      .from(pendingActions)
+      .where(and(
+        eq(pendingActions.userId, userId),
+        gt(pendingActions.expiresAt, new Date()),
+      ));
+    addRows(Array.isArray(result) ? result : []);
+    const rows = Array.from(rowsById.values()).sort((a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+
+    const pending = rows.filter((row) => row.entryType === 'pending');
+    const draft = rows.filter((row) => row.entryType === 'draft');
+
+    res.json({
+      success: true,
+      count: rows.length,
+      pending,
+      draft,
+    });
+  } catch (error) {
+    logger.warn({ err: error }, 'Assistant pending summary unavailable; returning empty summary');
+    const rows = conversationActionExecutor.listActive(userId);
+    if (rows.length === 0) {
+      res.json(emptySummary);
+      return;
+    }
+    res.json({
+      success: true,
+      count: rows.length,
+      pending: rows.filter((row) => row.entryType === 'pending'),
+      draft: rows.filter((row) => row.entryType === 'draft'),
+    });
+  }
+});
 
 /**
  * POST /api/assistant

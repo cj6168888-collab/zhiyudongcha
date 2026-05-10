@@ -30,12 +30,18 @@ interface EvolutionUpdateMsg {
 
 type SyncMsg = HpUpdatedMsg | EvolutionUpdateMsg | { type: string };
 
-export function useHpEvolutionSync() {
+export function useHpEvolutionSync(enabled = true) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    if (!enabled) {
+      wsRef.current?.close();
+      wsRef.current = null;
+      return;
+    }
+
     const connect = async () => {
       const wsUrl = await getAuthenticatedWsUrlAsync('/ws/z3');
       const ws = new WebSocket(wsUrl);
@@ -88,5 +94,5 @@ export function useHpEvolutionSync() {
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       wsRef.current?.close();
     };
-  }, [queryClient]);
+  }, [enabled, queryClient]);
 }
