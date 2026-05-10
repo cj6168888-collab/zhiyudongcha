@@ -215,6 +215,10 @@ export function CapabilityRail({ capabilities, onOpenAll, onNavigate }: Capabili
 interface CommandComposerProps {
   inputText: string;
   voiceActive: boolean;
+  voiceSupported: boolean;
+  voiceInterimText: string;
+  voiceNotice: string | null;
+  voiceAudioLevel: number;
   isProcessing: boolean;
   onInputChange: (value: string) => void;
   onToggleVoice: () => void;
@@ -225,22 +229,49 @@ interface CommandComposerProps {
 export function CommandComposer({
   inputText,
   voiceActive,
+  voiceSupported,
+  voiceInterimText,
+  voiceNotice,
+  voiceAudioLevel,
   isProcessing,
   onInputChange,
   onToggleVoice,
   onAttach,
   onSend,
 }: CommandComposerProps) {
+  const voiceLevelWidth = `${Math.max(8, Math.min(100, Math.round(voiceAudioLevel * 100)))}%`;
+
   return (
     <footer className="flex-shrink-0 border-t border-white/10 bg-[#050817]/95 px-3 pb-3 pt-2 backdrop-blur-xl">
+      {(voiceActive || voiceInterimText || voiceNotice) && (
+        <div className="mx-auto mb-2 max-w-lg rounded-lg border border-violet-300/20 bg-violet-300/10 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "h-2 w-2 shrink-0 rounded-full",
+                voiceActive ? "animate-pulse bg-red-300" : "bg-violet-300"
+              )}
+            />
+            <p className="min-w-0 flex-1 truncate text-xs font-bold text-violet-100">
+              {voiceInterimText || voiceNotice || "正在听..."}
+            </p>
+          </div>
+          {voiceActive && (
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-violet-300 transition-all" style={{ width: voiceLevelWidth }} />
+            </div>
+          )}
+        </div>
+      )}
       <div className="mx-auto flex max-w-lg items-end gap-2">
         <button
           onClick={onToggleVoice}
           className={cn(
             "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04]",
-            voiceActive && "border-violet-300/40 bg-violet-400/15 text-violet-100"
+            voiceActive && "border-red-300/50 bg-red-400/15 text-red-100",
+            !voiceSupported && "text-slate-600"
           )}
-          aria-label="语音输入"
+          aria-label={voiceActive ? "停止语音输入" : "语音输入"}
         >
           <Mic className="h-5 w-5" />
         </button>

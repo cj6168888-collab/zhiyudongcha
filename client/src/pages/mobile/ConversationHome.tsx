@@ -34,6 +34,7 @@ import { useAvatarStore } from "@/lib/avatar/avatar-store";
 import { useBirthStore } from "@/lib/birth-state-store";
 import { MAX_HP, useZ1Store } from "@/lib/z1/god-protocol";
 import { useGlobalStore } from "@/store/globalStore";
+import { useNativeVoice } from "@/hooks/use-native-voice";
 import {
   approveAssistantAction,
   confirmAssistantDraft,
@@ -200,6 +201,16 @@ export default function ConversationHome() {
   const queryClient = useQueryClient();
   const { avatarConfig } = useBirthStore();
   const { messages, isProcessing, addMessage } = useAvatarStore();
+  const {
+    isListening: voiceListening,
+    transcript: voiceTranscript,
+    partialTranscript: voicePartialTranscript,
+    isSupported: voiceSupported,
+    error: voiceError,
+    audioLevel: voiceAudioLevel,
+    startListening,
+    stopListening,
+  } = useNativeVoice();
   const { hpBalance, role, serverNode, aiServices } = useZ1Store();
   const currentProject = useGlobalStore((s) => s.currentProject);
   const deviceHealth = useGlobalStore((s) => s.deviceHealth);
@@ -226,7 +237,7 @@ export default function ConversationHome() {
   });
 
   const [inputText, setInputText] = useState("");
-  const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
   const [pendingDraft, setPendingDraft] = useState<PendingDraft | null>(null);
   const [failedSend, setFailedSend] = useState<FailedSend | null>(null);
@@ -235,6 +246,7 @@ export default function ConversationHome() {
   const [draftEditing, setDraftEditing] = useState(false);
   const [draftEdits, setDraftEdits] = useState<DraftItem[]>([]);
   const streamEndRef = useRef<HTMLDivElement>(null);
+  const lastVoiceTranscriptRef = useRef("");
 
   const activeService = useMemo(
     () => aiServices.find((service) => service.isActive && service.isConfigured) ?? null,
@@ -270,6 +282,24 @@ export default function ConversationHome() {
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, pendingConfirmation, pendingDraft, failedSend, actionError, isProcessing]);
+
+  useEffect(() => {
+    useAvatarStore.getState().setListening(voiceListening);
+  }, [voiceListening]);
+
+  useEffect(() => {
+    const transcript = voiceTranscript.trim();
+    if (!transcript || transcript === lastVoiceTranscriptRef.current) return;
+
+    lastVoiceTranscriptRef.current = transcript;
+    setInputText((current) => {
+      const trimmed = current.trim();
+      if (!trimmed) return transcript;
+      if (trimmed.includes(transcript)) return current;
+      return `${trimmed}\n${transcript}`;
+    });
+    setVoiceNotice("语音已写入输入框");
+  }, [voiceTranscript]);
 
   useEffect(() => {
     if (pendingConfirmation || pendingDraft) return;
@@ -520,6 +550,27 @@ export default function ConversationHome() {
     }
   };
 
+  const handleToggleVoice = async () => {
+    if (isBusy && !voiceListening) return;
+
+    if (!voiceSupported) {
+      setVoiceNotice("当前环境不支持语音输入");
+      return;
+    }
+
+    try {
+      setVoiceNotice(null);
+      if (voiceListening) {
+        await stopListening();
+      } else {
+        lastVoiceTranscriptRef.current = "";
+        await startListening();
+      }
+    } catch (error) {
+      setVoiceNotice(errorDetail(error, "语音输入启动失败"));
+    }
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[#030712] text-white">
       <div className="h-[env(safe-area-inset-top,20px)] flex-shrink-0 bg-[#030712]" />
@@ -751,10 +802,14 @@ export default function ConversationHome() {
 
       <CommandComposer
         inputText={inputText}
-        voiceActive={voiceActive}
+        voiceActive={voiceListening}
+        voiceSupported={voiceSupported}
+        voiceInterimText={voicePartialTranscript}
+        voiceNotice={voiceError || voiceNotice}
+        voiceAudioLevel={voiceAudioLevel}
         isProcessing={isBusy}
         onInputChange={setInputText}
-        onToggleVoice={() => setVoiceActive((value) => !value)}
+        onToggleVoice={() => void handleToggleVoice()}
         onAttach={() => setLocation("/scanner")}
         onSend={() => handleSend()}
       />
