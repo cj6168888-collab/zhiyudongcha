@@ -18,6 +18,7 @@ import DesktopLayout from "@/components/desktop/DesktopLayout";
 
 const Awakening = lazy(() => import("@/pages/mobile/Awakening"));
 const BusinessHub = lazy(() => import("@/pages/mobile/BusinessHub"));
+const ConversationHome = lazy(() => import("@/pages/mobile/ConversationHome"));
 const ExpertWorkstation = lazy(() => import("@/pages/mobile/ExpertWorkstation"));
 const ProjectManager = lazy(() => import("@/pages/mobile/ProjectManager"));
 const ProjectDetail = lazy(() => import("@/pages/mobile/ProjectDetail"));
@@ -36,7 +37,6 @@ const RemotePCConsole = lazy(() => import("@/pages/mobile/RemotePCConsole"));
 const SkillMarketplace = lazy(() => import("@/pages/mobile/SkillMarketplace"));
 const WorkflowEditor = lazy(() => import("@/pages/mobile/WorkflowEditor"));
 const TaskCenterMobile = lazy(() => import("@/pages/mobile/TaskCenter"));
-const ChatPage = lazy(() => import("@/pages/chat"));
 const ConversationInbox = lazy(() => import("@/pages/mobile/ConversationInbox"));
 const ConversationDetail = lazy(() => import("@/pages/mobile/ConversationDetail"));
 const DeviceBinding = lazy(() => import("@/pages/mobile/DeviceBinding"));
@@ -92,9 +92,10 @@ function DesktopRoutes() {
 }
 
 function AppContent() {
-  const [, setLocation] = useLocation();
-  useRealtimeSync();
-  useHpEvolutionSync();
+  const [location, setLocation] = useLocation();
+  const realtimeSyncEnabled = location.startsWith("/desktop");
+  useRealtimeSync(realtimeSyncEnabled);
+  useHpEvolutionSync(realtimeSyncEnabled);
 
   const setDeviceHealth = useGlobalStore((s) => s.setDeviceHealth);
   const { health } = useDiagnostics(true);
@@ -121,7 +122,7 @@ function AppContent() {
         <Suspense fallback={<PageSkeleton />}>
           <Switch>
             <Route path="/awakening" component={Awakening} />
-            <Route path="/" component={BusinessHub} />
+            <Route path="/" component={ConversationHome} />
             <Route path="/experts" component={ExpertCenter} />
             <Route path="/experts/:id" component={({ params }) => <ExpertWorkstation params={params} />} />
             <Route path="/projects" component={ProjectManager} />
@@ -138,7 +139,7 @@ function AppContent() {
             <Route path="/navigator-settings" component={NavigatorSettings} />
             <Route path="/remote-pc" component={RemotePCConsole} />
             <Route path="/tasks" component={TaskCenterMobile} />
-            <Route path="/chat" component={ChatPage} />
+            <Route path="/chat" component={ConversationHome} />
             <Route path="/inbox" component={ConversationInbox} />
             <Route path="/inbox/:id" component={({ params }) => <ConversationDetail params={params} />} />
             <Route path="/devices" component={DeviceBinding} />
@@ -147,6 +148,7 @@ function AppContent() {
             <Route path="/dream-review" component={DreamReview} />
             <Route path="/skills" component={SkillMarketplace} />
             <Route path="/workflow" component={WorkflowEditor} />
+            <Route path="/navigator-overview" component={BusinessHub} />
 
             {/* Desktop routes */}
             <Route path="/desktop/login" component={DesktopLogin} />

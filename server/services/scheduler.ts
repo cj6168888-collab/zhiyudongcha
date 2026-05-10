@@ -107,38 +107,61 @@ class SchedulerService {
   }
 
   private async syncJobsToDatabase(): Promise<void> {
+    const db = getDatabase();
+    if (!db) {
+      logger.warn('[Scheduler] DB unavailable, skip job persistence sync');
+      return;
+    }
+
     const defaultJobs = this.getDefaultJobs();
 
-    for (const job of defaultJobs) {
-      const existing = await db
-        .select()
-        .from(scheduledJobs)
-        .where(eq(scheduledJobs.jobType, job.jobType))
-        .limit(1);
+    try {
+      for (const job of defaultJobs) {
+        const existing = await db
+          .select()
+          .from(scheduledJobs)
+          .where(eq(scheduledJobs.jobType, job.jobType))
+          .limit(1);
 
-      if (existing.length === 0) {
-        await getDatabase().insert(scheduledJobs).values({
-          jobType: job.jobType,
-          jobName: job.jobName,
-          description: job.description,
-          cronExpression: job.cronExpression,
-          maxRetries: job.maxRetries || 3,
-          retryDelayMs: job.retryDelayMs || 60000,
-          enabled: true,
-          status: 'active',
-        });
-        logger.info(`[Scheduler] 注册任务: ${job.jobName}`);
+        if (existing.length === 0) {
+          await db.insert(scheduledJobs).values({
+            jobType: job.jobType,
+            jobName: job.jobName,
+            description: job.description,
+            cronExpression: job.cronExpression,
+            maxRetries: job.maxRetries || 3,
+            retryDelayMs: job.retryDelayMs || 60000,
+            enabled: true,
+            status: 'active',
+          });
+          logger.info(`[Scheduler] 注册任务: ${job.jobName}`);
+        }
       }
+    } catch (err) {
+      logger.warn({ err }, '[Scheduler] Job persistence sync failed, continuing with in-memory defaults');
     }
   }
 
   private async startAllJobs(): Promise<void> {
-    const jobs = await db
-      .select()
-      .from(scheduledJobs)
-      .where(eq(scheduledJobs.enabled, true));
-
+    const db = getDatabase();
     const defaultJobs = this.getDefaultJobs();
+    if (!db) {
+      defaultJobs.forEach((job) => this.scheduleJob(job));
+      return;
+    }
+
+    let jobs: typeof scheduledJobs.$inferSelect[];
+    try {
+      jobs = await db
+        .select()
+        .from(scheduledJobs)
+        .where(eq(scheduledJobs.enabled, true));
+    } catch (err) {
+      logger.warn({ err }, '[Scheduler] Failed to load jobs from DB, scheduling defaults');
+      defaultJobs.forEach((job) => this.scheduleJob(job));
+      return;
+    }
+
     const handlerMap = new Map(defaultJobs.map(j => [j.jobType, j.handler]));
 
     for (const job of jobs) {
@@ -161,6 +184,10 @@ class SchedulerService {
   }
 
   private scheduleJob(config: JobConfig): void {
+    if (this.runningJobs.has(config.jobType)) {
+      return;
+    }
+
     if (!cron.validate(config.cronExpression)) {
       logger.error(`[Scheduler] 无效的cron表达式: ${config.cronExpression}`);
       return;
@@ -181,6 +208,13 @@ class SchedulerService {
   }
 
   private async executeJob(config: JobConfig, attemptNumber: number = 1): Promise<void> {
+    const db = getDatabase();
+    if (!db) {
+      logger.info(`[Scheduler] DB unavailable, executing without persisted log: ${config.jobName}`);
+      await config.handler();
+      return;
+    }
+
     const startedAt = new Date();
     let logId: number | undefined;
 
@@ -275,13 +309,46 @@ class SchedulerService {
   }
 
   async getJobList(): Promise<typeof scheduledJobs.$inferSelect[]> {
-    return db
-      .select()
-      .from(scheduledJobs)
-      .orderBy(scheduledJobs.jobType);
+    const db = getDatabase();
+    if (!db) {
+      return this.getDefaultJobs().map((job) => ({
+        id: 0,
+        jobType: job.jobType,
+        jobName: job.jobName,
+        description: job.description,
+        cronExpression: job.cronExpression,
+        timezone: 'Asia/Shanghai',
+        maxRetries: job.maxRetries || 3,
+        retryDelayMs: job.retryDelayMs || 60000,
+        enabled: true,
+        status: 'active',
+        lastRunAt: null,
+        nextRunAt: null,
+        lastResult: null,
+        lastError: null,
+        totalRuns: 0,
+        successCount: 0,
+        failureCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })) as typeof scheduledJobs.$inferSelect[];
+    }
+
+    try {
+      return await db
+        .select()
+        .from(scheduledJobs)
+        .orderBy(scheduledJobs.jobType);
+    } catch (err) {
+      logger.warn({ err }, '[Scheduler] Failed to list jobs from DB');
+      return [];
+    }
   }
 
   async getJobHistory(jobType?: string, limit: number = 50): Promise<typeof jobExecutionLogs.$inferSelect[]> {
+    const db = getDatabase();
+    if (!db) return [];
+
     const query = db
       .select()
       .from(jobExecutionLogs)
@@ -315,10 +382,13 @@ class SchedulerService {
 
     runningJob.task.stop();
 
-    await db
-      .update(scheduledJobs)
-      .set({ status: 'paused', enabled: false, updatedAt: new Date() })
-      .where(eq(scheduledJobs.jobType, jobType));
+    const db = getDatabase();
+    if (db) {
+      await db
+        .update(scheduledJobs)
+        .set({ status: 'paused', enabled: false, updatedAt: new Date() })
+        .where(eq(scheduledJobs.jobType, jobType));
+    }
 
     return { success: true, message: `已暂停任务: ${runningJob.config.jobName}` };
   }
@@ -332,10 +402,13 @@ class SchedulerService {
 
     runningJob.task.start();
 
-    await db
-      .update(scheduledJobs)
-      .set({ status: 'active', enabled: true, updatedAt: new Date() })
-      .where(eq(scheduledJobs.jobType, jobType));
+    const db = getDatabase();
+    if (db) {
+      await db
+        .update(scheduledJobs)
+        .set({ status: 'active', enabled: true, updatedAt: new Date() })
+        .where(eq(scheduledJobs.jobType, jobType));
+    }
 
     return { success: true, message: `已恢复任务: ${runningJob.config.jobName}` };
   }
@@ -426,6 +499,12 @@ class SchedulerService {
 
     try {
       const { calendarEvents } = await import('@shared/schema');
+      const db = getDatabase();
+      if (!db) {
+        logger.info('[ReminderTrigger] DB unavailable, skip');
+        return result;
+      }
+
       const now = new Date();
       const fiveMinutesLater = new Date(now.getTime() + 5 * 60 * 1000);
 

@@ -17,6 +17,7 @@ import { registerAuthRoutes } from "./routes/auth";
 import { registerVaultRoutes } from "./routes/vault";
 import { registerProjectRoutes } from "./routes/projects";
 import { registerPersonsRoutes } from "./routes/persons";
+import { registerHPRoutes } from "./routes/hp";
 import { registerNavigatorRoutes } from "./routes/navigator-core";
 import { registerBattleReportRoutes } from "./routes/battle-report";
 import businessRouter from "./routes/business.routes";
@@ -79,6 +80,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   registerProjectRoutes(app, storageAdapter, context);
   registerVaultRoutes(app, storageAdapter, context.broadcastDataChange);
   registerPersonsRoutes(app, storageAdapter, context.broadcastDataChange);
+  registerHPRoutes(app, { httpServer, connectedUsers: context.connectedUsers, storage: storageAdapter } as any);
   registerNavigatorRoutes(app, storageAdapter, context);
   registerBattleReportRoutes(app, storageAdapter, context);
 

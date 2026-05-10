@@ -2,12 +2,18 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getAuthenticatedWsUrlAsync } from "@/lib/queryClient";
 
-export function useRealtimeSync() {
+export function useRealtimeSync(enabled = true) {
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!enabled) {
+      wsRef.current?.close();
+      wsRef.current = null;
+      return;
+    }
+
     const connect = async () => {
       const wsUrl = await getAuthenticatedWsUrlAsync('/ws/z3');
       
@@ -68,5 +74,5 @@ export function useRealtimeSync() {
       }
       wsRef.current?.close();
     };
-  }, [queryClient]);
+  }, [enabled, queryClient]);
 }

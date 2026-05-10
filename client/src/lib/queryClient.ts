@@ -126,15 +126,17 @@ export async function getWsToken(): Promise<string | null> {
   }
 
   try {
-    const res = await apiRequest('POST', '/api/auth/ws-token');
+    const res = await apiRequest('POST', '/api/auth/ws-token', {});
     const data = await res.json();
-    if (data.token) {
+    const token = data?.data?.token ?? data?.token;
+    const expiresIn = data?.data?.expiresIn ?? data?.expiresIn ?? 30;
+    if (token) {
       cachedWsToken = {
-        token: data.token,
-        expiresAt: Date.now() + (data.expiresIn * 1000),
+        token,
+        expiresAt: Date.now() + (expiresIn * 1000),
       };
       logger.debug('WebSocket token refreshed');
-      return data.token;
+      return token;
     }
   } catch (e) {
     logger.error('Failed to get WS token', e);

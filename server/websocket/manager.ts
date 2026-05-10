@@ -143,7 +143,9 @@ export class WebSocketManagerImpl implements WebSocketManager {
             this.asrWss!.emit('connection', ws, request);
           });
         } else {
-          socket.destroy();
+          // Other WebSocket servers are registered on the same HTTP server with
+          // their own path filters. Leave those upgrades alone.
+          return;
         }
       });
     });
