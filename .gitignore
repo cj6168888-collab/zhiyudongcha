@@ -3,10 +3,14 @@ dist
 .DS_Store
 server/public
 vite.config.ts.*
+.expo/cache/
 *.tar.gz
 android/.android/
 android/sdk/
 android/android-userhome/
+android-companion/.gradle/
+android-companion/build/
+android-companion/app/build/
 .env
 .env.production
 .env.local
