@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1773029171446,
+      "tag": "0000_blue_stature",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1745078400000,
+      "tag": "004_authz_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777437538217,
+      "tag": "0002_coze_user_settings_fields",
+      "breakpoints": true
+    }
+  ]
+}

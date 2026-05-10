@@ -1,0 +1,494 @@
+﻿import express from 'express';
+import request from 'supertest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AssistantResponse } from '../../../services/assistant/HybridAssistant';
+
+vi.mock('../../../services/task-orchestrator', () => ({
+  taskOrchestrator: {
+    createTask: vi.fn(),
+  },
+}));
+
+vi.mock('../../../storage/adapter', () => ({
+  storageAdapter: {
+    createProject: vi.fn(),
+    createVaultItem: vi.fn(),
+    searchVaultByIntent: vi.fn(),
+    createPerson: vi.fn(),
+  },
+}));
+
+vi.mock('../../../services/assistant/HybridAssistant', () => ({
+  hybridAssistant: {
+    processMessage: vi.fn(),
+  },
+  SCENARIO_CATEGORIES: {},
+}));
+
+vi.mock('../../../services/assistant/AuthorizationManager', () => ({
+  AuthorizationScope: {
+    PERMANENT: 'permanent',
+    BY_TYPE: 'by_type',
+  },
+  AuthorizationType: {
+    AUTO: 'auto',
+    CONFIRM: 'confirm',
+    AUTHORIZE: 'authorize',
+    DENY: 'deny',
+  },
+  authorizationManager: {
+    addPermanentAuthorization: vi.fn(),
+    generateAuthReport: vi.fn(() => ''),
+    getUserAuthorizations: vi.fn(() => []),
+    getUserConfig: vi.fn(() => ({
+      amountThresholds: { auto: 100, confirm: 1000 },
+      trustLevel: 0.5,
+    })),
+    revokeAuthorization: vi.fn(() => true),
+    setAmountThresholds: vi.fn(),
+  },
+}));
+
+vi.mock('../../../services/assistant/ConversationExecutionEventRecorder', () => ({
+  conversationExecutionEventRecorder: {
+    record: vi.fn(),
+  },
+}));
+
+import hybridAssistantRouter from '../../../routes/hybrid-assistant';
+import { hybridAssistant } from '../../../services/assistant/HybridAssistant';
+import { conversationExecutionEventRecorder } from '../../../services/assistant/ConversationExecutionEventRecorder';
+import { storageAdapter } from '../../../storage/adapter';
+import { taskOrchestrator } from '../../../services/task-orchestrator';
+
+function createApp() {
+  const app = express();
+  app.use(express.json());
+  app.use('/api/assistant', hybridAssistantRouter);
+  return app;
+}
+
+function makeAssistantResponse(overrides: Partial<AssistantResponse>): AssistantResponse {
+  return {
+    id: 'resp-test',
+    handler: 'ai',
+    type: 'execute',
+    message: '好的',
+    ...overrides,
+  };
+}
+
+describe('Hybrid Assistant first product loop', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(storageAdapter.createProject).mockResolvedValue({
+      id: 'project-1',
+      title: '增长计划',
+      status: 'PENDING_REVIEW',
+    } as any);
+    vi.mocked(taskOrchestrator.createTask).mockResolvedValue({
+      id: 'task-1',
+      name: '整理需求',
+      status: 'PENDING',
+    } as any);
+    vi.mocked(storageAdapter.createVaultItem).mockResolvedValue({
+      id: 'memory-1',
+      fileName: '客户偏好',
+      semanticTags: ['客户'],
+    } as any);
+    vi.mocked(storageAdapter.searchVaultByIntent).mockResolvedValue([
+      { id: 'vault-1', fileName: '客户合同2026.pdf', category: 'DOCUMENT', semanticTags: ['合同'], privacyZone: 'ZONE_GREEN', createdAt: new Date() },
+      { id: 'vault-2', fileName: '合同附件.jpg', category: 'MEDIA', semanticTags: ['合同', '照片'], privacyZone: 'ZONE_GREEN', createdAt: new Date() },
+    ] as any);
+    vi.mocked(storageAdapter.createPerson).mockResolvedValue({
+      id: 'person-1',
+      name: '张三',
+      role: '产品经理',
+      organization: null,
+      approvalStatus: 'PENDING',
+      accessLevel: 'ZONE_BLUE',
+    } as any);
+  });
+
+  it('executes create_project returned by AI and includes execution result', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-project',
+        type: 'execute',
+        action: 'create_project',
+        actionParams: {
+          title: '增长计划',
+          description: '把下月增长动作结构化',
+        },
+      }),
+    );
+
+    const response = await request(createApp())
+      .post('/api/assistant')
+      .send({ message: '帮我创建一个增长计划项目' })
+      .expect(200);
+
+    expect(storageAdapter.createProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: '增长计划',
+        description: '把下月增长动作结构化',
+      }),
+    );
+    expect(response.body).toMatchObject({
+      success: true,
+      execution: {
+        success: true,
+        action: 'create_project',
+        entityType: 'project',
+        entityId: 'project-1',
+      },
+    });
+    expect(conversationExecutionEventRecorder.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'default',
+        source: 'assistant_chat',
+        execution: expect.objectContaining({ action: 'create_project', success: true }),
+      }),
+    );
+  });
+
+  it('executes create_task returned by AI', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-task',
+        type: 'execute',
+        action: 'create_task',
+        actionParams: {
+          name: '整理需求',
+          description: '输出第一版需求清单',
+          triggerType: 'MANUAL',
+        },
+      }),
+    );
+
+    const response = await request(createApp())
+      .post('/api/assistant')
+      .send({ message: '帮我创建一个整理需求的任务' })
+      .expect(200);
+
+    expect(taskOrchestrator.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: '整理需求',
+        description: '输出第一版需求清单',
+        createdBy: 'default',
+      }),
+    );
+    expect(response.body.execution).toMatchObject({
+      success: true,
+      action: 'create_task',
+      entityType: 'task',
+      entityId: 'task-1',
+    });
+  });
+
+  it('executes save_memory returned by AI', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-memory',
+        type: 'execute',
+        action: 'save_memory',
+        actionParams: {
+          content: '客户偏好先看简洁版方案',
+          tags: ['客户'],
+        },
+      }),
+    );
+
+    const response = await request(createApp())
+      .post('/api/assistant')
+      .send({ message: '记住客户偏好先看简洁版方案' })
+      .expect(200);
+
+    expect(storageAdapter.createVaultItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'MEMORY',
+        semanticIndex: '客户偏好先看简洁版方案',
+        semanticTags: ['客户'],
+      }),
+    );
+    expect(response.body.execution).toMatchObject({
+      success: true,
+      action: 'save_memory',
+      entityType: 'memory',
+      entityId: 'memory-1',
+    });
+  });
+
+  it('stores confirm response and executes it after approve_once authorization', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-confirm-project',
+        type: 'confirm',
+        message: '需要您确认是否创建项目',
+        action: 'create_project',
+        actionParams: {
+          title: '待确认项目',
+        },
+      }),
+    );
+
+    const pendingResponse = await request(createApp())
+      .post('/api/assistant')
+      .send({ message: '帮我创建一个需要确认的项目' })
+      .expect(200);
+
+    expect(pendingResponse.body).toMatchObject({
+      success: true,
+      response: {
+        id: 'resp-confirm-project',
+        type: 'confirm',
+      },
+    });
+    expect(storageAdapter.createProject).not.toHaveBeenCalled();
+
+    const approvedResponse = await request(createApp())
+      .post('/api/assistant/authorize')
+      .send({ responseId: 'resp-confirm-project', action: 'approve_once' })
+      .expect(200);
+
+    expect(storageAdapter.createProject).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '待确认项目' }),
+    );
+    expect(approvedResponse.body).toMatchObject({
+      success: true,
+      execution: {
+        success: true,
+        action: 'create_project',
+        entityType: 'project',
+      },
+    });
+    expect(conversationExecutionEventRecorder.record).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        userId: 'default',
+        source: 'assistant_authorize',
+        execution: expect.objectContaining({ action: 'create_project', success: true }),
+      }),
+    );
+  });
+
+  // ── CRON 循环任务执行 ──────────────────────────────────────────────────────
+
+  it('creates CRON task with proper trigger config', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-cron',
+        type: 'execute',
+        action: 'create_task',
+        actionParams: {
+          name: '整理项目战报',
+          description: '每周一汇总',
+          triggerType: 'CRON',
+          cronExpression: '0 9 * * 1',
+          cronTimezone: 'Asia/Shanghai',
+        },
+      }),
+    );
+
+    const response = await request(createApp())
+      .post('/api/assistant')
+      .send({ message: '每周一提醒我整理项目战报' })
+      .expect(200);
+
+    expect(taskOrchestrator.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: '整理项目战报',
+        trigger: {
+          type: 'CRON',
+          config: { expression: '0 9 * * 1', timezone: 'Asia/Shanghai' },
+        },
+      }),
+    );
+    expect(response.body.execution).toMatchObject({
+      success: true,
+      action: 'create_task',
+      entityType: 'task',
+    });
+    expect(response.body.execution.entityData.triggerType).toBe('CRON');
+    expect(response.body.execution.entityData.cronExpression).toBe('0 9 * * 1');
+  });
+
+  // ── 保险库语义搜索 (阶段四) ────────────────────────────────────────────────
+
+  it('executes search_vault and returns matching results', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-search',
+        type: 'execute',
+        action: 'search_vault',
+        actionParams: { query: '合同照片' },
+      }),
+    );
+
+    const response = await request(createApp())
+      .post('/api/assistant')
+      .send({ message: '找上次那个合同照片' })
+      .expect(200);
+
+    expect(storageAdapter.searchVaultByIntent).toHaveBeenCalledWith('合同照片');
+    expect(response.body.execution).toMatchObject({
+      success: true,
+      action: 'search_vault',
+    });
+    expect(response.body.execution.entityData.query).toBe('合同照片');
+    expect(response.body.execution.entityData.results).toHaveLength(2);
+    expect(response.body.execution.entityData.results[0]).toMatchObject({
+      id: 'vault-1',
+      fileName: '客户合同2026.pdf',
+    });
+    expect(response.body.execution.entityData.totalFound).toBe(2);
+  });
+
+  it('returns empty results when no vault items match', async () => {
+    vi.mocked(storageAdapter.searchVaultByIntent).mockResolvedValue([]);
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-search-empty',
+        type: 'execute',
+        action: 'search_vault',
+        actionParams: { query: '不存在的文件' },
+      }),
+    );
+
+    const response = await request(createApp())
+      .post('/api/assistant')
+      .send({ message: '找一个不存在的合同' })
+      .expect(200);
+
+    expect(response.body.execution.entityData.totalFound).toBe(0);
+    expect(response.body.execution.entityData.results).toHaveLength(0);
+  });
+
+  // ── 联系人创建 (阶段二) ────────────────────────────────────────────────────
+
+  it('executes create_person and returns person entity', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-person',
+        type: 'execute',
+        action: 'create_person',
+        actionParams: {
+          name: '张三',
+          role: '产品经理',
+        },
+      }),
+    );
+
+    const response = await request(createApp())
+      .post('/api/assistant')
+      .send({ message: '添加联系人张三，职位是产品经理' })
+      .expect(200);
+
+    expect(storageAdapter.createPerson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: '张三',
+        role: '产品经理',
+        addedBy: 'default',
+        approvalStatus: 'PENDING',
+        accessLevel: 'ZONE_BLUE',
+      }),
+    );
+    expect(response.body.execution).toMatchObject({
+      success: true,
+      action: 'create_person',
+      entityType: 'memory',
+      entityId: 'person-1',
+    });
+    expect(response.body.execution.entityData).toMatchObject({
+      name: '张三',
+      role: '产品经理',
+      approvalStatus: 'PENDING',
+    });
+  });
+
+  // ── 结构化草案 (阶段一) ───────────────────────────────────────────────────
+
+  it('stores draft when AI returns type=draft and does not execute immediately', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue({
+      id: 'resp-draft',
+      handler: 'ai',
+      type: 'draft',
+      message: '我理解了以下 2 项内容，请确认后我来执行：',
+      draftItems: [
+        { action: 'create_project', label: '创建项目：增长平台', actionParams: { title: '增长平台', description: '' } },
+        { action: 'create_task', label: '创建任务：需求文档', actionParams: { name: '需求文档', description: '', triggerType: 'MANUAL' } },
+      ],
+    } as any);
+
+    const response = await request(createApp())
+      .post('/api/assistant')
+      .send({ message: '帮我创建项目增长平台，同时创建任务需求文档' })
+      .expect(200);
+
+    // 草案类型不立即执行
+    expect(storageAdapter.createProject).not.toHaveBeenCalled();
+    expect(taskOrchestrator.createTask).not.toHaveBeenCalled();
+    expect(response.body).toMatchObject({
+      success: true,
+      response: { id: 'resp-draft', type: 'draft' },
+    });
+    expect(response.body.execution).toBeUndefined();
+  });
+
+  it('executes all draft items after /draft/confirm', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue({
+      id: 'resp-draft-2',
+      handler: 'ai',
+      type: 'draft',
+      message: '我理解了以下 2 项内容，请确认后我来执行：',
+      draftItems: [
+        { action: 'create_project', label: '创建项目：增长平台', actionParams: { title: '增长平台', description: '把增长动作结构化' } },
+        { action: 'create_task', label: '创建任务：整理需求', actionParams: { name: '整理需求', description: '输出第一版', triggerType: 'MANUAL' } },
+      ],
+    } as any);
+
+    const app = createApp();
+
+    // 第一步：发消息，触发草案暂存
+    await request(app)
+      .post('/api/assistant')
+      .send({ message: '帮我创建项目增长平台，同时创建任务整理需求' })
+      .expect(200);
+
+    // 第二步：确认草案，执行所有条目
+    const confirmResponse = await request(app)
+      .post('/api/assistant/draft/confirm')
+      .send({ responseId: 'resp-draft-2' })
+      .expect(200);
+
+    expect(storageAdapter.createProject).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '增长平台' }),
+    );
+    expect(taskOrchestrator.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ name: '整理需求' }),
+    );
+    expect(confirmResponse.body).toMatchObject({ success: true });
+    expect(confirmResponse.body.executions).toHaveLength(2);
+    expect(confirmResponse.body.executions[0]).toMatchObject({
+      success: true,
+      action: 'create_project',
+    });
+    expect(confirmResponse.body.executions[1]).toMatchObject({
+      success: true,
+      action: 'create_task',
+    });
+  });
+
+  it('returns 404 for /draft/confirm with unknown responseId', async () => {
+    await request(createApp())
+      .post('/api/assistant/draft/confirm')
+      .send({ responseId: 'non-existent-draft' })
+      .expect(404);
+  });
+
+  it('returns 400 for /draft/confirm without responseId', async () => {
+    await request(createApp())
+      .post('/api/assistant/draft/confirm')
+      .send({})
+      .expect(400);
+  });
+});

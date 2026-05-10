@@ -1,0 +1,63 @@
+# Z1 协议 - 小智 Docker Compose (开发环境)
+# 铁律3: 使用国内镜像源
+# 铁律5: 依赖显式化
+
+version: '3.8'
+
+services:
+  # 开发环境主应用
+  xiaozhi-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    ports:
+      - "5000:5000"
+    volumes:
+      - ..:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${DATABASE_URL}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DOUBAO_API_KEY=${DOUBAO_API_KEY}
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - postgres
+      - ollama
+    networks:
+      - xiaozhi-dev-network
+
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=xiaozhi
+      - POSTGRES_PASSWORD=dev_password
+      - POSTGRES_DB=xiaozhi_dev
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - xiaozhi-dev-network
+
+  # Ollama 本地 LLM 服务
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_dev_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - xiaozhi-dev-network
+
+volumes:
+  postgres_dev_data:
+  ollama_dev_data:
+
+networks:
+  xiaozhi-dev-network:
+    driver: bridge

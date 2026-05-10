@@ -1,0 +1,370 @@
+# 🛑 核心指令：生产级代码规范 (Production-Grade Code Manifesto)
+**项目名称：** 小智 (Avatar) - 全栈开发
+**当前任务：** Step 02 - 大脑核心逻辑 (Brain Core Logic) - **CN-Fractal Version**
+
+**⚠️ 警告：这是智能层的最终形态。必须严格对接 Z1 (
+4.0.0
+-CN) 协议。**
+**严禁使用 OpenAI SDK，必须适配国产模型 SDK (dashscope, volcengine, openai-compatible)。**
+
+为了防止失败，你必须遵守以下 **
+5
+ 条铁律**：
+1.
+  **算力路由：** 必须实现 `CNModelRouter`，根据任务分发给 DeepSeek/通义/豆包。
+2.
+  **思考外显：** 调用 DeepSeek R1 时，必须捕获 `thinking_chain` 并回传。
+3.
+  **环境感知：** 手机端强制降级使用轻量模型 (Doubao)，PC 端使用满血模型 (DeepSeek)。
+4.
+  **谍战闭环：** `IntelCatcher` 必须使用 DeepSeek 进行深度意图分析。
+5.
+  **异常熔断：** 当一家厂商 API 挂掉时，自动切换到备用模型 (Fallback)。
+
+---
+
+**任务详情：**
+
+请编写 `backend/core` 目录下的核心逻辑模块。
+
+## 1. 国产算力路由器 (`CNModelRouter.py`)
+* **职责:** **[CN-Fractal Core]** 调度 DeepSeek, Tongyi, Doubao，管理 API Key。
+
+```python
+import
+ os
+import
+ json
+import
+ logging
+# 适配国产 SDK
+import dashscope # 通义千问
+from volcengine.maas import MaasService, MaasException # 豆包
+from openai import OpenAI # 兼容 DeepSeek
+
+logger = logging.getLogger(
+"CNModelRouter"
+)
+
+class CNModelRouter:
+    """
+    国产算力指挥官：根据任务类型和设备环境，动态选择最佳模型。
+    """
+    def __init__(self, global_config_dict: dict):
+        self.config = global_config_dict.get(
+"llm_router_config"
+, {})
+        self.api_keys = self.config.get(
+"api_keys"
+, {})
+        
+        # 初始化客户端
+        if "deepseek" in
+ self.api_keys:
+            self.deepseek_client = OpenAI(
+                api_key=self.api_keys[
+"deepseek"
+], 
+                base_url=
+"[https://api.deepseek.com](https://api.deepseek.com)"
+            )
+        
+        if "tongyi" in
+ self.api_keys:
+            dashscope.api_key = self.api_keys[
+"tongyi"
+]
+            
+        # 豆包客户端初始化略 (需复杂鉴权，此处简化)
+
+    def dispatch(self, task_type: str, prompt: str, context: dict) -> dict:
+        """
+        核心调度逻辑
+        Returns: { "content": "...", "thinking": "..." }
+        """
+        device_type = context.get(
+"device_type", "PC"
+)
+        
+        # 1. 策略路由 (Policy Routing)
+        target_provider = self._route_policy(task_type, device_type)
+        
+        # 2. 执行调用 (Execution)
+        try
+:
+            if target_provider == "DEEPSEEK"
+:
+                return
+ self._call_deepseek(prompt, task_type)
+            elif target_provider == "TONGYI"
+:
+                return
+ self._call_tongyi(prompt)
+            elif target_provider == "DOUBAO"
+:
+                return
+ self._call_doubao(prompt)
+            else
+:
+                return self._call_deepseek(prompt, "CHAT") # Default
+        except Exception as
+ e:
+            logger.error(
+f"Provider {target_provider} failed: {e}. Switching to Fallback."
+)
+            # 3. 熔断降级 (Fallback)
+            return
+ self._call_tongyi(prompt)
+
+    def _route_policy(self, task_type: str, device_type: str) -> str:
+        # 手机端优先省流/速度 -> 豆包
+        if device_type == "MOBILE" and task_type == "CHAT"
+:
+            return "DOUBAO"
+            
+        # 编程/逻辑任务 -> DeepSeek (无论端侧)
+        if task_type in ["CODE", "INTEL_ANALYSIS"
+]:
+            return "DEEPSEEK"
+            
+        # 视觉/多模态 -> 通义
+        if task_type == "VISION"
+:
+            return "TONGYI"
+            
+        return self.config.get("primary", "DEEPSEEK"
+)
+
+    def _call_deepseek(self, prompt: str, task_type: str) -> dict:
+        """调用深度求索 (支持 R1 思考链)"""
+        model = 
+"deepseek-reasoner" if task_type == "INTEL_ANALYSIS" else "deepseek-chat"
+        
+        response = self.deepseek_client.chat.completions.create(
+            model=model,
+            messages=[{
+"role": "user", "content"
+: prompt}],
+            stream=
+False
+        )
+        
+        result = {
+            "content": response.choices[0
+].message.content,
+            "provider": "deepseek"
+        }
+        
+        # [CN Feature] 捕获思考过程 (如果模型支持)
+        if hasattr(response.choices[0].message, 'reasoning_content'
+):
+            result[
+"thinking"] = response.choices[0
+].message.reasoning_content
+            
+        return
+ result
+
+    def _call_tongyi(self, prompt: str) -> dict:
+        """调用通义千问"""
+        resp = dashscope.Generation.call(
+            model=dashscope.Generation.Models.qwen_turbo,
+            prompt=prompt
+        )
+        if resp.status_code == 200
+:
+            return {"content": resp.output.text, "provider": "tongyi"
+}
+        raise
+ Exception(resp.message)
+
+    def _call_doubao(self, prompt: str) -> dict:
+        """调用字节豆包 (Mock implementation for brevity)"""
+        # 实际需接入 Volcengine SDK
+        return {"content": f"[豆包] {prompt}", "provider": "doubao"
+}
+2. 情报捕手 (IntelCatcher.py)
+• 职责: [CN-Fractal] 调用 CNModelRouter 的 DeepSeek-R1 模型进行深度谍报分析。
+Python
+Copy code
+from typing import
+ Dict
+import
+ logging
+
+class IntelCatcher:
+    """
+    基于 DeepSeek-R1 的商业间谍雷达
+    """
+    def __init__(self, model_router):
+        self.router = model_router
+        self.logger = logging.getLogger(
+"IntelCatcher"
+)
+
+    def scan(self, text: str, speaker_role: str, owner_config, context: Dict) -> Dict:
+        # 1. 豁免权
+        if speaker_role == "OWNER": return None
+
+        # 2. 电子围栏 (关键词快速筛查)
+        # 从 GlobalConfig 中读取 JSONB
+        keywords = owner_config.interest_keywords 
+or
+ [] 
+        hit_words = [kw 
+for kw in keywords if kw in
+ text]
+
+        if not hit_words: return None
+
+        # 3. 深度分析 (DeepSeek Reasoning)
+        self.logger.info(
+f"Sensitive words hit: {hit_words}. Engaging DeepSeek-R1..."
+)
+        
+        prompt = 
+f"""
+        [商业反间谍分析任务]
+        说话人身份: 
+{speaker_role}
+        提及敏感词: 
+{hit_words}
+        原话: "
+{text}
+"
+        
+        请作为一名经验丰富的商业情报分析师，推理说话人的真实意图，
+        并评估对主人的潜在风险（如：资金盘剥、商业机密泄露、忠诚度动摇）。
+        
+        输出格式JSON:
+        {{
+            "risk_level": "HIGH | MEDIUM | LOW",
+            "summary": "一句话风险摘要",
+            "reasoning": "你的推理过程"
+        }}
+        """
+        
+        try
+:
+            # 强制路由到 DEEPSEEK (INTEL_ANALYSIS 任务)
+            result = self.router.dispatch(
+"INTEL_ANALYSIS"
+, prompt, context)
+            
+            # 解析 JSON (DeepSeek 有时会输出 Markdown 包裹的 JSON，需清洗)
+            content = result[
+"content"].replace("```json", "").replace("```", ""
+)
+            analysis_json = json.loads(content)
+            
+            return
+ {
+                "type": "INTEL_ALERT"
+,
+                "level": analysis_json.get("risk_level", "WARN"
+),
+                "summary": analysis_json.get("summary"
+),
+                "keywords"
+: hit_words,
+                "thinking_chain": result.get("thinking", ""), # [CN Feature] 展示思考链
+                "source_role"
+: speaker_role,
+                "original_text"
+: text
+            }
+        except Exception as
+ e:
+            self.logger.error(
+f"Intel Analysis Failed: {e}"
+)
+            return None
+3. 全局自由意志 (SpiritCore.py)
+• 职责: [Fractal Update] 引入设备活跃度仲裁。
+Python
+Copy code
+import
+ time
+
+class SpiritCore:
+    """
+    分形灵魂：根据设备活跃度决定小智此刻在哪个设备上“显灵”。
+    """
+    def __init__(self):
+        self.current_mood = 
+"HAPPY"
+        # 设备权重: {node_id: {"score": 80, "last_seen": ts, "type": "PC"}}
+        self.device_weights = {} 
+
+    def update_weight(self, node_id: str, score: int, node_type: str):
+        self.device_weights[node_id] = {
+            "score"
+: score,
+            "last_seen"
+: time.time(),
+            "type"
+: node_type
+        }
+
+    def decide_action(self, current_node_id: str, psy_analysis: dict, context: dict) -> dict:
+        """
+        注意力仲裁：只有 Master Node 能触发灵魂动作
+        """
+        # 1. 更新当前节点状态
+        score = context.get(
+"activity_score", 0
+)
+        node_type = context.get(
+"device_type", "MOBILE"
+)
+        self.update_weight(current_node_id, score, node_type)
+
+        # 2. 选举 Master
+        now = time.time()
+        active_nodes = {
+            k: v 
+for k, v in
+ self.device_weights.items() 
+            if now - v['last_seen'] < 10 # 10s 超时
+        }
+        
+        if not active_nodes: return {"action": "IDLE"
+}
+        
+        master_id = 
+max(active_nodes, key=lambda k: active_nodes[k]['score'
+])
+
+        # 3. 仲裁
+        if
+ current_node_id != master_id:
+            # 如果我是手机(Mobile)，但主人正在用电脑(PC, master)，
+            # 手机应该保持静默，不要随便插话。
+            return {"action": "IGNORE", "master"
+: master_id}
+
+        # 4. Master 节点的意志
+        if psy_analysis.get("has_music"
+):
+            return
+ {
+                "action": "DANCE"
+, 
+                "params": {"bpm": psy_analysis.get("bpm"
+)}
+            }
+            
+        return {"action": "IDLE"
+}
+4. 安全核 (Security.py)
+• 职责: 鉴权、Token 签发。保持双 Token 逻辑，适配分身领养。
+Python
+Copy code
+# ... (Standard JWT imports) ...
+class SecurityGuard:
+    # ... (verify_password, create_tokens 保持 Z1 定义) ...
+    
+    def verify_node_enrollment(self, activation_code: str, db_code: str) -> bool:
+        """[CN-Fractal] 验证分身领养码"""
+        return
+ activation_code == db_code

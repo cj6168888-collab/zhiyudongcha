@@ -1,0 +1,84 @@
+# 🚧 灰度发布配置文件
+# 基于百分比的渐进式发布
+# 配置文件格式: JSON
+
+{
+  "version": "2.0",
+  "startDate": "2026-08-01",
+  "endDate": "2026-08-14",
+  "stages": [
+    {
+      "name": "5% 灰度",
+      "startDate": "2026-08-01",
+      "endDate": "2026-08-02",
+      "percentage": 5,
+      "conditions": {
+        "minUsers": 100,
+        "maxErrors": 5,
+        "maxErrorRate": 0.01
+      }
+    },
+    {
+      "name": "20% 灰度",
+      "startDate": "2026-08-03",
+      "endDate": "2026-08-04",
+      "percentage": 20,
+      "conditions": {
+        "minUsers": 500,
+        "maxErrors": 20,
+        "maxErrorRate": 0.02
+      }
+    },
+    {
+      "name": "50% 灰度",
+      "startDate": "2026-08-05",
+      "endDate": "2026-08-06",
+      "percentage": 50,
+      "conditions": {
+        "minUsers": 2000,
+        "maxErrors": 50,
+        "maxErrorRate": 0.03
+      }
+    },
+    {
+      "name": "100% 发布",
+      "startDate": "2026-08-07",
+      "endDate": "2026-08-14",
+      "percentage": 100,
+      "conditions": {
+        "minUsers": 5000,
+        "maxErrors": 100,
+        "maxErrorRate": 0.05
+      }
+    }
+  ],
+  "rollbackTriggers": {
+    "errorRate": {
+      "threshold": 0.1,
+      "action": "rollback"
+    },
+    "performance": {
+      "threshold": "20% degradation",
+      "action": "rollback"
+    },
+    "userComplaints": {
+      "threshold": 50,
+      "timeWindow": "1h",
+      "action": "rollback"
+    }
+  },
+  "monitoring": {
+    "metrics": [
+      "error_rate",
+      "response_time",
+      "apdex_score",
+      "conversion_rate",
+      "user_satisfaction"
+    ],
+    "alertChannels": [
+      "slack",
+      "email",
+      "sms"
+    ]
+  }
+}

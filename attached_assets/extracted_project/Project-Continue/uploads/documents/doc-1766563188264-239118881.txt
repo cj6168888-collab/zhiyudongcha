@@ -1,0 +1,343 @@
+# 🛑 核心指令：生产级代码规范 (Production-Grade Code Manifesto)
+**项目名称：** 小智 (Avatar) - 全栈开发
+**当前任务：** Step 03 - 服务端总装与接口暴露 (Server Integration) - **Final Ultimate Fix**
+
+*⚠️ 警告：这是后端总装。必须严格对接 Z1 (
+4.0.0
+-CN) 和 Z3 (CN-Fractal)。**
+**核心修正：**
+1.
+ **移除 Mock：** 接入 `CNModelRouter`，实现真实算力调用。
+2.
+ **动态实例：** `PrivacyAirlock` 和 `IntelCatcher` 不再是全局单例，而是随 `UserConfig` 动态生成。
+3.
+ **分形鉴权：** 严格校验 `node_id`，确保分身指令的合法性。
+
+---
+
+**任务详情：**
+
+请编写 `backend` 目录下的核心网络层代码。
+
+## 1. 神经中枢路由 (`server.py`)
+
+```python
+from fastapi import
+ FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, BackgroundTasks, Body
+from sqlalchemy.orm import
+ Session
+from contextlib import
+ asynccontextmanager
+import
+ logging
+import
+ json
+import
+ asyncio
+
+# 导入 Z3 核心组件
+from core.security import
+ SecurityGuard
+from core.team_manager import PrivacyAirlock # 需在 Z3 适配传入 router
+from core.evolution_engine import
+ EvolutionEngine
+from core.psy_engine import
+ PsyEngine
+from core.spirit_core import
+ SpiritCore
+from core.cn_model_router import CNModelRouter # [New] 国产算力路由
+
+# 导入 Z2 数据模型
+from models import
+ UserConfig, get_db
+from connection import
+ ConnectionManager
+
+# 全局组件 (无状态或支持多租户的组件)
+manager = ConnectionManager()
+security = SecurityGuard(private_key_path=
+"private_key.pem", jwt_secret="s3cret"
+)
+evolution = EvolutionEngine(db_session=
+None
+)
+psy_engine = PsyEngine()
+spirit_core = SpiritCore() 
+# SpiritCore 内部通过 node_id 区分，可全局
+
+logger = logging.getLogger(
+"Server"
+)
+
+# --- 异步谍战任务 (Real Intelligence) ---
+async def async_intel_scan(text: str, role: str, airlock_instance: PrivacyAirlock, context: dict, user_id: str, owner_config):
+    """
+    [Ultimate Fix] 后台运行的真实谍报分析
+    不再使用 Mock，而是调用 airlock 内部的 DeepSeek
+    """
+    try
+:
+        # 调用 Z3 的 IntelCatcher (已绑定真实的 CNModelRouter)
+        # 注意：这里不需要再传 llm_runner_proxy，因为 airlock 内部已有 router
+        report = airlock_instance.
+filter
+(text, context, role, owner_config)
+        
+        # 如果生成了情报报告 (filter 返回结果包含 intel_report)
+        if report.get("intel_report"
+):
+            intel = report[
+"intel_report"
+]
+            logger.warning(
+f"Intel Detected! Level: {intel['level']}"
+)
+            
+            # [CN Feature] 推送思考过程 (Thinking Chain)
+            if intel.get("thinking_chain"
+):
+                await
+ manager.send_to_owner(user_id, {
+                    "type": "thinking_chain"
+,
+                    "payload": {"content": intel["thinking_chain"
+]}
+                })
+            
+            # 推送最终结论
+            await
+ manager.send_to_owner(user_id, {
+                "type": "intel_push"
+,
+                "payload"
+: intel
+            })
+            
+    except Exception as
+ e:
+        logger.error(
+f"Async Intel Scan Failed: {e}"
+)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info(
+"Avatar CN-Fractal System Start."
+)
+    yield
+    logger.info(
+"System Shutdown."
+)
+
+app = FastAPI(lifespan=lifespan)
+
+# --- A. 账户与鉴权 API ---
+
+@app.post("/api/auth/genesis")
+def genesis(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """[CN] 创世接口：第一次初始化服务器"""
+    # 检查是否已存在 Root
+    if db.query(UserConfig).count() > 0
+:
+        raise HTTPException(403, "Genesis already completed."
+)
+    # 创建 Root UserConfig (存储 DeepSeek Key 等)
+    # ... Implementation ...
+    return {"status": "Genesis Complete"
+}
+
+@app.post("/api/auth/node_enroll")
+def node_enroll(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """
+    [Fractal Fix] 分身领养接口
+    PC/手机端调用此接口，获取 Access Token 和 灵魂种子
+    """
+    # 1. 验证领养码 (Password/Code)
+    user_id = payload.get(
+"user_id"
+)
+    password = payload.get(
+"password"
+)
+    user = db.query(UserConfig).
+filter
+(UserConfig.user_id == user_id).first()
+    
+    if not user or not
+ security.verify_password(password, user.password_hash):
+        raise HTTPException(401, "Invalid credentials"
+)
+        
+    # 2. 注册节点 (AvatarNode)
+    # node = AvatarNode(...)
+    # db.add(node); db.commit()
+    
+    # 3. 签发 Token
+    tokens = security.create_tokens(user.user_id, 
+"OWNER") # 默认 OWNER 权限
+    
+    # 4. 返回灵魂种子 (脱敏配置)
+    return
+ {
+        "access_token": tokens["access_token"
+],
+        "refresh_token": tokens["refresh_token"
+],
+        "soul_seed"
+: {
+            "bot_name"
+: user.bot_name,
+            "default_model": user.llm_router_config.get("primary", "DEEPSEEK"
+)
+        }
+    }
+
+@app.post("/api/auth/refresh")
+def refresh_token(refresh_token: str = Body(...)):
+    """Token 续命"""
+    try
+:
+        payload = security.decode_token(refresh_token)
+        if payload.get("type") != "refresh": raise
+ Exception
+        return security.create_tokens(payload['sub'], payload['role'
+])
+    except
+:
+        raise HTTPException(401, "Invalid refresh token"
+)
+
+# --- WebSocket 主循环 (The Soul Loop) ---
+@app.websocket("/ws/client/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str, db: Session = Depends(get_db)):
+    user_id = 
+None
+    node_id = 
+None
+    role = 
+"GUEST"
+    
+    try
+:
+        await
+ websocket.accept()
+        
+        # 1. 握手与鉴权
+        data = 
+await
+ websocket.receive_json()
+        if data.get("type") != "handshake_req"
+:
+            await websocket.close(code=4001); return
+            
+        token = data.get(
+"metadata", {}).get("token"
+)
+        # [Fractal] 获取 device_fingerprint 用于绑定 Node
+        device_fp = data.get(
+"payload", {}).get("device_fingerprint"
+)
+        
+        try
+:
+            payload = security.decode_token(token)
+            if payload.get("type") != "access": raise
+ Exception
+            user_id = payload[
+'sub'
+]
+            role = payload[
+'role'
+]
+        except
+:
+            await websocket.close(code=4003); return
+
+        # 2. [Ultimate Fix] 动态加载真实大脑 (No More Mock)
+        user_config = db.query(UserConfig).
+filter
+(UserConfig.user_id == user_id).first()
+        if not user_config: await websocket.close(4004); return
+        
+        # A. 实例化国产算力路由 (注入 API Keys)
+        # 注意：user_config.llm_router_config 包含加密的 Key
+        router = CNModelRouter(user_config.__dict__)
+        
+        # B. 实例化专属气密舱 (绑定 Router)
+        # 这样 IntelCatcher 就能用 DeepSeek 去分析了
+        user_airlock = PrivacyAirlock() 
+        user_airlock.intel.router = router 
+# 注入 Router (假设 Z3 IntelCatcher 支持 setter 或在 init 传入)
+        
+        # 注册连接
+        await manager.connect(websocket, client_id, user_id, "unknown"
+, role)
+        await websocket.send_json({"type": "handshake_ack", "status": "connected"
+})
+        
+        # 3. 消息处理闭包
+        async def process_packet(packet):
+            msg_type = packet.get(
+"type"
+)
+            metadata = packet.get(
+"metadata"
+, {})
+            context = metadata.get(
+"context", {}) # 含 scene, activity_score
+            
+            # [CN-Fractal] 注入节点上下文
+            context[
+"device_type"] = "MOBILE" if "android" in device_fp.lower() else "PC"
+            
+            # --- 感官输入 ---
+            if msg_type == "audio_chunk"
+:
+                # A. 灵魂仲裁 (SpiritCore)
+                # 使用 client_id 作为 node 标识参与竞选
+                decision = spirit_core.decide_action(client_id, psy_engine.analyze_audio_environment(context), context)
+                
+                if decision["action"] == "DANCE"
+:
+                    await
+ manager.broadcast_spirit_state(user_id, decision)
+                elif decision["action"] == "IGNORE"
+:
+                    pass # 次要设备，仅识别不响应动作
+                
+                # B. [Ultimate Fix] 真实谍报分析
+                text = packet.get(
+"payload", {}).get("text", ""
+)
+                if
+ text:
+                    # 将 user_airlock 传入异步任务
+                    asyncio.create_task(async_intel_scan(
+                        text, role, user_airlock, context, user_id, user_config
+                    ))
+
+                # C. 正常对话 (TTS) -> Router Dispatch
+                # response_text = router.dispatch("CHAT", text, context)
+                # await send_tts(response_text)
+
+            # --- 算力卸载 (PC端回传) ---
+            elif msg_type == "compute_result"
+:
+                # 处理 DeepSeek 代码生成的结果
+                pass
+                
+            # --- 离线同步 ---
+            elif msg_type == "batch_sync"
+:
+                # ... (同 Z4 Genesis，处理 ACK)
+                pass
+
+        while True
+:
+            await process_packet(await
+ websocket.receive_json())
+
+    except
+ WebSocketDisconnect:
+        if
+ user_id: manager.disconnect(client_id, user_id)

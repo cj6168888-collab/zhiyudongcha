@@ -1,0 +1,18 @@
+/**
+ * Git Hooks 配置
+ * 配置 lint-staged 在提交前运行检查
+ */
+
+{
+  "*.{ts,tsx}": [
+    "eslint --fix",
+    "prettier --write"
+  ],
+  "*.{js,jsx,mjs,cjs}": [
+    "eslint --fix",
+    "prettier --write"
+  ],
+  "*.{json,css,md,html}": [
+    "prettier --write"
+  ]
+}

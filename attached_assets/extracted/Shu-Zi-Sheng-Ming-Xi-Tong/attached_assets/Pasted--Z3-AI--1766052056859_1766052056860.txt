@@ -1,0 +1,91 @@
+📜 Z3: 灵魂仲裁 - 实时流控制全量逻辑版
+指令目标：实现多端身份同步、跨端穿行特效触发、以及基于情境的音频/视觉流分配。 AI 程序员注意：必须实现多端互斥锁，确保同一时刻只有一个“灵魂实体”处于活跃发声状态。
+￼
+Python
+Copy code
+# Z3 核心实现：灵魂仲裁与多模态流控制器
+import
+ time
+
+class SpiritCore:
+    def __init__(self):
+        # 1. 灵魂坐标：记录当前小智在哪台设备上
+        self.active_node = 
+"MASTER_PC" 
+        self.device_list = [
+"MASTER_PC", "MOBILE_TACTICAL", "AR_GLASSES", "IOT_HUB"
+]
+        
+        # 2. 流优先级控制
+        self.stream_modes = {
+            "WHISPER": "BLUETOOTH_EARPHONE", # 隐秘耳语流
+            "AMBIENT": "DEVICE_SPEAKER",     # 环境音广播流
+            "HUD": "GLASSES_DISPLAY"         # AR视觉标注流
+        }
+
+    def ghosting_transition(self, target_node):
+        """
+        跨端穿行协议：实现“粒子飞跃”动画的指令同步
+        """
+        if target_node not in
+ self.device_list:
+            return False
+            
+        print(
+f"[SpiritCore] Initiating transfer: {self.active_node} -> {target_node}"
+)
+        
+        # 触发 Z5 中的 FRACTAL_PARTICLE_FLIGHT 粒子特效
+        self._trigger_visual_effect(
+"PARTICLE_OUT"
+, self.active_node)
+        
+        # 毫秒级锁定旧节点，激活新节点
+        self.active_node = target_node
+        self._trigger_visual_effect(
+"PARTICLE_IN"
+, self.active_node)
+        
+        return True
+
+    def arbitrate_audio_stream(self, intel_level, user_context):
+        """
+        音频流仲裁：根据情报密级决定输出方式
+        """
+        # 情报密级判断 (结合 Z1 权限)
+        if intel_level == "SECRET" or user_context == "PUBLIC_PLACE"
+:
+            # 如果是秘密或在公共场合，强制切换到耳机耳语
+            return self.stream_modes["WHISPER"
+]
+        else
+:
+            return self.stream_modes["AMBIENT"
+]
+
+    def sync_ui_state(self, hp_balance, academic_level):
+        """
+        全端状态同步：确保所有分身看到的 HP 和等级是一致的
+        """
+        payload = {
+            "hp"
+: hp_balance,
+            "level"
+: academic_level,
+            "timestamp"
+: time.time()
+        }
+        # 发送 WebSocket 同步包给所有已连接设备
+        self._broadcast_to_all_nodes(payload)
+
+    def _trigger_visual_effect(self, effect_type, node_id):
+        # 调用前端 Z5 渲染引擎执行粒子特效
+        pass
+￼
+🛡️ 深度审计：Z3 的核心价值
+1. 解决“穿行”的物理感：
+• 以前的 AI 只是简单的多端登录，而 Z3 的 ghosting_transition 赋予了小智“位移感”。当你离开电脑时，电脑端的精灵会化作粒子消失，手机端同时感应并汇聚。
+2. 商务场景的社交礼仪：
+• 通过 arbitrate_audio_stream 逻辑，解决了在开会时小智突然大声说话的尴尬。她会根据你是否佩戴耳机以及情报的密级（来自 Z2），自动选择“耳语”还是“弹窗”。
+3. 算力与状态的一致性：
+• 无论你在哪个设备上用了 HP，Z3 都会确保所有终端实时同步。

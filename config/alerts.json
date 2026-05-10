@@ -1,0 +1,60 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "alerts": [
+    {
+      "name": "high_cpu_usage",
+      "condition": "cpu_usage > 90",
+      "duration": "5m",
+      "severity": "critical",
+      "message": "CPU 使用率超过 90%",
+      "actions": ["notify", "scale"]
+    },
+    {
+      "name": "high_memory_usage",
+      "condition": "memory_usage > 85",
+      "duration": "5m",
+      "severity": "warning",
+      "message": "内存使用率超过 85%",
+      "actions": ["notify"]
+    },
+    {
+      "name": "high_error_rate",
+      "condition": "error_rate > 0.05",
+      "duration": "2m",
+      "severity": "critical",
+      "message": "错误率超过 5%",
+      "actions": ["notify", "page"]
+    },
+    {
+      "name": "slow_response_time",
+      "condition": "avg_response_time > 2000",
+      "duration": "5m",
+      "severity": "warning",
+      "message": "平均响应时间超过 2 秒",
+      "actions": ["notify"]
+    },
+    {
+      "name": "database_connection_high",
+      "condition": "db_connections > 0.8 * max_connections",
+      "duration": "5m",
+      "severity": "warning",
+      "message": "数据库连接数过高",
+      "actions": ["notify"]
+    },
+    {
+      "name": "disk_space_low",
+      "condition": "disk_free < 10",
+      "duration": "10m",
+      "severity": "critical",
+      "message": "磁盘空间不足 10%",
+      "actions": ["notify", "cleanup"]
+    }
+  ],
+  "notification": {
+    "channels": ["log", "webhook"],
+    "webhook": {
+      "url": "${ALERT_WEBHOOK_URL}",
+      "method": "POST"
+    }
+  }
+}

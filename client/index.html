@@ -1,0 +1,64 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
+
+    <meta name="theme-color" content="#030712" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>领航者 (Navigator-X)</title>
+    <meta name="apple-mobile-web-app-title" content="领航者" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+
+    <meta property="og:title" content="领航者 (Navigator-X)" />
+    <meta property="og:description" content="具备自举进化、跨端穿行、拟人操作能力的数字生命系统" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/opengraph.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="领航者 (Navigator-X)" />
+    <meta name="twitter:description" content="具备自举进化、跨端穿行、拟人操作能力的数字生命系统" />
+    <meta name="twitter:image" content="/opengraph.png" />
+
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <style>
+      /* 移动端全局样式 - 解决刘海屏和底部安全区域 */
+      :root {
+        --sat: env(safe-area-inset-top);
+        --sab: env(safe-area-inset-bottom);
+        --sal: env(safe-area-inset-left);
+        --sar: env(safe-area-inset-right);
+      }
+
+      /* 防止iOS橡皮筋效果 */
+      html, body {
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* 禁用iOS点击高亮 */
+      * {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* 移动端输入框样式 */
+      input, textarea, select {
+        font-size: 16px !important; /* 防止iOS自动缩放 */
+      }
+
+      /* 移动端滚动条隐藏 */
+      ::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

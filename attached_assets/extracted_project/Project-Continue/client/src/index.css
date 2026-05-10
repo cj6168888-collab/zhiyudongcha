@@ -1,0 +1,83 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* 钛金黑 + 深海蓝 Dark Theme */
+  --color-background: hsl(220 25% 6%); /* 钛金黑 Titanium Black */
+  --color-foreground: hsl(210 40% 96%); /* 冷白 */
+
+  --color-card: hsl(215 30% 10%); /* 深海蓝卡片 Deep Sea Blue */
+  --color-card-foreground: hsl(210 40% 96%);
+
+  --color-popover: hsl(220 25% 8%);
+  --color-popover-foreground: hsl(210 40% 96%);
+
+  --color-primary: hsl(210 100% 50%); /* 电光蓝 Electric Blue */
+  --color-primary-foreground: hsl(0 0% 100%);
+
+  --color-secondary: hsl(215 25% 15%); /* 深蓝灰 */
+  --color-secondary-foreground: hsl(210 40% 90%);
+
+  --color-muted: hsl(215 20% 18%);
+  --color-muted-foreground: hsl(215 15% 55%);
+
+  --color-accent: hsl(45 100% 55%); /* 金色 Gold */
+  --color-accent-foreground: hsl(220 25% 6%);
+
+  --color-destructive: hsl(0 70% 45%); /* 暗红粉碎色 */
+  --color-destructive-foreground: hsl(0 0% 100%);
+
+  --color-border: hsl(215 20% 18%);
+  --color-input: hsl(215 25% 15%);
+  --color-ring: hsl(210 100% 50%);
+
+  --color-chart-1: hsl(210 100% 50%);
+  --color-chart-2: hsl(180 70% 45%); /* 青色 Cyan */
+  --color-chart-3: hsl(45 100% 55%);
+  --color-chart-4: hsl(280 60% 55%);
+  --color-chart-5: hsl(150 60% 45%);
+
+  --color-sidebar: hsl(220 25% 5%);
+  --color-sidebar-foreground: hsl(210 40% 96%);
+  --color-sidebar-primary: hsl(210 100% 50%);
+  --color-sidebar-primary-foreground: hsl(0 0% 100%);
+  --color-sidebar-accent: hsl(215 25% 15%);
+  --color-sidebar-accent-foreground: hsl(210 40% 96%);
+  --color-sidebar-border: hsl(215 20% 18%);
+  --color-sidebar-ring: hsl(210 100% 50%);
+
+  --font-sans: 'Noto Sans SC', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --radius: 0.375rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  
+  button, a, [role="button"] {
+    touch-action: manipulation;
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+}

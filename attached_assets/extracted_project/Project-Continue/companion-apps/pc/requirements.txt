@@ -1,0 +1,26 @@
+# 小智 PC 守护进程依赖
+
+# WebSocket 客户端
+websockets>=12.0
+
+# 输入模拟
+pynput>=1.7.6
+
+# 屏幕截图
+Pillow>=10.0.0
+mss>=9.0.1
+
+# 异步支持
+asyncio-throttle>=1.0.2
+
+# 系统信息
+psutil>=5.9.0
+
+# 配置管理
+python-dotenv>=1.0.0
+
+# 日志
+colorlog>=6.7.0
+
+# 数学运算（贝塞尔曲线）
+numpy>=1.24.0

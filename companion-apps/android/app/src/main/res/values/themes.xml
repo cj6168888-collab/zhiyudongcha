@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.AvatarCompanion" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#4a69bd</item>
+        <item name="colorPrimaryVariant">#3c5aa6</item>
+        <item name="colorOnPrimary">#ffffff</item>
+        <item name="colorSecondary">#6c5ce7</item>
+        <item name="colorSecondaryVariant">#5b4bc4</item>
+        <item name="colorOnSecondary">#ffffff</item>
+        <item name="android:statusBarColor">#1a1a2e</item>
+        <item name="android:navigationBarColor">#1a1a2e</item>
+        <item name="android:windowBackground">#1a1a2e</item>
+    </style>
+</resources>

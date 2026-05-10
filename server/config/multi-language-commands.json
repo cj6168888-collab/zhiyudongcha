@@ -1,0 +1,41 @@
+{
+  "zh-CN": {
+    "wakeWords": ["小智", "小智小智", "智智", "嘿小智"],
+    "commandPatterns": {
+      "open": ["打开", "开启", "启动"],
+      "close": ["关闭", "停止", "关掉"],
+      "search": ["搜索", "查询", "查找"],
+      "play": ["播放", "听", "唱"],
+      "pause": ["暂停", "停止"],
+      "volume": ["音量", "声音", "调大", "调小", "增大", "减小"]
+    },
+    "meetingKeywords": ["会议", "讨论", "方案", "决策", "结论", "纪要", "汇报", "提案", "表决", "议程", "主持", "发言"],
+    "casualKeywords": ["天气", "吃饭", "回家", "睡觉", "今天", "昨天", "朋友", "家人", "孩子", "工作", "累", "困"]
+  },
+  "en-US": {
+    "wakeWords": ["xiaozhi", "hey xiaozhi", "hey zizi"],
+    "commandPatterns": {
+      "open": ["open", "start", "launch"],
+      "close": ["close", "stop", "quit"],
+      "search": ["search", "find", "look up"],
+      "play": ["play", "listen to", "play music"],
+      "pause": ["pause", "stop"],
+      "volume": ["volume", "sound", "louder", "quieter", "turn up", "turn down"]
+    },
+    "meetingKeywords": ["meeting", "discussion", "decision", "conclusion", "agenda", "proposal", "vote", "present", "speak"],
+    "casualKeywords": ["weather", "eat", "home", "sleep", "today", "yesterday", "friend", "family", "kids", "work", "tired", "sleepy"]
+  },
+  "yue": {
+    "wakeWords": ["小智", "智智"],
+    "commandPatterns": {
+      "open": ["開", "打開", "啟動"],
+      "close": ["關", "關閉", "停"],
+      "search": ["搵", "搜索", "查找"],
+      "play": ["播放", "聽"],
+      "pause": ["暫停", "停"],
+      "volume": ["音量", "聲音", "大聲", "細聲"]
+    },
+    "meetingKeywords": ["會議", "討論", "決策", "結論", "匯報", "提案"],
+    "casualKeywords": ["天氣", "食飯", "瞓覺", "今日", "昨日", "朋友", "屋企人", "小朋友", "工作", "攰", "眼瞓"]
+  }
+}

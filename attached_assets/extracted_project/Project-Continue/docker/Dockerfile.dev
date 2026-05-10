@@ -1,0 +1,33 @@
+# Z1 协议 - 小智 Docker 镜像 (开发环境)
+# 铁律3: 使用国内镜像源（阿里云/清华）
+
+FROM registry.cn-hangzhou.aliyuncs.com/library/node:20-slim
+
+# 设置国内 npm 镜像 (npmmirror.com)
+RUN npm config set registry https://registry.npmmirror.com
+
+# 安装开发工具
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    python3 \
+    python3-pip \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置国内 pip 镜像 (清华源)
+RUN pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple \
+    && pip3 config set global.trusted-host pypi.tuna.tsinghua.edu.cn
+
+WORKDIR /app
+
+# 复制 package.json 并安装依赖
+COPY package*.json ./
+RUN npm install
+
+# 暴露端口
+EXPOSE 5000
+
+# 开发模式启动
+CMD ["npm", "run", "dev"]

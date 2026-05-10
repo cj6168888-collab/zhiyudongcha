@@ -1,0 +1,94 @@
+Z2: 基础设施 - 数据建模全量逻辑版
+指令目标：构建小智的“永久记忆”，实现人脉博弈分析、资源堡垒索引与权限隔离存储。 AI 程序员注意：严禁精简关系链字段，向量数据库与关系型数据库必须实现双路同步。
+￼
+Python
+Copy code
+# Z2 核心实现：多维记忆存储引擎
+import
+ sqlite3
+import
+ json
+
+class MemoryMatrix:
+    def __init__(self, db_path="xiaozhi_core.db"):
+        self.conn = sqlite3.connect(db_path)
+        self._init_tables()
+
+    def _init_tables(self):
+        cursor = self.conn.cursor()
+        
+        # 1. 人际关系博弈表 (The Relationship Matrix)
+        # 包含你要求的：对手弱点、利益链、画像
+        cursor.execute(
+'''CREATE TABLE IF NOT EXISTS person_matrix (
+            uuid TEXT PRIMARY KEY,
+            name TEXT,
+            tags TEXT,
+            vulnerability TEXT,      -- 对手弱点分析记录
+            interest_connections TEXT, -- 利益链映射 (JSON)
+            decision_dna TEXT,       -- 语义向量 (用于预测对方决策)
+            access_level TEXT        -- 访问权限控制
+        )'''
+)
+
+        # 2. 资源堡垒索引表 (The Resource Vault)
+        # 包含：资料、软件、图书、影视的分类索引
+        cursor.execute(
+'''CREATE TABLE IF NOT EXISTS resource_vault (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT,           -- RESEARCH | SOFTWARE | MEDIA | BOOK
+            file_name TEXT,
+            file_path TEXT,
+            semantic_index TEXT,     -- 语义摘要 (用于意图调阅)
+            security_status TEXT     -- PENDING | SAFE | QUARANTINE
+        )'''
+)
+
+        # 3. 身外化身学习域 (Shadow Memory)
+        # 存储小智模仿老板的决策权重
+        cursor.execute(
+'''CREATE TABLE IF NOT EXISTS shadow_memory (
+            context_id TEXT,
+            owner_action TEXT,
+            logic_weight FLOAT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )'''
+)
+        self.conn.commit()
+
+    # --- 核心功能：人脉深度检索 ---
+    def get_relationship_insight(self, person_name):
+        """
+        不仅仅是查电话，而是提取博弈素材：
+        “老板，这个人曾和A公司有冲突，他的弱点是资金流周转...”
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(
+"SELECT * FROM person_matrix WHERE name=?"
+, (person_name,))
+        return
+ cursor.fetchone()
+
+    # --- 核心功能：资源语义调阅 ---
+    def search_vault_by_intent(self, intent_vector):
+        """
+        根据主人的意图（非关键词）从堡垒中检索资料
+        """
+        # 逻辑：在向量数据库中计算余弦相似度，返回最匹配的图书或软件
+        pass
+
+    # --- 核心功能：数据隔离粉碎 ---
+    def permanent_shred(self, target_id, table="resource_vault"):
+        """
+        执行Z1要求的物理级粉碎逻辑
+        """
+        # 逻辑：物理定位文件，执行覆盖擦除，最后从数据库抹除索引
+        print(
+f"[Security] Initiating physical shredding for {target_id}..."
+)
+        return True
+￼
+🛡️ 深度审计：为什么 Z2 必须紧跟 Z1？
+1. 为 Z4 提供“弹药”：如果你命令小智“分析对手”，小智（Z4）会第一时间来 Z2 的 person_matrix 提取 vulnerability（弱点）和 interest_connections（利益链）。没有 Z2，分析就是胡编乱造。
+2. 为 Z6 提供“货架”：当服务器（Z6）下载完一套软件或图书，它必须在 Z2 的 resource_vault 里挂号。否则，你在手机（Z5）上永远搜不到这些资源。
+3. 为“身外化身”提供“灵魂模板”：shadow_memory 表记录了你每一次对方案的修改和决策。小智通过学习这些数据，才能从“本科”向“专家”进化。

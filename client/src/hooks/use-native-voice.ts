@@ -1,0 +1,114 @@
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import type { PluginListenerHandle } from '@capacitor/core';
+import { VoicePlugin } from '../plugins';
+import type { SpeechResultEvent, SpeechStatusEvent, SpeechRmsEvent, SpeechErrorEvent } from '../plugins/definitions';
+import { createServiceLogger } from '../lib/logger';
+
+export interface UseNativeVoiceResult {
+  isListening: boolean;
+  transcript: string;
+  partialTranscript: string;
+  isSupported: boolean;
+  error: string | null;
+  audioLevel: number;
+  startListening: () => Promise<void>;
+  stopListening: () => Promise<void>;
+}
+
+export function useNativeVoice(): UseNativeVoiceResult {
+  const [isListening, setIsListening]           = useState(false);
+  const [transcript, setTranscript]             = useState('');
+  const [partialTranscript, setPartialTranscript] = useState('');
+  const [error, setError]                       = useState<string | null>(null);
+  const [audioLevel, setAudioLevel]             = useState(0);
+  const [isSupported, setIsSupported]           = useState(false);
+
+  const listenersRef = useRef<PluginListenerHandle[]>([]);
+  const log = createServiceLogger('useNativeVoice');
+
+  // Check availability once on mount
+  useEffect(() => {
+    VoicePlugin.isAvailable()
+      .then(({ available }) => setIsSupported(available))
+      .catch(() => setIsSupported(false));
+  }, []);
+
+  // Register Capacitor event listeners (unified event schema for web + native)
+  useEffect(() => {
+    const handles: PluginListenerHandle[] = [];
+
+    const register = async () => {
+      handles.push(
+        await VoicePlugin.addListener('speechResult', (ev: SpeechResultEvent) => {
+          if (ev.isFinal) {
+            setTranscript(ev.text);
+            setPartialTranscript('');
+            setIsListening(false);
+          } else {
+            setPartialTranscript(ev.text);
+          }
+        }),
+
+        await VoicePlugin.addListener('speechStatus', (ev: SpeechStatusEvent) => {
+          if (ev.status === 'listening') setIsListening(true);
+          if (ev.status === 'processing') setIsListening(false);
+        }),
+
+        await VoicePlugin.addListener('speechRms', (ev: SpeechRmsEvent) => {
+          // rms 范围约 -2..10 dB；归一化到 0-1
+          const normalized = Math.min(1, Math.max(0, (ev.rms + 2) / 12));
+          setAudioLevel(normalized);
+        }),
+
+        await VoicePlugin.addListener('speechError', (ev: SpeechErrorEvent) => {
+          setIsListening(false);
+          setError(ev.message);
+          log.warn('STT error', ev);
+        }),
+      );
+
+      listenersRef.current = handles;
+    };
+
+    register().catch((err) => log.error('Failed to register voice listeners', err));
+
+    return () => {
+      listenersRef.current.forEach((h) => h.remove());
+      listenersRef.current = [];
+    };
+  }, []);
+
+  const startListening = useCallback(async () => {
+    if (!isSupported) return;
+    try {
+      setError(null);
+      setTranscript('');
+      setPartialTranscript('');
+      await VoicePlugin.startListening();
+    } catch (err) {
+      const msg = (err as Error).message;
+      setError(msg);
+      log.error('Failed to start listening', err);
+    }
+  }, [isSupported]);
+
+  const stopListening = useCallback(async () => {
+    try {
+      await VoicePlugin.stopListening();
+      setIsListening(false);
+    } catch (err) {
+      log.error('Failed to stop listening', err);
+    }
+  }, []);
+
+  return {
+    isListening,
+    transcript,
+    partialTranscript,
+    isSupported,
+    error,
+    audioLevel,
+    startListening,
+    stopListening,
+  };
+}

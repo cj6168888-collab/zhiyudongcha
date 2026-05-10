@@ -1,0 +1,329 @@
+# 🛑 核心指令：生产级代码规范 (Production-Grade Code Manifesto)
+**项目名称：**
+ 小智 (Avatar) - 全栈开发
+**当前任务：** Step 01 - 基础设施与全栈数据建模 (Infrastructure & Schema) - **v5.0.1 Final Corrected**
+
+**⚠️ 警告：这是系统的物理根基。此版本严格映射 Z1 (v5.0.1-Bio-CN) 协议。**
+**严禁使用 OpenAI SDK，全面适配国产大模型 SDK。**
+
+为了防止失败，你必须遵守以下 
+**5 条铁律**
+：
+1.  **算力主权：**
+ 必须加密存储 DeepSeek/通义/豆包 的 API Key，严禁明文。
+2.  **分形存储：** 必须建立 `AvatarNode`
+ 表，管理每一个 PC 和手机分身。
+3.  **环境适配：**
+ Docker 镜像必须配置阿里云/清华源，确保在国内能构建。
+4.  **离线兼容：**
+ 数据库设计必须支持 Local Ollama 的配置字段。
+5.  **依赖显式化：** `SkillCapsule`
+ 必须支持国内 PyPI 镜像源安装。
+
+---
+
+**任务详情：**
+
+请构建系统的物理层。
+
+## 1. 基础设施编排 (`docker-compose.yml`)
+* **db:**
+ PostgreSQL (pgvector/pgvector:pg16).
+* **sandbox:** **[CN Fix]**
+ 必须配置国内 pip 源，预装国产大模型 SDK。
+
+```yaml
+version: '3.8'
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: avatar_admin
+      POSTGRES_PASSWORD: secure_password
+      POSTGRES_DB: avatar_core
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: always
+
+  # [CN-Fractal] 核心改动：全能沙箱 (CN Edition)
+  # 预装: dashscope(通义), volcengine(豆包), openai(兼容DeepSeek)
+  sandbox:
+    build: 
+      context: ./sandbox_env
+      dockerfile: Dockerfile.cn_fat 
+    privileged: true
+    environment:
+      - PIP_INDEX_URL=[https://pypi.tuna.tsinghua.edu.cn/simple](https://pypi.tuna.tsinghua.edu.cn/simple)
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./sandbox_data:/app
+    command: dockerd-entrypoint.sh
+2. 后端数据模型 (models.py)
+使用 SQLAlchemy 2.0 (Async) 定义 ORM 模型。包含 Z1 协议中定义的所有实体。
+Python
+Copy code
+from sqlalchemy import
+ Column, String, Integer, Float, DateTime, ForeignKey, Text, Enum, JSON, LargeBinary, Boolean
+from sqlalchemy.orm import
+ relationship, declarative_base
+from sqlalchemy.dialects.postgresql import
+ UUID, ARRAY, JSONB
+from pgvector.sqlalchemy import
+ Vector
+import
+ uuid
+import
+ enum
+from datetime import
+ datetime
+
+Base = declarative_base()
+
+# --- 枚举定义 ---
+class LLMProvider(enum.Enum):
+    DEEPSEEK = 
+"DEEPSEEK"   # 深度求索 (逻辑/代码)
+    TONGYI = 
+"TONGYI"       # 通义千问 (视觉/多模态)
+    DOUBAO = 
+"DOUBAO"       # 字节豆包 (语音/高并发)
+    LOCAL = 
+"LOCAL_OLLAMA"  # 本地离线
+
+class NodeType(enum.Enum):
+    ROOT_SERVER = 
+"ROOT_SERVER" # 云端/家庭服务器
+    PC_CLIENT = 
+"PC_CLIENT"     # 桌面分身
+    MOBILE_APP = 
+"MOBILE_APP"   # 移动分身
+
+class RoleType(enum.Enum):
+    OWNER = 
+"OWNER"             # 主人
+    GUEST = 
+"GUEST"             # 访客
+    SHAREHOLDER = 
+"SHAREHOLDER" # 股东 (谍战目标)
+
+# --- 核心域 (Core & Fractal) ---
+class GlobalConfig(Base):
+    """
+    [Root DNA] 全局基因表
+    存放在服务器，决定了所有分身的初始智商和性格。
+    """
+    __tablename__ = 
+'global_configs'
+    user_id = Column(String, primary_key=
+True
+)
+    password_hash = Column(String, nullable=
+False) # 登录凭证
+    
+    # [CN-Fractal] 算力路由配置
+    # 存储: { "primary": "DEEPSEEK", "api_keys": { "deepseek": "sk-..." } }
+    llm_router_config = Column(JSONB, nullable=
+False
+) 
+    
+    # 性格与偏好
+    bot_name = Column(String, default=
+"小智"
+)
+    personality_prompt = Column(Text) 
+# "你是一个..."
+    interest_keywords = Column(JSONB) 
+# 利益雷达关注词 e.g. ["资金", "转账"]
+
+class AvatarNode(Base):
+    """
+    [Fractal Node] 分身节点表
+    记录每一个“觉醒”的终端（手机/PC）。
+    """
+    __tablename__ = 
+'avatar_nodes'
+    node_id = Column(UUID(as_uuid=
+True), primary_key=True
+, default=uuid.uuid4)
+    user_id = Column(String, ForeignKey(
+'global_configs.user_id'
+))
+    
+    # 设备指纹
+    device_fingerprint = Column(String, unique=
+True) # e.g. "android_pixel_8_uuid"
+    node_type = Column(Enum(NodeType), nullable=
+False
+)
+    
+    # [CN-Fractal] 节点特异性配置 (Override)
+    node_specific_config = Column(JSONB, default={}) 
+    
+    # [Bio-Economics] 生物经济系统
+    hp_balance = Column(Integer, default=
+1000) # 当前生命值
+    max_hp = Column(Integer, default=
+1000)     # 生命上限
+    is_unlimited = Column(Boolean, default=
+False) # 无限模式 (上帝模式)
+    last_recharge_at = Column(DateTime)
+    
+    # 状态监控
+    is_online = Column(Boolean, default=
+False
+)
+    last_active_at = Column(DateTime)
+    local_capabilities = Column(JSONB) 
+# ["gpu_rtx4090", "camera"]
+
+# --- 记忆域 (Memory) ---
+class Person(Base):
+    """长期记忆：人物画像"""
+    __tablename__ = 
+'people'
+    id = Column(UUID(as_uuid=True), primary_key=True
+, default=uuid.uuid4)
+    name = Column(String)
+    attributes = Column(JSONB) 
+# 动态属性
+    embedding = Column(Vector(
+1536)) # 语义向量
+    
+    # 身份定义
+    role_type = Column(Enum(RoleType), default=RoleType.GUEST)
+    external_identity = Column(String) 
+# "XX局长"
+
+class SharedMemory(Base):
+    """共享记忆池"""
+    __tablename__ = 
+'shared_memories'
+    id = Column(UUID(as_uuid=True), primary_key=True
+, default=uuid.uuid4)
+    content = Column(Text)
+    vector = Column(Vector(
+1536
+))
+    visible_to_roles = Column(ARRAY(String)) 
+# RBAC e.g. ["OWNER"]
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+# --- 进化与技能 (Evolution & Skills) ---
+class CapabilityStats(Base):
+    """RPG 成长数值"""
+    __tablename__ = 
+'capability_stats'
+    user_id = Column(String, ForeignKey(
+'global_configs.user_id'), primary_key=True
+)
+    domain = Column(String, primary_key=
+True) # e.g. "CODING", "MUSIC"
+    
+    xp_points = Column(Integer, default=
+0
+)
+    level_title = Column(String, default=
+"NOVICE"
+)
+    tasks_completed = Column(Integer, default=
+0
+)
+
+class SkillCapsule(Base):
+    """技能胶囊"""
+    __tablename__ = 
+'skill_capsules'
+    id = Column(UUID(as_uuid=True), primary_key=True
+, default=uuid.uuid4)
+    name = Column(String, unique=
+True
+)
+    description = Column(Text)
+    
+    # [CN Fix] 依赖必须兼容国内源
+    # e.g. ["tushare", "jieba"]
+    dependencies = Column(JSONB, default=[]) 
+    
+    source_code = Column(LargeBinary) 
+# 加密 zip
+    author_id = Column(String)
+3. 安卓端离线缓存 (LocalDB.kt)
+Android 端数据库，严格适配 ARQ 同步协议与分形架构。
+Kotlin
+Copy code
+import
+ androidx.room.*
+
+@Entity(tableName = "node_metadata")
+data class NodeMetadata
+(
+    @PrimaryKey val id: Int = 1
+,
+    val node_id: String,          // 领养后获得的唯一身份ID
+    val user_id: String,          // 归属的 Root 账号
+    val sync_hash: String,        // 记忆同步校验码
+    val last_dna_update: Long     // 上次同步 Root 基因的时间
+)
+
+@Entity(tableName = "offline_packets")
+data class OfflinePacket
+(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0
+,
+    val
+ packet_type: String, 
+    val
+ payload_json: String,
+    
+    # [CN-Fractal] 必须存储完整的 context 用于重放
+    # 包含: device_id, activity_score, device_type
+    val
+ metadata_json: String, 
+    
+    val timestamp: Long
+,
+    val status: Int = 0 // 0=Pending, 1=Uploading
+)
+
+@Dao
+interface PacketDao 
+{
+    @Insert
+    fun insert(packet: OfflinePacket)
+
+    # [Safety Fix] 强制分页查询，防止 OOM
+    @Query("SELECT * FROM offline_packets WHERE status = 0 ORDER BY timestamp ASC LIMIT :limit")
+    fun getPendingPackets(limit: Int = 50)
+: List<OfflinePacket>
+    
+    @Query("DELETE FROM offline_packets WHERE id = :id")
+    fun delete(id: Long)
+
+    # 批量确认机制 (ARQ ACK)
+    @Query("DELETE FROM offline_packets WHERE id IN (:ids)")
+    fun deleteBatch(ids: List<Long>)
+}
+
+@Database(entities = [NodeMetadata::class, OfflinePacket::class], version = 1)
+abstract class LocalDB : RoomDatabase
+() {
+    abstract fun packetDao()
+: PacketDao
+    abstract fun nodeDao(): NodeDao // (省略 NodeDao 实现，逻辑简单)
+    
+    companion object
+ {
+        @Volatile private var instance: LocalDB? = null
+        fun getInstance(context: android.content.Context)
+: LocalDB {
+            return instance ?: synchronized(this
+) {
+                instance ?: Room.databaseBuilder(context, LocalDB::
+class.java, "avatar_db"
+).build().also { instance = it }
+            }
+        }
+    }
+}

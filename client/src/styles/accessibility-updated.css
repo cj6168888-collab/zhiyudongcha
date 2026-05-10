@@ -1,0 +1,149 @@
+/**
+ * 可访问性样式增强 - REMASTER v2.0
+ * 
+ * 更新内容:
+ * - 高对比度配色 (WCAG AA 合规)
+ * - 焦点管理增强
+ * - 减少动画偏好
+ * - 触摸目标优化
+ */
+
+/* ========================================
+   1. 高对比度配色覆盖 (临时修复)
+   ======================================== */
+
+/* 覆盖当前颜色变量 */
+:root {
+  /* 品牌色 - 更深的蓝色 */
+  --color-primary: hsl(230 70% 45%) !important;
+  --color-primary-hover: hsl(230 70% 35%) !important;
+  
+  /* 功能色 - 高对比度 */
+  --color-success: hsl(150 80% 30%) !important;
+  --color-warning: hsl(35 90% 40%) !important;
+  --color-error: hsl(0 80% 45%) !important;
+  
+  /* 文字颜色 - 提高亮度 */
+  --color-text-primary: hsl(0 0% 98%) !important;
+  --color-text-secondary: hsl(0 0% 85%) !important;
+  --color-text-disabled: hsl(0 0% 60%) !important;
+  
+  /* 边框 */
+  --color-border: hsl(220 10% 35%) !important;
+}
+
+/* ========================================
+   2. 焦点指示器增强
+   ======================================== */
+
+/* 更强的焦点样式 */
+:focus-visible {
+  outline: 3px solid hsl(210 100% 50%) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px hsl(210 100% 50% / 0.3) !important;
+  border-radius: 4px !important;
+}
+
+/* 按钮焦点 */
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid hsl(210 100% 50%) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px hsl(210 100% 50% / 0.4) !important;
+}
+
+/* ========================================
+   3. 对比度修复 (针对当前问题)
+   ======================================== */
+
+/* 修复主按钮对比度 */
+.bg-primary,
+[data-variant="default"] {
+  background-color: hsl(230 70% 45%) !important;
+}
+
+/* 修复禁用状态 */
+[disabled],
+[aria-disabled="true"],
+.disabled {
+  opacity: 1 !important;
+  background-color: hsl(0 0% 30%) !important;
+  color: hsl(0 0% 65%) !important;
+  cursor: not-allowed !important;
+}
+
+/* 修复次要文字 */
+.text-secondary,
+.text-muted {
+  color: hsl(0 0% 85%) !important;
+}
+
+/* 修复边框 */
+.border,
+.border-input {
+  border-color: hsl(220 10% 35%) !important;
+}
+
+/* ========================================
+   4. 紧急可访问性修复
+   ======================================== */
+
+/* 跳过链接 */
+.skip-to-main {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: hsl(230 70% 45%);
+  color: white;
+  padding: 8px 16px;
+  z-index: 9999;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.skip-to-main:focus {
+  top: 0;
+}
+
+/* ARIA 状态增强 */
+[aria-invalid="true"] {
+  border-color: hsl(0 80% 45%) !important;
+  background-color: hsl(0 80% 50% / 0.1) !important;
+  padding-right: 2.5rem !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.75rem center !important;
+  background-size: 1.25rem !important;
+}
+
+[aria-invalid="false"] {
+  border-color: hsl(150 80% 30%) !important;
+}
+
+/* 加载状态 */
+[aria-busy="true"] {
+  cursor: wait !important;
+  opacity: 0.8 !important;
+}
+
+/* ========================================
+   5. 打印样式
+   ======================================== */
+
+@media print {
+  .no-print,
+  nav,
+  button:not([type="submit"]),
+  [role="button"] {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  a[href]::after {
+    content: " (" attr(href) ")" !important;
+  }
+}

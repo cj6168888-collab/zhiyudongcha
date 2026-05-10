@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">小智伴侣</string>
+    <string name="accessibility_service_description">小智伴侣需要无障碍服务来执行自动化操作，帮助主人完成各种任务。</string>
+</resources>

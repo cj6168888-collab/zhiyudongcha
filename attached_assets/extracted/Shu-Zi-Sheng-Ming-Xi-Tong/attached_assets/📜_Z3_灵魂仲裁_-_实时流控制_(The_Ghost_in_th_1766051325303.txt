@@ -1,0 +1,78 @@
+📜 Z3: 灵魂仲裁 - 实时流控制 (The Ghost in the Machine) v6.0
+项目名称：小智 (Avatar) - 永续成长版 当前任务：Step 02 - 定义跨端状态同步与多模态流转发 强制校验：必须保留“穿行”动画触发逻辑；严禁多端同时发声导致的干扰。
+JSON
+Copy code
+{
+  "protocol_name": "SpiritCore_Stream_v6"
+,
+  "sync_strategy": "Event-Driven Fractal Synchronization"
+,
+
+  // --- 1. 灵魂位置与设备仲裁 (Identity Ghosting) ---
+  "spirit_presence"
+: {
+    "active_node_id": "string", // 当前“灵魂”所在的设备ID
+    "ghosting_protocol"
+: {
+      "transition_effect": "FRACTAL_PARTICLE_FLIGHT", // 穿行时的粒子飞跃特效
+      "proximity_handoff": true,  // 接近传感器自动切换设备
+      "arbitration_logic": "max(device_sensor_score + user_proximity)" 
+    }
+  },
+
+  // --- 2. 多模态交互流管理 (Multimodal Stream) ---
+  "stream_control"
+: {
+    "audio_stream"
+: {
+      "priority": "HIGH"
+,
+      "modes": ["WHISPER_EARPHONE", "AMBIENT_SPEAKER", "SILENT_SUBTITLE"
+],
+      "noise_cancellation_sync": true
+    },
+    "visual_overlay"
+: {
+      "glasses_hud_sync": "realtime"
+,
+      "pc_sprite_animation": "state_driven", // 联动 Z1.evolution_schema
+      "streaming_codec": "H.265_LOW_LATENCY"
+    },
+    "action_feedback"
+: {
+      "haptic_sync": "mobile_vibration"
+,
+      "visual_confirmation": "glowing_bubble_ripple" // 操作时的气泡涟漪
+    }
+  },
+
+  // --- 3. 任务分配与算力调度 (HP Dispatcher) ---
+  "hp_scheduler"
+: {
+    "mode": "ECONOMIC_PRIORITY"
+,
+    "background_tasks": "SERVER_ONLY", // 重计算下载全在服务器
+    "foreground_interaction": "LOCAL_NODE"
+,
+    "power_saving_logic": "if user_status == SLEEPING then enter DREAM_MODE"
+  },
+
+  // --- 4. 访客交互隔离流 (Guest Stream Isolation) ---
+  "guest_stream"
+: {
+    "visual_only_access": true
+,
+    "input_filtering": "REPLACE_SENSITIVE_WORDS"
+,
+    "hidden_streams": ["PRIVATE_INTEL", "ROOT_CONFIG", "BIO_METRICS"] // 访客看不见的流
+  }
+}
+ 
+🛡️ 针对 AI 编程的开头要求与最后校验
+【开头强制要求】：
+1. 单点发声原则：在编写 AudioStream 逻辑时，必须引入全局互斥锁（Global Mutex），确保当灵魂从 PC 转移到手机时，PC 端音频立即淡出，手机端淡入，严禁双重杂音。
+2. 耳语逻辑绑定：代码中必须判定当前输出设备。若检测到蓝牙耳机在线，所有涉及“对手弱点”或“机密商业情报”的 intel_push 必须强制走 WHISPER_EARPHONE 路径。
+【最后校验准则】：
+1. 跨端穿行延迟测试：模拟主人从书房（PC）走向客厅（智能电视），校验小智形象的切换延迟是否低于 200ms。
+2. 注意力反馈测试：模拟主人 stress_level 激增场景，校验系统是否会自动从“语音播报”切换为“极简视觉标注”，以减少对主人的干扰。
+3. 访客模式隔离度：校验当访客试图通过语音查询“服务器 IP”时，系统是否能优雅地利用“二次元语境”进行回避（如：那是小智的秘密哦）。

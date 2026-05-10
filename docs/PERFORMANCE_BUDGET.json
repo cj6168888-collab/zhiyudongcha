@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/GoogleChrome/lighthouse/dev/core/config/budget-schema.json",
+  "budgets": [
+    {
+      "resourceSizes": [
+        { "resourceType": "script", "budget": 500 },
+        { "resourceType": "image", "budget": 1000 },
+        { "resourceType": "third-party", "budget": 200 }
+      ],
+      "timings": [
+        { "metric": "first-contentful-paint", "budget": 1500 },
+        { "metric": "largest-contentful-paint", "budget": 2500 },
+        { "metric": "interactive", "budget": 3000 },
+        { "metric": "cumulative-layout-shift", "budget": 0.1 },
+        { "metric": "first-input-delay", "budget": 100 }
+      ]
+    }
+  ]
+}

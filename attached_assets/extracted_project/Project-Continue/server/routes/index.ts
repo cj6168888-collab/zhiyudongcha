@@ -1,0 +1,15 @@
+export { registerAuthRoutes } from './auth';
+export { registerAvatarRoutes } from './avatar';
+export { registerPersonsRoutes } from './persons';
+export { registerVaultRoutes } from './vault';
+export { registerZ3DevicesRoutes } from './z3-devices';
+export { registerZ6ComputeRoutes } from './z6-compute';
+export { registerVoiceRoutes } from './voice';
+export { registerEmailRoutes } from './email';
+export { registerExpensesRoutes } from './expenses';
+export { registerIntegrationsRoutes } from './integrations';
+export { registerMiscRoutes } from './misc';
+export { registerScreenRoutes } from './screen';
+export { registerUnboundRoutes } from './unbound';
+export { registerStrategistRoutes } from './strategist';
+export type { RouteContext, ConnectedUser, RegisterRouteFn } from './types';

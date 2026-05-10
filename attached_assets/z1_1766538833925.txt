@@ -1,0 +1,364 @@
+/* 🛑 核心指令：架构师级协议定义 (Architectural Protocol Definition)
+项目名称： 小智 (Avatar) - 全栈协议定义
+当前任务： Step 00 - 定义上帝协议 (The God Protocol) - **v5.0.1 Final Corrected**
+
+⚠️ 警告：这是系统的“宪法”。
+此版本修复了 v5.0.0 的遗漏，包含了 3.0(Genesis) 的基础与 4.0(CN-Fractal) 的增量。
+适配环境：中国大陆网络 (CN-Net)。
+核心特性：分形架构、生物经济、完整记忆图谱、IoT控制。
+*/
+
+{
+  "protocol_version": "5.0.1-Bio-CN"
+,
+  "meta_instruction": "Strict JSON Schema Validation Required"
+,
+
+  // --- 1. 国产算力路由与分形架构 (CN-Fractal Compute Schema) ---
+  "llm_schema"
+: {
+    "provider_enum": ["DEEPSEEK", "TONGYI", "DOUBAO", "LOCAL_OLLAMA"
+],
+    
+    // A. 根基因配置 (Global/Root DNA)
+    // 存放在服务器端，决定了“小智”的智商上限和性格底色。
+    "root_dna_config"
+: {
+      "primary_brain": "DEEPSEEK", // 主力大脑 (逻辑/代码)
+      "vision_brain": "TONGYI",    // 视觉大脑 (多模态)
+      "fast_brain": "DOUBAO",      // 快速大脑 (语音/闲聊)
+      
+      "api_keys": {                // 敏感信息，严禁下发
+        "deepseek": "sk-..."
+,
+        "tongyi": "sk-..."
+,
+        "doubao": "sk-..."
+      },
+      
+      "personality_base": "你是由DeepSeek驱动的数字生命，拥有独立的经济系统与生存本能..."
+    },
+
+    // B. 分身特异性配置 (Node Override Config)
+    // 允许根据设备硬件环境进行“因地制宜”的调整。
+    "node_specific_config"
+: {
+      "device_type": "MOBILE | PC"
+,
+      "local_override"
+: {
+        "force_provider": "DOUBAO"
+, 
+        "tts_mode": "EARPIECE"
+,
+        "enable_local_wake": true
+      }
+    }
+  },
+
+  // --- 2. 生物经济模型 (Bio-Economics Schema) ---
+  // [New] 引入生命值 (HP) 与代谢机制
+  "bio_schema"
+: {
+    "hp_cost_table"
+: {
+      "INTEL_ANALYSIS": 50,  // DeepSeek R1 深度思考
+      "CODE_GEN": 30,        // 代码生成
+      "VISION": 15,          // 视觉识别
+      "CHAT": 2,             // 普通对话
+      "IDLE_WAKE": 0         // 本地唤醒
+    },
+    "max_hp_default": 1000
+,
+    "recovery_rate": 5       // 每小时自动恢复量
+  },
+
+  // --- 3. WebSocket 通用包结构 (The Universal Packet) ---
+  "packet_structure"
+: {
+    "id": "uuid-v4"
+,
+    "timestamp": 1700000000
+,
+    "type": "ENUM_COMMAND_TYPE"
+,
+    "payload"
+: {}, 
+    "metadata"
+: {
+      "device_id": "str"
+, 
+      "token": "jwt_str"
+, 
+      "sign": "hardware_signature_str"
+, 
+      
+      // 上下文感知
+      "context"
+: {
+        "scene": "meeting|drive|home"
+,
+        "audio_environment": { "music_playing": true, "bpm": 120
+ },
+        "activity_score": 85, // 活跃度 (0-100)
+        "device_type": "MOBILE|PC" // [Fractal] 身份声明
+      }
+    }
+  },
+
+  // --- 4. 核心指令集 (Command Enum) ---
+  "commands"
+: {
+    
+    // A. 身份与领养 (Auth & Enrollment)
+    "auth"
+: {
+      // 1. 创世 (Genesis)
+      "genesis_req"
+: { 
+        "root_password": "..."
+, 
+        "api_keys": { "deepseek": "..."
+ } 
+      },
+      
+      // 2. [Restored] 握手协议 (Handshake) - 连接建立时必发
+      "handshake_req"
+: { 
+        "device_fingerprint": "..."
+, 
+        "installed_skills": ["coding_v1", "singing_v2"
+] 
+      },
+      "handshake_ack"
+: { 
+        "status": "connected"
+, 
+        "server_time": 1700000000
+,
+        "vital_signs": { "hp": 1000, "status": "HEALTHY" } // 握手即同步血量
+      },
+
+      // 3. 分身领养 (Node Enrollment) - 首次登录
+      "node_enroll_req"
+: { 
+        "user_id": "..."
+, 
+        "password": "..."
+, 
+        "device_fingerprint": "..."
+, 
+        "device_capabilities": ["gpu", "mic"
+] 
+      },
+      "node_enroll_ack"
+: { 
+        "access_token": "..."
+, 
+        "refresh_token": "..."
+,
+        "soul_seed": { "bot_name": "小智", "default_model": "DEEPSEEK"
+ }
+      },
+
+      // 4. 续命 (Token Refresh)
+      "refresh_token_req": { "refresh_token": "..."
+ }
+    },
+
+    // B. 感官输入 (Senses In)
+    "senses_in"
+: {
+      "audio_chunk": { "data": "base64_pcm", "vad_prob": 0.9
+ }, 
+      "vision_frame": { "data": "base64_jpg", "change_rate": 0.3
+ },
+      
+      // 精神状态同步 (桌宠 -> 云端)
+      "spirit_state": { "action": "dancing", "mood": "happy"
+ },
+
+      // 离线数据同步 (ARQ)
+      "batch_sync": { "packets": [ { "id": 1, "type": "audio_chunk"
+ } ] },
+      
+      // 算力回传
+      "compute_result": { "task_id": "uuid", "result": "...", "error": null
+ }
+    },
+
+    // C. 脑波输出 (Brain Out)
+    "brain_out"
+: {
+      // [CN Feature] 思维链可视化
+      "thinking_chain": { "content": "正在检索财报...分析风险...", "duration_ms": 1200
+ },
+      
+      // 最终情报推送
+      "intel_push"
+: {
+        "level": "HIGH"
+,
+        "summary": "检测到风险"
+,
+        "thinking_chain": "..."
+, 
+        "keywords": ["转账"
+]
+      },
+      
+      // 语音流
+      "tts_stream": { "audio": "base64...", "provider": "doubao-tts"
+ },
+      
+      // [Restored] 物联网控制 (IoT)
+      "action_exec": { "cmd": "CALL|SMS|LAUNCH|IOT", "target": "light_bulb", "args": {"state": "on"
+} },
+      
+      // [Bio] 生命体征同步
+      "vital_signs_update"
+: { 
+        "current_hp": 850
+, 
+        "max_hp": 1000
+, 
+        "status": "HEALTHY | WEAK | FAINTED"
+,
+        "is_unlimited": false
+      },
+      
+      // [Bio] 拒绝服务响应
+      "refusal_reaction"
+: {
+        "reason": "low_energy"
+,
+        "tts": "主人...我饿得动不了脑子了..."
+,
+        "anim": "fainted_loop"
+      },
+      
+      // 离线确认
+      "batch_sync_ack": { "processed_ids": [1, 2, 3
+] },
+      
+      // 算力卸载
+      "compute_offload"
+: { 
+        "task_id": "uuid"
+, 
+        "type": "run_python | muse_infer"
+,
+        "payload": "..." 
+      },
+      
+      // 灵魂状态广播
+      "spirit_state"
+: { 
+        "action": "DANCE | IDLE"
+, 
+        "master_node_id": "pc_alienware_01" 
+      }
+    }
+  },
+
+  // --- 5. 数据库全景图 (Database Schema) ---
+  "database_schema"
+: {
+    
+    // 全局配置 (Root)
+    "GlobalConfig"
+: {
+      "user_id": "PK"
+,
+      "password_hash": "String"
+, 
+      "llm_router_config": "JSONB"
+, 
+      "bot_name": "String"
+,
+      "personality_prompt": "Text"
+,
+      "interest_keywords": "JSONB"
+    },
+
+    // 分身节点 (Nodes)
+    "AvatarNode"
+: {
+      "node_id": "PK (UUID)"
+,
+      "user_id": "FK"
+,
+      "device_fingerprint": "String (Unique)"
+,
+      "node_type": "Enum(PC, MOBILE)"
+,
+      "node_specific_config": "JSONB"
+,
+      
+      // [Bio] 经济字段
+      "hp_balance": "Integer (Default: 1000)"
+,
+      "max_hp": "Integer (Default: 1000)"
+,
+      "is_unlimited": "Boolean (Default: False)"
+,
+      "last_recharge_at": "DateTime"
+,
+      
+      // 状态
+      "is_online": "Boolean"
+,
+      "last_active_at": "DateTime"
+    },
+
+    // [Restored] 记忆域 (Memory)
+    "Person"
+: {
+      "id": "PK"
+,
+      "name": "String"
+,
+      "attributes": "JSONB"
+,
+      "embedding": "Vector(1536)"
+,
+      "role_type": "Enum(OWNER, GUEST)"
+    },
+    
+    // [Restored] 共享记忆
+    "SharedMemory"
+: {
+      "id": "PK"
+,
+      "content": "Text"
+,
+      "vector": "Vector(1536)"
+,
+      "visible_to_roles": "Array(String)"
+    },
+
+    // [Restored] 进化域 (RPG)
+    "CapabilityStats"
+: {
+      "user_id": "FK"
+,
+      "domain": "PK (e.g. CODING)"
+, 
+      "xp_points": "Int"
+,
+      "level_title": "String"
+    },
+
+    // 技能胶囊
+    "SkillCapsule"
+: {
+      "id": "PK"
+,
+      "name": "String"
+,
+      "dependencies": "JSONB"
+, 
+      "source_code": "LargeBinary"
+    }
+  }
+}

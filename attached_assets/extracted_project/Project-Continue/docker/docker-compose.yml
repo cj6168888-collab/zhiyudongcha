@@ -1,0 +1,85 @@
+# Z1 协议 - 小智 Docker Compose
+# 铁律3: 使用国内镜像源
+# 铁律4: 离线兼容 (Ollama)
+
+version: '3.8'
+
+services:
+  # 主应用服务
+  xiaozhi:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DOUBAO_API_KEY=${DOUBAO_API_KEY}
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - postgres
+      - ollama
+    networks:
+      - xiaozhi-network
+    restart: unless-stopped
+
+  # PostgreSQL 数据库
+  postgres:
+    image: registry.cn-hangzhou.aliyuncs.com/library/postgres:15
+    environment:
+      - POSTGRES_USER=xiaozhi
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-xiaozhi_secret}
+      - POSTGRES_DB=xiaozhi
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - xiaozhi-network
+    restart: unless-stopped
+
+  # Ollama 本地 LLM 服务 (铁律4: 离线兼容)
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - xiaozhi-network
+    restart: unless-stopped
+    # GPU 支持（需要 nvidia-container-toolkit）
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Nginx 反向代理
+  nginx:
+    image: registry.cn-hangzhou.aliyuncs.com/library/nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - xiaozhi
+    networks:
+      - xiaozhi-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  ollama_data:
+
+networks:
+  xiaozhi-network:
+    driver: bridge

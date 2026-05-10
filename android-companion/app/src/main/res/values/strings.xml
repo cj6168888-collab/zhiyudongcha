@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">小智助手</string>
+    <string name="server_config">服务器配置</string>
+    <string name="server_url">服务器地址 (WebSocket)</string>
+    <string name="device_id">设备ID</string>
+    <string name="auth_token">认证令牌</string>
+    <string name="connect">连接</string>
+    <string name="disconnected">未连接</string>
+    <string name="connected">已连接</string>
+    <string name="service_status">服务状态</string>
+    <string name="accessibility_service_name">小智无障碍服务</string>
+    <string name="notification_service_name">小智通知监听服务</string>
+    <string name="accessibility_check">无障碍服务: 检查中...</string>
+    <string name="notification_check">通知监听: 检查中...</string>
+    <string name="check_accessibility">检查无障碍</string>
+    <string name="check_notification">检查通知</string>
+    <string name="file_watcher">文件监控</string>
+    <string name="start">启动</string>
+    <string name="stop">停止</string>
+    <string name="status_info">服务状态信息</string>
+    <string name="grant_permissions">授予权限</string>
+    <string name="permission_required">需要存储权限才能监控文件</string>
+    <string name="notification_channel_name">小智助手通知</string>
+    <string name="notification_channel_desc">小智助手的通知渠道</string>
+    <string name="continuous_listening">持续语音监听</string>
+    <string name="listening_active">正在监听语音命令</string>
+    <string name="start_listening">开始监听</string>
+    <string name="stop_listening">停止监听</string>
+    <string name="microphone_permission_required">需要麦克风权限才能持续监听</string>
+    
+    <!-- Permission Guide -->
+    <string name="skip">跳过</string>
+    <string name="next">下一步</string>
+    <string name="finish">完成</string>
+    <string name="grant">授权</string>
+    <string name="try_again">重试</string>
+    <string name="go_to_settings">前往设置</string>
+    <string name="step_icon">步骤图标</string>
+    
+    <!-- Permission Explanations -->
+    <string name="microphone_permission_title">麦克风权限</string>
+    <string name="microphone_permission_explanation">小智需要使用麦克风来监听您的语音命令，实现免唤醒持续监听功能。录音仅在本地处理，不会泄露您的隐私。</string>
+    
+    <string name="storage_permission_title">存储权限</string>
+    <string name="storage_permission_explanation">小智需要访问存储来监控微信等应用接收的文件，方便自动整理和保护您的重要文档。</string>
+    
+    <string name="notification_permission_title">通知权限</string>
+    <string name="notification_permission_explanation">开启通知权限后，小智可以实时获取微信、短信等重要通知，及时为您提供提醒服务。</string>
+    
+    <string name="battery_optimization_title">电池优化</string>
+    <string name="battery_optimization_explanation">为了确保小智能在后台持续运行，请关闭电池优化限制。这不会显著增加电量消耗，但对服务稳定性很重要。</string>
+    
+    <string name="accessibility_title">无障碍服务</string>
+    <string name="accessibility_explanation">无障碍服务允许小智自动操作手机屏幕，实现点击、滑动等自动化操作。这是实现语音控制手机的核心功能。</string>
+    
+    <string name="notification_listener_title">通知监听</string>
+    <string name="notification_listener_explanation">通知监听允许小智读取手机通知内容，实现微信消息、验证码等自动识别功能。</string>
+    
+    <string name="permission_denied_message">您拒绝了一些权限，这可能导致部分功能无法正常使用。</string>
+    
+    <!-- Permission Steps -->
+    <string name="step_microphone_title">麦克风权限</string>
+    <string name="step_microphone_description">用于语音命令识别和免唤醒持续监听</string>
+    <string name="step_storage_title">存储权限</string>
+    <string name="step_storage_description">用于访问和监控下载的文件</string>
+    <string name="step_notification_title">通知权限</string>
+    <string name="step_notification_description">用于接收重要通知提醒</string>
+    <string name="step_battery_title">电池优化</string>
+    <string name="step_battery_description">关闭电池限制，确保后台持续运行</string>
+    <string name="step_accessibility_title">无障碍服务</string>
+    <string name="step_accessibility_description">实现屏幕自动操作和语音控制</string>
+    <string name="step_listener_title">通知监听</string>
+    <string name="step_listener_description">读取通知内容，实现智能提醒</string>
+
+    <!-- Battery Optimization -->
+    <string name="battery_optimization">电池与后台</string>
+    <string name="battery_checking">电池优化: 检查中...</string>
+    <string name="battery_optimized">已关闭电池优化</string>
+    <string name="battery_not_optimized">未关闭电池优化</string>
+    <string name="open_battery_settings">关闭电池优化</string>
+    <string name="open_manufacturer_settings">打开厂商设置</string>
+    <string name="manufacturer_detected">检测到: %s</string>
+
+    <!-- Keep Alive -->
+    <string name="service_keepalive">服务保活</string>
+    <string name="keepalive_checking">服务保活: 检查中...</string>
+    <string name="keepalive_running">保活服务运行中</string>
+    <string name="keepalive_stopped">保活服务未运行</string>
+    <string name="start_keepalive">启动保活服务</string>
+    <string name="stop_keepalive">停止保活服务</string>
+
+    <!-- Settings -->
+    <string name="settings">设置</string>
+    <string name="audio_settings">音频设置</string>
+    <string name="vad_threshold">语音激活阈值</string>
+    <string name="mic_sensitivity">麦克风灵敏度</string>
+    <string name="notification_settings">通知设置</string>
+    <string name="enable_notification">启用通知</string>
+    <string name="sound_feedback">声音反馈</string>
+    <string name="vibration_feedback">振动反馈</string>
+    <string name="behavior_settings">行为设置</string>
+    <string name="auto_start">开机自启</string>
+    <string name="keep_screen_on">保持屏幕常亮</string>
+    <string name="appearance">外观</string>
+    <string name="theme">主题</string>
+    <string name="light_mode">浅色</string>
+    <string name="dark_mode">深色</string>
+    <string name="auto_mode">跟随系统</string>
+    <string name="server_settings">服务器设置</string>
+    <string name="web_server_url">Web服务器地址</string>
+    <string name="ws_server_url">WebSocket服务器地址</string>
+    <string name="debug_settings">调试设置</string>
+    <string name="log_level">日志级别</string>
+    <string name="reset_defaults">恢复默认</string>
+    <string name="save">保存</string>
+    <string name="settings_saved">设置已保存</string>
+    <string name="settings_reset">已恢复默认设置</string>
+
+    <!-- Log Viewer -->
+    <string name="log_viewer">日志查看</string>
+    <string name="select_log_file">选择日志文件:</string>
+    <string name="log_content">日志内容</string>
+    <string name="no_logs">暂无日志</string>
+    <string name="failed_to_load_log">加载日志失败</string>
+    <string name="refresh">刷新</string>
+    <string name="clear_logs">清除日志</string>
+    <string name="logs_refreshed">日志已刷新</string>
+    <string name="logs_cleared">日志已清除</string>
+    <string name="visualizer_wave">波形</string>
+    <string name="visualizer_bars">柱状波形</string>
+    <string name="visualizer_spectrum">频谱</string>
+    <string name="visualizer_color_theme">颜色主题</string>
+    <string name="visualizer_color_green">绿色</string>
+    <string name="visualizer_color_blue">蓝色</string>
+    <string name="visualizer_color_purple">紫色</string>
+</resources>

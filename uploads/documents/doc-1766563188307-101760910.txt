@@ -1,0 +1,401 @@
+# 🛑 核心指令：生产级代码规范 (Production-Grade Code Manifesto)
+**项目名称：** 小智 (Avatar) - 全栈开发
+**当前任务：** Step 05/06 - PC 桌面神之分身与算力节点 - **Final Ultimate Fix**
+
+**⚠️ 警告：这是系统的重计算节点。必须严格对接 Z1 (
+4.0.0
+-CN) 协议。**
+**核心修正：**
+1.
+ **交互登录：** 启动时检测 `token.json`，不存在则提示输入领养码。
+2.
+ **灵魂同步：** 初始化时加载 `soul_seed`，继承 Root 个性。
+3.
+ **安全基座：** 集成 AST 扫描与多进程架构。
+
+---
+
+**任务详情：**
+
+请编写 `backend/pc_core` 及启动入口代码。
+
+## 1. 领养与登录管理器 (`login_manager.py`)
+* **职责:** **[New]** 处理分身领养、Token 持久化、自动刷新。
+
+```python
+import
+ os
+import
+ json
+import
+ requests
+import
+ getpass
+import
+ uuid
+
+class LoginManager:
+    def __init__(self, server_url="http://localhost:8000"):
+        self.server_url = server_url
+        self.config_path = 
+"avatar_identity.json"
+        
+    def get_device_fingerprint(self):
+        """生成固定的设备指纹 (基于 MAC 地址)"""
+        return str
+(uuid.getnode())
+
+    def load_identity(self):
+        """加载本地身份，如果不存在则触发领养流程"""
+        if
+ os.path.exists(self.config_path):
+            with open(self.config_path, "r") as
+ f:
+                return
+ json.load(f)
+        
+        return
+ self._enroll_interactive()
+
+    def _enroll_interactive(self):
+        """[Ultimate Fix] 交互式领养流程"""
+        print(
+"\n=== Avatar Node Enrollment (分身领养) ==="
+)
+        print(
+f"Target Server: {self.server_url}"
+)
+        
+        user_id = 
+input("请输入 Root 账号 (User ID): "
+).strip()
+        password = getpass.getpass(
+"请输入领养码 (Password): "
+).strip()
+        
+        payload = {
+            "user_id"
+: user_id,
+            "password"
+: password,
+            "device_fingerprint"
+: self.get_device_fingerprint(),
+            "device_capabilities": ["gpu_cuda", "camera", "keyboard"
+]
+        }
+        
+        try
+:
+            resp = requests.post(
+f"{self.server_url}/api/auth/node_enroll"
+, json=payload)
+            if resp.status_code == 200
+:
+                data = resp.json()
+                identity = {
+                    "user_id"
+: user_id,
+                    "access_token": data["access_token"
+],
+                    "refresh_token": data["refresh_token"
+],
+                    "soul_seed": data["soul_seed"], # [Fractal] 继承的性格
+                    "device_fingerprint"
+: self.get_device_fingerprint()
+                }
+                # 持久化存储
+                with open(self.config_path, "w") as
+ f:
+                    json.dump(identity, f, indent=
+2
+)
+                
+                print(
+f"✅ 领养成功！分身名称: {data['soul_seed']['bot_name']}"
+)
+                return
+ identity
+            else
+:
+                print(
+f"❌ 领养失败: {resp.text}"
+)
+                exit(
+1
+)
+        except Exception as
+ e:
+            print(
+f"❌ 连接错误: {e}"
+)
+            exit(
+1
+)
+2. 创世引擎 (code_genesis.py)
+• 职责: AST 代码安检 (保持 Final Polish 版本的安全性)。
+Python
+Copy code
+import
+ docker
+import
+ os
+import
+ ast
+import
+ logging
+
+class CodeGenesis:
+    def __init__(self):
+        self.client = docker.from_env()
+        # [CN] 使用配置了清华源的镜像
+        self.image = 
+"avatar/runtime:cn_fat" 
+        self.logger = logging.getLogger(
+"CodeGenesis"
+)
+
+    def _is_safe_code(self, code: str) -> bool:
+        """AST 静态安全扫描"""
+        try
+:
+            tree = ast.parse(code)
+            for node in
+ ast.walk(tree):
+                if isinstance
+(node, (ast.Import, ast.ImportFrom)):
+                    for alias in
+ node.names:
+                        if alias.name.split('.')[0] in ['subprocess', 'shutil', 'socket'
+]:
+                            return False # 拦截高危库
+                if isinstance(node, ast.Call) and isinstance
+(node.func, ast.Name):
+                    if node.func.id in ['eval', 'exec', 'open', 'exit'
+]:
+                        return False # 拦截高危函数
+            return True
+        except
+ SyntaxError:
+            return False
+
+    def generate_and_run(self, prompt: str, llm_brain) -> str:
+        # 1. 思考 (通过 llm_brain 调用本地或云端)
+        # 注意：这里 llm_brain 是 LocalSoul，它可能需要请求服务端 router
+        code = llm_brain.think_code(prompt) 
+        
+        # 2. 安检
+        if not
+ self._is_safe_code(code):
+            return "Security Alert: Generated code contains dangerous modules."
+
+        # 3. 运行 (Sandbox)
+        return
+ self._run_in_docker(code)
+
+    def _run_in_docker(self, script: str) -> str:
+        try
+:
+            os.makedirs(
+"sandbox", exist_ok=True
+)
+            with open("sandbox/task.py", "w", encoding="utf-8") as
+ f:
+                f.write(script)
+            
+            container = self.client.containers.run(
+                self.image,
+                command=
+"python /app/task.py"
+,
+                volumes={os.path.abspath(
+"sandbox"): {'bind': '/app', 'mode': 'rw'
+}},
+                working_dir=
+"/app"
+,
+                remove=
+True
+,
+                network_mode=
+"host"
+,
+                mem_limit=
+"1g"
+            )
+            return container.decode("utf-8"
+)
+        except Exception as
+ e:
+            return f"Sandbox Error: {str(e)}"
+3. 本地灵魂 (local_soul.py)
+• 职责: [Fractal] 管理本地性格，作为分身的大脑代理。
+Python
+Copy code
+class LocalSoul:
+    def __init__(self, seed: dict):
+        self.bot_name = seed.get(
+"bot_name", "小智"
+)
+        self.default_model = seed.get(
+"default_model", "DEEPSEEK"
+)
+        
+    def think_code(self, prompt: str) -> str:
+        """
+        分身思考代码。
+        实际上，PC端通常将这个请求通过 'compute_offload' 的反向逻辑
+        或者直接调用本地 Ollama (如果配置了)
+        这里简化为返回 prompt 供 CodeGenesis 调用 (实际应接入 API)
+        """
+        # 真实场景：这里应该调用本地 Ollama 或者请求云端 DeepSeek
+        return f"print('Hello from {self.bot_name}')" # Placeholder
+4. PC 网络核心 (pc_network.py)
+• 职责: WebSocket 通信，发送正确的握手包。
+Python
+Copy code
+import
+ websocket
+import
+ json
+import
+ threading
+import
+ time
+
+class PCNetwork:
+    def __init__(self, server_url, identity, compute_node, async_queue):
+        # 将 http 换成 ws
+        self.ws_url = server_url.replace(
+"http", "ws") + f"/ws/client/{identity['device_fingerprint']}"
+        self.token = identity[
+'access_token'
+]
+        self.fingerprint = identity[
+'device_fingerprint'
+]
+        self.compute = compute_node
+        self.queue = async_queue
+        self.ws = 
+None
+
+    def connect(self):
+        # 启动队列监听 (用于 Muse 异步回传)
+        threading.Thread(target=self._monitor_async_results, daemon=
+True
+).start()
+        
+        self.ws = websocket.WebSocketApp(
+            self.ws_url,
+            on_open=self.on_open,
+            on_message=self.on_message
+            # on_error, on_close...
+        )
+        self.ws.run_forever()
+
+    def on_open(self, ws):
+        # [Ultimate Fix] 发送符合 Z1 标准的握手
+        payload = {
+            "type": "handshake_req"
+,
+            "metadata": {"token"
+: self.token},
+            "payload"
+: {
+                "device_fingerprint"
+: self.fingerprint,
+                "installed_skills": ["coding_v2", "muse_v1"
+]
+            }
+        }
+        ws.send(json.dumps(payload))
+
+    def on_message(self, ws, message):
+        data = json.loads(message)
+        if data.get("type") == "compute_offload"
+:
+            # 处理服务端下发的计算任务
+            def send_back(t, p):
+ self.send_packet(t, p)
+            self.compute.handle_offload(data.get(
+"payload"
+), send_back)
+
+    def send_packet(self, msg_type, payload):
+        packet = {
+            "type"
+: msg_type,
+            "payload"
+: payload,
+            "metadata": {"token"
+: self.token}
+        }
+        if
+ self.ws: self.ws.send(json.dumps(packet))
+        
+    def _monitor_async_results(self):
+        while True
+:
+            res = self.queue.get()
+            self.send_packet(
+"compute_result"
+, res)
+5. 启动入口 (main.py)
+Python
+Copy code
+import
+ multiprocessing
+import
+ os
+from pc_core.login_manager import
+ LoginManager
+from pc_core.action_engine import
+ MuseEngine
+from pc_core.code_genesis import
+ CodeGenesis
+from pc_core.compute_node import
+ ComputeNode
+from pc_core.pc_network import
+ PCNetwork
+from pc_core.local_soul import
+ LocalSoul
+
+def main():
+    multiprocessing.freeze_support()
+    
+    # 1. [Ultimate Fix] 身份核验与领养
+    # 不再硬编码 Token，而是动态加载
+    login_mgr = LoginManager(server_url=
+"http://localhost:8000"
+)
+    identity = login_mgr.load_identity()
+    
+    # 2. 初始化组件 (注入灵魂种子)
+    async_queue = multiprocessing.Queue()
+    
+    soul = LocalSoul(identity[
+"soul_seed"]) # 注入性格
+    genesis = CodeGenesis()
+    muse = MuseEngine(async_queue)
+    compute = ComputeNode(genesis, muse, soul)
+    
+    print(
+f"🚀 {soul.bot_name} (PC Node) 正在启动..."
+)
+    print(
+f"🔗 连接指纹: {identity['device_fingerprint']}"
+)
+    
+    # 3. 连接全知网络
+    net = PCNetwork(
+        server_url=
+"http://localhost:8000"
+, 
+        identity=identity, 
+        compute_node=compute, 
+        async_result_queue=async_queue
+    )
+    net.connect()
+
+if __name__ == "__main__"
+:
+    main()

@@ -1,0 +1,42 @@
+// !$*UTF8*$!
+/*
+ XiaoZhi iOS Project Configuration
+ 
+ This is a template file. To create the actual Xcode project:
+ 
+ 1. Open Xcode
+ 2. Create New Project → iOS → App
+ 3. Product Name: XiaoZhi
+ 4. Team: Your Apple Developer Team
+ 5. Bundle Identifier: com.xiaozhi.avatar
+ 6. Language: Swift
+ 7. User Interface: SwiftUI
+ 
+ After creating the project, copy the .swift files from this directory into the project.
+ 
+ Required Capabilities:
+ - Microphone Usage
+ - Speech Recognition
+ - Push Notifications
+ - Background Modes (Audio, Remote Notifications)
+ 
+ Add these to Info.plist:
+ - NSMicrophoneUsageDescription: "小智需要使用麦克风进行语音识别"
+ - NSSpeechRecognitionUsageDescription: "小智需要使用语音识别功能"
+ 
+ Dependencies (Swift Package Manager):
+ - None required for core functionality
+ - Optional: Alamofire for enhanced networking
+ 
+ Build Settings:
+ - iOS Deployment Target: 16.0
+ - Swift Language Version: 5.9
+*/
+
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 56;
+    objects = {};
+    rootObject = "";
+}

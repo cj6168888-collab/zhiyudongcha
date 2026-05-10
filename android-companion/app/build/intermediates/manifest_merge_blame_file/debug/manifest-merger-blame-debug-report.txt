@@ -1,0 +1,544 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.xiaozhi.companion"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="34" />
+10
+11    <!-- Storage -->
+12    <uses-permission
+12-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:6:5-7:38
+13        android:name="android.permission.READ_EXTERNAL_STORAGE"
+13-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:6:22-77
+14        android:maxSdkVersion="32" />
+14-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:7:9-35
+15    <uses-permission
+15-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:8:5-10:40
+16        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+16-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:8:22-78
+17        android:maxSdkVersion="29" />
+17-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:9:9-35
+18    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+18-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:11:5-82
+18-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:11:22-79
+19
+20    <!-- Network -->
+21    <uses-permission android:name="android.permission.INTERNET" />
+21-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:14:5-67
+21-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:14:22-64
+22    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+22-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:15:5-79
+22-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:15:22-76
+23
+24    <!-- Foreground Service -->
+25    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+25-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:18:5-77
+25-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:18:22-74
+26    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+26-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:19:5-87
+26-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:19:22-84
+27    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+27-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:20:5-77
+27-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:20:22-74
+28
+29    <!-- Battery -->
+30    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+30-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:23:5-95
+30-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:23:22-92
+31    <uses-permission android:name="android.permission.WAKE_LOCK" />
+31-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:24:5-68
+31-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:24:22-65
+32
+33    <!-- Vibration -->
+34    <uses-permission android:name="android.permission.VIBRATE" />
+34-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:27:5-66
+34-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:27:22-63
+35
+36    <!-- Media Projection (for screenshot) -->
+37    <uses-permission android:name="android.permission.CAPTURE_VIDEO_OUTPUT" />
+37-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:30:5-79
+37-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:30:22-76
+38
+39    <!-- Microphone for continuous listening -->
+40    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+40-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:33:5-71
+40-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:33:22-68
+41    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+41-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:34:5-88
+41-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:34:22-85
+42    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+42-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:35:5-89
+42-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:35:22-86
+43
+44    <!-- Media permissions for Android 13+ -->
+45    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+45-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:38:5-76
+45-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:38:22-73
+46    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+46-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:39:5-75
+46-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:39:22-72
+47    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+47-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:40:5-75
+47-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:40:22-72
+48    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+48-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:25:5-81
+48-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:25:22-78
+49
+50    <permission
+50-->[androidx.core:core:1.12.0] C:\Users\LENOVO\.gradle\caches\transforms-3\a7f85e838555c51f9bb4319ed22ff75d\transformed\core-1.12.0\AndroidManifest.xml:22:5-24:47
+51        android:name="com.xiaozhi.companion.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+51-->[androidx.core:core:1.12.0] C:\Users\LENOVO\.gradle\caches\transforms-3\a7f85e838555c51f9bb4319ed22ff75d\transformed\core-1.12.0\AndroidManifest.xml:23:9-81
+52        android:protectionLevel="signature" />
+52-->[androidx.core:core:1.12.0] C:\Users\LENOVO\.gradle\caches\transforms-3\a7f85e838555c51f9bb4319ed22ff75d\transformed\core-1.12.0\AndroidManifest.xml:24:9-44
+53
+54    <uses-permission android:name="com.xiaozhi.companion.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+54-->[androidx.core:core:1.12.0] C:\Users\LENOVO\.gradle\caches\transforms-3\a7f85e838555c51f9bb4319ed22ff75d\transformed\core-1.12.0\AndroidManifest.xml:26:5-97
+54-->[androidx.core:core:1.12.0] C:\Users\LENOVO\.gradle\caches\transforms-3\a7f85e838555c51f9bb4319ed22ff75d\transformed\core-1.12.0\AndroidManifest.xml:26:22-94
+55
+56    <application
+56-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:42:5-141:19
+57        android:name="com.xiaozhi.companion.XiaoZhiApplication"
+57-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:43:9-43
+58        android:allowBackup="true"
+58-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:44:9-35
+59        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+59-->[androidx.core:core:1.12.0] C:\Users\LENOVO\.gradle\caches\transforms-3\a7f85e838555c51f9bb4319ed22ff75d\transformed\core-1.12.0\AndroidManifest.xml:28:18-86
+60        android:debuggable="true"
+61        android:extractNativeLibs="false"
+62        android:icon="@mipmap/ic_launcher"
+62-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:45:9-43
+63        android:label="@string/app_name"
+63-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:46:9-41
+64        android:networkSecurityConfig="@xml/network_security_config"
+64-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:50:9-69
+65        android:roundIcon="@mipmap/ic_launcher_round"
+65-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:47:9-54
+66        android:supportsRtl="true"
+66-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:48:9-35
+67        android:theme="@style/Theme.XiaoZhiCompanion" >
+67-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:49:9-54
+68        <activity
+68-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:52:9-60:20
+69            android:name="com.xiaozhi.companion.MainActivity"
+69-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:53:13-41
+70            android:exported="true"
+70-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:54:13-36
+71            android:theme="@style/Theme.XiaoZhiCompanion" >
+71-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:55:13-58
+72            <intent-filter>
+72-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:56:13-59:29
+73                <action android:name="android.intent.action.MAIN" />
+73-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:57:17-69
+73-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:57:25-66
+74
+75                <category android:name="android.intent.category.LAUNCHER" />
+75-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:58:17-77
+75-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:58:27-74
+76            </intent-filter>
+77        </activity>
+78
+79        <!-- File Watcher Service -->
+80        <service
+80-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:63:9-67:56
+81            android:name="com.xiaozhi.companion.service.FileWatcherService"
+81-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:64:13-55
+82            android:enabled="true"
+82-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:65:13-35
+83            android:exported="false"
+83-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:66:13-37
+84            android:foregroundServiceType="dataSync" />
+84-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:67:13-53
+85
+86        <!-- Accessibility Service -->
+87        <service
+87-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:70:9-81:19
+88            android:name="com.xiaozhi.companion.service.XiaoZhiAccessibilityService"
+88-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:71:13-64
+89            android:exported="true"
+89-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:74:13-36
+90            android:label="@string/accessibility_service_name"
+90-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:72:13-63
+91            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" >
+91-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:73:13-79
+92            <intent-filter>
+92-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:75:13-77:29
+93                <action android:name="android.accessibilityservice.AccessibilityService" />
+93-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:76:17-92
+93-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:76:25-89
+94            </intent-filter>
+95
+96            <meta-data
+96-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:78:13-80:72
+97                android:name="android.accessibilityservice"
+97-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:79:17-60
+98                android:resource="@xml/accessibility_service_config" />
+98-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:80:17-69
+99        </service>
+100
+101        <!-- Notification Listener Service -->
+102        <service
+102-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:84:9-92:19
+103            android:name="com.xiaozhi.companion.service.NotificationWatcherService"
+103-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:85:13-63
+104            android:exported="true"
+104-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:88:13-36
+105            android:label="@string/notification_service_name"
+105-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:86:13-62
+106            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" >
+106-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:87:13-87
+107            <intent-filter>
+107-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:89:13-91:29
+108                <action android:name="android.service.notification.NotificationListenerService" />
+108-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:90:17-99
+108-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:90:25-96
+109            </intent-filter>
+110        </service>
+111
+112        <!-- Continuous Listening Service -->
+113        <service
+113-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:95:9-99:58
+114            android:name="com.xiaozhi.companion.service.ContinuousListeningService"
+114-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:96:13-63
+115            android:enabled="true"
+115-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:97:13-35
+116            android:exported="false"
+116-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:98:13-37
+117            android:foregroundServiceType="microphone" />
+117-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:99:13-55
+118
+119        <!-- Keep Alive Service -->
+120        <service
+120-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:102:9-106:58
+121            android:name="com.xiaozhi.companion.service.KeepAliveService"
+121-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:103:13-53
+122            android:enabled="true"
+122-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:104:13-35
+123            android:exported="false"
+123-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:105:13-37
+124            android:foregroundServiceType="specialUse" />
+124-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:106:13-55
+125
+126        <!-- Watchdog Service (Dual Process Guardian) -->
+127        <service
+127-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:109:9-113:58
+128            android:name="com.xiaozhi.companion.service.WatchdogService"
+128-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:110:13-52
+129            android:enabled="true"
+129-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:111:13-35
+130            android:exported="false"
+130-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:112:13-37
+131            android:foregroundServiceType="specialUse" />
+131-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:113:13-55
+132
+133        <!-- Watchdog Activity (1 Pixel) -->
+134        <activity
+134-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:116:9-123:39
+135            android:name="com.xiaozhi.companion.service.WatchdogActivity"
+135-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:117:13-53
+136            android:enabled="true"
+136-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:118:13-35
+137            android:excludeFromRecents="true"
+137-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:122:13-46
+138            android:exported="false"
+138-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:119:13-37
+139            android:launchMode="singleInstance"
+139-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:121:13-48
+140            android:taskAffinity=""
+140-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:123:13-36
+141            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+141-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:120:13-72
+142
+143        <!-- Settings Activity -->
+144        <activity
+144-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:126:9-131:61
+145            android:name="com.xiaozhi.companion.SettingsActivity"
+145-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:127:13-45
+146            android:enabled="true"
+146-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:128:13-35
+147            android:exported="false"
+147-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:129:13-37
+148            android:parentActivityName="com.xiaozhi.companion.MainActivity"
+148-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:130:13-55
+149            android:theme="@style/Theme.XiaoZhiCompanion" />
+149-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:131:13-58
+150
+151        <!-- Log Viewer Activity -->
+152        <activity
+152-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:134:9-139:61
+153            android:name="com.xiaozhi.companion.LogViewerActivity"
+153-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:135:13-46
+154            android:enabled="true"
+154-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:136:13-35
+155            android:exported="false"
+155-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:137:13-37
+156            android:parentActivityName="com.xiaozhi.companion.MainActivity"
+156-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:138:13-55
+157            android:theme="@style/Theme.XiaoZhiCompanion" />
+157-->D:\www\Sheng-Yu-Zhu-Shou\android-companion\app\src\main\AndroidManifest.xml:139:13-58
+158
+159        <provider
+159-->[androidx.emoji2:emoji2:1.2.0] C:\Users\LENOVO\.gradle\caches\transforms-3\05382791a65dcb791ebcd6461c160577\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:24:9-32:20
+160            android:name="androidx.startup.InitializationProvider"
+160-->[androidx.emoji2:emoji2:1.2.0] C:\Users\LENOVO\.gradle\caches\transforms-3\05382791a65dcb791ebcd6461c160577\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:25:13-67
+161            android:authorities="com.xiaozhi.companion.androidx-startup"
+161-->[androidx.emoji2:emoji2:1.2.0] C:\Users\LENOVO\.gradle\caches\transforms-3\05382791a65dcb791ebcd6461c160577\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:26:13-68
+162            android:exported="false" >
+162-->[androidx.emoji2:emoji2:1.2.0] C:\Users\LENOVO\.gradle\caches\transforms-3\05382791a65dcb791ebcd6461c160577\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:27:13-37
+163            <meta-data
+163-->[androidx.emoji2:emoji2:1.2.0] C:\Users\LENOVO\.gradle\caches\transforms-3\05382791a65dcb791ebcd6461c160577\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:29:13-31:52
+164                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+164-->[androidx.emoji2:emoji2:1.2.0] C:\Users\LENOVO\.gradle\caches\transforms-3\05382791a65dcb791ebcd6461c160577\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:30:17-75
+165                android:value="androidx.startup" />
+165-->[androidx.emoji2:emoji2:1.2.0] C:\Users\LENOVO\.gradle\caches\transforms-3\05382791a65dcb791ebcd6461c160577\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:31:17-49
+166            <meta-data
+166-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:34:13-36:52
+167                android:name="androidx.work.WorkManagerInitializer"
+167-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:35:17-68
+168                android:value="androidx.startup" />
+168-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:36:17-49
+169            <meta-data
+169-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\LENOVO\.gradle\caches\transforms-3\6f019da5d1b5f8eeee0e88c5700d465a\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:29:13-31:52
+170                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+170-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\LENOVO\.gradle\caches\transforms-3\6f019da5d1b5f8eeee0e88c5700d465a\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:30:17-78
+171                android:value="androidx.startup" />
+171-->[androidx.lifecycle:lifecycle-process:2.7.0] C:\Users\LENOVO\.gradle\caches\transforms-3\6f019da5d1b5f8eeee0e88c5700d465a\transformed\jetified-lifecycle-process-2.7.0\AndroidManifest.xml:31:17-49
+172            <meta-data
+172-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:29:13-31:52
+173                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+173-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:30:17-85
+174                android:value="androidx.startup" />
+174-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:31:17-49
+175        </provider>
+176
+177        <service
+177-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:39:9-45:35
+178            android:name="androidx.work.impl.background.systemalarm.SystemAlarmService"
+178-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:40:13-88
+179            android:directBootAware="false"
+179-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:41:13-44
+180            android:enabled="@bool/enable_system_alarm_service_default"
+180-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:42:13-72
+181            android:exported="false" />
+181-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:43:13-37
+182        <service
+182-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:46:9-52:35
+183            android:name="androidx.work.impl.background.systemjob.SystemJobService"
+183-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:47:13-84
+184            android:directBootAware="false"
+184-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:48:13-44
+185            android:enabled="@bool/enable_system_job_service_default"
+185-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:49:13-70
+186            android:exported="true"
+186-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:50:13-36
+187            android:permission="android.permission.BIND_JOB_SERVICE" />
+187-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:51:13-69
+188        <service
+188-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:53:9-59:35
+189            android:name="androidx.work.impl.foreground.SystemForegroundService"
+189-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:54:13-81
+190            android:directBootAware="false"
+190-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:55:13-44
+191            android:enabled="@bool/enable_system_foreground_service_default"
+191-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:56:13-77
+192            android:exported="false" />
+192-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:57:13-37
+193
+194        <receiver
+194-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:61:9-66:35
+195            android:name="androidx.work.impl.utils.ForceStopRunnable$BroadcastReceiver"
+195-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:62:13-88
+196            android:directBootAware="false"
+196-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:63:13-44
+197            android:enabled="true"
+197-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:64:13-35
+198            android:exported="false" />
+198-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:65:13-37
+199        <receiver
+199-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:67:9-77:20
+200            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryChargingProxy"
+200-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:68:13-106
+201            android:directBootAware="false"
+201-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:69:13-44
+202            android:enabled="false"
+202-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:70:13-36
+203            android:exported="false" >
+203-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:71:13-37
+204            <intent-filter>
+204-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:73:13-76:29
+205                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+205-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:74:17-87
+205-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:74:25-84
+206                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+206-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:75:17-90
+206-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:75:25-87
+207            </intent-filter>
+208        </receiver>
+209        <receiver
+209-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:78:9-88:20
+210            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryNotLowProxy"
+210-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:79:13-104
+211            android:directBootAware="false"
+211-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:80:13-44
+212            android:enabled="false"
+212-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:81:13-36
+213            android:exported="false" >
+213-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:82:13-37
+214            <intent-filter>
+214-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:84:13-87:29
+215                <action android:name="android.intent.action.BATTERY_OKAY" />
+215-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:85:17-77
+215-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:85:25-74
+216                <action android:name="android.intent.action.BATTERY_LOW" />
+216-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:86:17-76
+216-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:86:25-73
+217            </intent-filter>
+218        </receiver>
+219        <receiver
+219-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:89:9-99:20
+220            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$StorageNotLowProxy"
+220-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:90:13-104
+221            android:directBootAware="false"
+221-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:91:13-44
+222            android:enabled="false"
+222-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:92:13-36
+223            android:exported="false" >
+223-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:93:13-37
+224            <intent-filter>
+224-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:95:13-98:29
+225                <action android:name="android.intent.action.DEVICE_STORAGE_LOW" />
+225-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:96:17-83
+225-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:96:25-80
+226                <action android:name="android.intent.action.DEVICE_STORAGE_OK" />
+226-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:97:17-82
+226-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:97:25-79
+227            </intent-filter>
+228        </receiver>
+229        <receiver
+229-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:100:9-109:20
+230            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$NetworkStateProxy"
+230-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:101:13-103
+231            android:directBootAware="false"
+231-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:102:13-44
+232            android:enabled="false"
+232-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:103:13-36
+233            android:exported="false" >
+233-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:104:13-37
+234            <intent-filter>
+234-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:106:13-108:29
+235                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+235-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:107:17-79
+235-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:107:25-76
+236            </intent-filter>
+237        </receiver>
+238        <receiver
+238-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:110:9-121:20
+239            android:name="androidx.work.impl.background.systemalarm.RescheduleReceiver"
+239-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:111:13-88
+240            android:directBootAware="false"
+240-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:112:13-44
+241            android:enabled="false"
+241-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:113:13-36
+242            android:exported="false" >
+242-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:114:13-37
+243            <intent-filter>
+243-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:116:13-120:29
+244                <action android:name="android.intent.action.BOOT_COMPLETED" />
+244-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:117:17-79
+244-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:117:25-76
+245                <action android:name="android.intent.action.TIME_SET" />
+245-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:118:17-73
+245-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:118:25-70
+246                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+246-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:119:17-81
+246-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:119:25-78
+247            </intent-filter>
+248        </receiver>
+249        <receiver
+249-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:122:9-131:20
+250            android:name="androidx.work.impl.background.systemalarm.ConstraintProxyUpdateReceiver"
+250-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:123:13-99
+251            android:directBootAware="false"
+251-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:124:13-44
+252            android:enabled="@bool/enable_system_alarm_service_default"
+252-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:125:13-72
+253            android:exported="false" >
+253-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:126:13-37
+254            <intent-filter>
+254-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:128:13-130:29
+255                <action android:name="androidx.work.impl.background.systemalarm.UpdateProxies" />
+255-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:129:17-98
+255-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:129:25-95
+256            </intent-filter>
+257        </receiver>
+258        <receiver
+258-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:132:9-142:20
+259            android:name="androidx.work.impl.diagnostics.DiagnosticsReceiver"
+259-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:133:13-78
+260            android:directBootAware="false"
+260-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:134:13-44
+261            android:enabled="true"
+261-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:135:13-35
+262            android:exported="true"
+262-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:136:13-36
+263            android:permission="android.permission.DUMP" >
+263-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:137:13-57
+264            <intent-filter>
+264-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:139:13-141:29
+265                <action android:name="androidx.work.diagnostics.REQUEST_DIAGNOSTICS" />
+265-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:140:17-88
+265-->[androidx.work:work-runtime:2.9.0] C:\Users\LENOVO\.gradle\caches\transforms-3\db1f3762e94e02e3b58504d09c4c8beb\transformed\work-runtime-2.9.0\AndroidManifest.xml:140:25-85
+266            </intent-filter>
+267        </receiver>
+268
+269        <service
+269-->[androidx.room:room-runtime:2.5.0] C:\Users\LENOVO\.gradle\caches\transforms-3\348a60bdb862381708ccb1ee1b7090fb\transformed\room-runtime-2.5.0\AndroidManifest.xml:24:9-28:63
+270            android:name="androidx.room.MultiInstanceInvalidationService"
+270-->[androidx.room:room-runtime:2.5.0] C:\Users\LENOVO\.gradle\caches\transforms-3\348a60bdb862381708ccb1ee1b7090fb\transformed\room-runtime-2.5.0\AndroidManifest.xml:25:13-74
+271            android:directBootAware="true"
+271-->[androidx.room:room-runtime:2.5.0] C:\Users\LENOVO\.gradle\caches\transforms-3\348a60bdb862381708ccb1ee1b7090fb\transformed\room-runtime-2.5.0\AndroidManifest.xml:26:13-43
+272            android:exported="false" />
+272-->[androidx.room:room-runtime:2.5.0] C:\Users\LENOVO\.gradle\caches\transforms-3\348a60bdb862381708ccb1ee1b7090fb\transformed\room-runtime-2.5.0\AndroidManifest.xml:27:13-37
+273
+274        <receiver
+274-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:34:9-52:20
+275            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+275-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:35:13-76
+276            android:directBootAware="false"
+276-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:36:13-44
+277            android:enabled="true"
+277-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:37:13-35
+278            android:exported="true"
+278-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:38:13-36
+279            android:permission="android.permission.DUMP" >
+279-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:39:13-57
+280            <intent-filter>
+280-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:40:13-42:29
+281                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+281-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:41:17-91
+281-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:41:25-88
+282            </intent-filter>
+283            <intent-filter>
+283-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:43:13-45:29
+284                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+284-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:44:17-85
+284-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:44:25-82
+285            </intent-filter>
+286            <intent-filter>
+286-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:46:13-48:29
+287                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+287-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:47:17-88
+287-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:47:25-85
+288            </intent-filter>
+289            <intent-filter>
+289-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:49:13-51:29
+290                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+290-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:50:17-95
+290-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\LENOVO\.gradle\caches\transforms-3\8541b7805f9eace93ae8ca2e2370fef9\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:50:25-92
+291            </intent-filter>
+292        </receiver>
+293    </application>
+294
+295</manifest>

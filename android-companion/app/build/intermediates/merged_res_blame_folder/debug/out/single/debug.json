@@ -1,0 +1,74 @@
+[
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\drawable_ic_accessibility.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\drawable\\ic_accessibility.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\xml_accessibility_service_config.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\xml\\accessibility_service_config.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\drawable_ic_notification.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\drawable\\ic_notification.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\layout_item_permission_step.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\layout\\item_permission_step.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\drawable_dot_inactive.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\drawable\\dot_inactive.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\mipmap-anydpi-v26\\ic_launcher.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\layout_activity_log_viewer.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\layout\\activity_log_viewer.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\drawable_ic_notification_listener.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\drawable\\ic_notification_listener.xml"
+    },
+    {
+        "merged": "com.xiaozhi.companion.app-merged_res-46:/layout_activity_settings.xml.flat",
+        "source": "com.xiaozhi.companion.app-main-48:/layout/activity_settings.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\layout_activity_settings.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\layout\\activity_settings.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\drawable_dot_active.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\drawable\\dot_active.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\drawable_ic_storage.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\drawable\\ic_storage.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\mipmap-anydpi-v26\\ic_launcher_round.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\drawable_ic_microphone.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\drawable\\ic_microphone.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\layout_activity_main.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\layout\\activity_main.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\drawable_ic_battery.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\drawable\\ic_battery.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\xml_network_security_config.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\xml\\network_security_config.xml"
+    },
+    {
+        "merged": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-merged_res-46:\\layout_activity_permission_guide.xml.flat",
+        "source": "C:\\Users\\LENOVO\\.gradle\\daemon\\8.4\\com.xiaozhi.companion.app-main-48:\\layout\\activity_permission_guide.xml"
+    }
+]

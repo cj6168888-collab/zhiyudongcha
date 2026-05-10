@@ -1,0 +1,472 @@
+/**
+ * Global Accessibility Styles
+ *
+ * Addresses accessibility issues:
+ * - Visible focus indicators
+ * - Screen reader optimizations
+ * - Keyboard navigation improvements
+ * - High contrast mode support
+ */
+
+/* ============================================
+   Focus Indicators
+   ============================================ */
+
+*:focus-visible {
+  outline: 3px solid #FF9800;
+  outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 3px solid #FF9800;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgba(255, 152, 0, 0.2);
+}
+
+/* High contrast focus for important elements */
+.voice-button:focus-visible,
+.interrupt-button:focus-visible,
+[data-testid="voice-toggle"]:focus-visible {
+  outline: 3px solid #FFFFFF;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgba(255, 152, 0, 0.4);
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #000000;
+  color: #FFFFFF;
+  padding: 8px 16px;
+  z-index: 1000;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* ============================================
+   Screen Reader Only Content
+   ============================================ */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sr-only-focusable:focus,
+.sr-only-focusable:active {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* ============================================
+   Reduced Motion
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Respect user's motion preferences */
+.motion-safe {
+  animation: none;
+}
+
+/* ============================================
+   High Contrast Mode Support
+   ============================================ */
+
+@media (forced-colors: active) {
+  button {
+    border: 2px solid currentColor;
+  }
+
+  [aria-pressed="true"] {
+    border: 3px solid Highlight;
+  }
+
+  .voice-button {
+    border: 2px solid ButtonText;
+  }
+}
+
+/* ============================================
+   Keyboard Navigation Hints
+   ============================================ */
+
+.keyboard-hint {
+  font-size: 12px;
+  color: #9E9E9E;
+  margin-left: 8px;
+}
+
+.keyboard-hint kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: monospace;
+  background-color: #F5F5F5;
+  border: 1px solid #E0E0E0;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   Loading and Status Announcements
+   ============================================ */
+
+[aria-live="polite"],
+[aria-live="assertive"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.status-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================================
+   Form Accessibility
+   ============================================ */
+
+label {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+label.required::after {
+  content: ' *';
+  color: #F44336;
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: #F44336;
+  background-color: #FFEBEE;
+}
+
+input[aria-invalid="true"]:focus,
+select[aria-invalid="true"]:focus,
+textarea[aria-invalid="true"]:focus {
+  outline: 2px solid #F44336;
+  outline-offset: 2px;
+}
+
+.error-message {
+  color: #C62828;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* ============================================
+   Button and Interactive Elements
+   ============================================ */
+
+button,
+[role="button"] {
+  cursor: pointer;
+  position: relative;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.voice-button {
+  min-width: 64px;
+  min-height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.voice-button:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.voice-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* ============================================
+   Navigation Accessibility
+   ============================================ */
+
+nav[role="navigation"] {
+  position: relative;
+}
+
+nav[role="navigation"] ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+[aria-haspopup="true"] {
+  position: relative;
+}
+
+[aria-expanded="true"]::after {
+  content: ' ▼';
+}
+
+[aria-expanded="false"]::after {
+  content: ' ►';
+}
+
+/* ============================================
+   Dialog and Modal Accessibility
+   ============================================ */
+
+[role="dialog"] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  z-index: 1000;
+}
+
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+/* Focus trap indicator */
+.dialog-focus-trap {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* ============================================
+   Toast and Notification Accessibility
+   ============================================ */
+
+.toast-notification {
+  padding: 16px;
+  border-radius: 8px;
+  background-color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.toast-notification.success {
+  border-left: 4px solid #4CAF50;
+}
+
+.toast-notification.error {
+  border-left: 4px solid #F44336;
+}
+
+.toast-notification.warning {
+  border-left: 4px solid #FF9800;
+}
+
+.toast-notification.info {
+  border-left: 4px solid #2196F3;
+}
+
+/* ============================================
+   Image Accessibility
+   ============================================ */
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+img:not([alt]) {
+  border: 2px dashed #FF9800;
+}
+
+/* ============================================
+   Table Accessibility
+   ============================================ */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th[scope="col"],
+th[scope="row"] {
+  text-align: left;
+}
+
+th {
+  font-weight: 600;
+}
+
+/* ============================================
+   List Accessibility
+   ============================================ */
+
+ol,
+ul {
+  padding-left: 24px;
+}
+
+li {
+  line-height: 1.6;
+}
+
+/* ============================================
+   Language and Text Direction
+   ============================================ */
+
+[lang="zh-CN"] {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+[dir="rtl"] {
+  direction: rtl;
+}
+
+/* ============================================
+   Print Accessibility
+   ============================================ */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  a[href]::after {
+    content: ' (' attr(href) ')';
+  }
+
+  abbr[title]::after {
+    content: ' (' attr(title) ')';
+  }
+}
+
+/* ============================================
+   Touch Target Size
+   ============================================ */
+
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"],
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ============================================
+   Color Contrast Requirements
+   ============================================ */
+
+.text-primary {
+  color: #212121;
+}
+
+.text-secondary {
+  color: #757575;
+}
+
+.text-hint {
+  color: #9E9E9E;
+}
+
+/* ============================================
+   Error and Validation States
+   ============================================ */
+
+[aria-invalid="true"] {
+  border-color: #D32F2F;
+}
+
+.error-boundary {
+  padding: 24px;
+  background-color: #FFEBEE;
+  border: 1px solid #FFCDD2;
+  border-radius: 8px;
+}
+
+.error-boundary h2 {
+  color: #C62828;
+  margin-top: 0;
+}
+
+.error-retry-button {
+  margin-top: 16px;
+  padding: 8px 16px;
+  background-color: #C62828;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.error-retry-button:hover {
+  background-color: #B71C1C;
+}

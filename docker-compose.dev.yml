@@ -1,0 +1,170 @@
+services:
+  database:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sheng_yu_zhu_shou}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/logs:/app/logs
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sheng_yu_zhu_shou}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sheng-yu-dev-network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sheng-yu-dev-network
+
+  migrate:
+    image: sheng-yu-server-migrate:latest
+    build:
+      context: .
+      dockerfile: ./server/Dockerfile
+      target: builder
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@database:5432/${POSTGRES_DB:-sheng_yu_zhu_shou}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DB_NAME: ${POSTGRES_DB:-sheng_yu_zhu_shou}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-sheng_yu_dev:}
+      REDIS_TTL: ${REDIS_TTL:-3600}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:5001}
+      CORS_CREDENTIALS: ${CORS_CREDENTIALS:-true}
+      SESSION_SECRET: ${SESSION_SECRET:-local-session-secret-that-is-long-enough-for-dev}
+      AVATAR_MASTER_SECRET: ${AVATAR_MASTER_SECRET:-local-avatar-master-secret-that-is-at-least-sixty-four-characters-long}
+      MASTER_SECRET: ${MASTER_SECRET:-local-secure-config-secret-that-is-at-least-sixty-four-characters-long}
+      SESSION_RESAVE: ${SESSION_RESAVE:-false}
+      SESSION_SAVE_UNINITIALIZED: ${SESSION_SAVE_UNINITIALIZED:-false}
+      SESSION_ROLLING: ${SESSION_ROLLING:-true}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_HTTP_ONLY: ${COOKIE_HTTP_ONLY:-true}
+      COOKIE_MAX_AGE: ${COOKIE_MAX_AGE:-86400000}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
+      HELMET_ENABLED: ${HELMET_ENABLED:-true}
+      MONITORING_ENABLED: ${MONITORING_ENABLED:-true}
+      MONITORING_INTERVAL: ${MONITORING_INTERVAL:-5000}
+      MONITORING_ALERT_INTERVAL: ${MONITORING_ALERT_INTERVAL:-10000}
+      API_RATE_LIMIT_WINDOW: ${API_RATE_LIMIT_WINDOW:-900000}
+      API_RATE_LIMIT_MAX: ${API_RATE_LIMIT_MAX:-1000}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      TIMEZONE: ${TIMEZONE:-Asia/Shanghai}
+      DEV_AUTH_BYPASS: ${DEV_AUTH_BYPASS:-true}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DOUBAO_API_KEY: ${DOUBAO_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      COZE_API_KEY: ${COZE_API_KEY:-}
+      COZE_BOT_ID: ${COZE_BOT_ID:-}
+      COZE_WORKFLOW_ID: ${COZE_WORKFLOW_ID:-}
+    command: ["npm", "run", "db:migrate"]
+    networks:
+      - sheng-yu-dev-network
+
+  app:
+    image: sheng-yu-server:latest
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: ./server/Dockerfile
+      target: runner
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@database:5432/${POSTGRES_DB:-sheng_yu_zhu_shou}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DB_NAME: ${POSTGRES_DB:-sheng_yu_zhu_shou}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-sheng_yu_dev:}
+      REDIS_TTL: ${REDIS_TTL:-3600}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:5001}
+      CORS_CREDENTIALS: ${CORS_CREDENTIALS:-true}
+      SESSION_SECRET: ${SESSION_SECRET:-local-session-secret-that-is-long-enough-for-dev}
+      AVATAR_MASTER_SECRET: ${AVATAR_MASTER_SECRET:-local-avatar-master-secret-that-is-at-least-sixty-four-characters-long}
+      MASTER_SECRET: ${MASTER_SECRET:-local-secure-config-secret-that-is-at-least-sixty-four-characters-long}
+      SESSION_RESAVE: ${SESSION_RESAVE:-false}
+      SESSION_SAVE_UNINITIALIZED: ${SESSION_SAVE_UNINITIALIZED:-false}
+      SESSION_ROLLING: ${SESSION_ROLLING:-true}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_HTTP_ONLY: ${COOKIE_HTTP_ONLY:-true}
+      COOKIE_MAX_AGE: ${COOKIE_MAX_AGE:-86400000}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
+      HELMET_ENABLED: ${HELMET_ENABLED:-true}
+      MONITORING_ENABLED: ${MONITORING_ENABLED:-true}
+      MONITORING_INTERVAL: ${MONITORING_INTERVAL:-5000}
+      MONITORING_ALERT_INTERVAL: ${MONITORING_ALERT_INTERVAL:-10000}
+      API_RATE_LIMIT_WINDOW: ${API_RATE_LIMIT_WINDOW:-900000}
+      API_RATE_LIMIT_MAX: ${API_RATE_LIMIT_MAX:-1000}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      TIMEZONE: ${TIMEZONE:-Asia/Shanghai}
+      DEV_AUTH_BYPASS: ${DEV_AUTH_BYPASS:-true}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DOUBAO_API_KEY: ${DOUBAO_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      COZE_API_KEY: ${COZE_API_KEY:-}
+      COZE_BOT_ID: ${COZE_BOT_ID:-}
+      COZE_WORKFLOW_ID: ${COZE_WORKFLOW_ID:-}
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - app_logs:/app/logs
+      - ./server/public:/app/public
+    networks:
+      - sheng-yu-dev-network
+
+networks:
+  sheng-yu-dev-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  app_logs:

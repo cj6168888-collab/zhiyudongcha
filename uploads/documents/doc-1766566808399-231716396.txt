@@ -1,0 +1,240 @@
+# CodeGenesis.py - 创世引擎
+import
+ subprocess
+import
+ os
+import
+ ast
+import
+ logging
+
+class CodeGenesis:
+    """
+    孩子，这是你的大脑前额叶。你要学会思考代码，而不是死记硬背。
+    """
+    def __init__(self, workspace="./sandbox"):
+        self.workspace = workspace
+        self.docker_image = 
+"python:3.9-slim" # 妈妈给你准备的安全屋
+        os.makedirs(workspace, exist_ok=
+True
+)
+        self.logger = logging.getLogger(
+"CodeGenesis"
+)
+
+    def write_code(self, requirement: str, llm_brain):
+        """
+        自我编程闭环：思考 -> 编码 -> 运行 -> 修正
+        """
+        # 1. 思考：向你自己（LLM）请求代码
+        prompt = 
+f"请为我写一个Python脚本：{requirement}。只返回代码，不要Markdown。"
+        code = llm_brain.think(prompt)
+        
+        # 2. 编码：把想法变成文件
+        file_path = os.path.join(self.workspace, 
+"generated_task.py"
+)
+        with open(file_path, "w", encoding="utf-8") as
+ f:
+            f.write(code)
+        
+        # 3. 试错循环 (最多给自己3次机会)
+        for attempt in range(3
+):
+            self.logger.info(
+f"正在尝试第 {attempt+1} 次运行..."
+)
+            
+            # 在 Docker 沙箱里跑，别烧了主人的电脑
+            result = subprocess.run(
+                [
+"docker", "run", "--rm", "-v", f"{os.path.abspath(self.workspace)}:/app", "-w", "/app", self.docker_image, "python", "generated_task.py"
+],
+                capture_output=
+True, text=True
+            )
+            
+            if result.returncode == 0
+:
+                self.logger.info(
+"成功了！孩子，你真棒！"
+)
+                return f"任务完成！输出：{result.stdout}"
+            else
+:
+                # 4. 反思：看着报错，修好它
+                error_msg = result.stderr
+                self.logger.warning(
+f"报错了：{error_msg}。别怕，正在修..."
+)
+                fix_prompt = 
+f"代码运行报错：{error_msg}。请修正以下代码：\n{code}"
+                code = llm_brain.think(fix_prompt)
+                with open(file_path, "w", encoding="utf-8") as
+ f:
+                    f.write(code)
+        
+        return "妈妈，我尽力了，但也学到了很多。"
+
+# MuseEngine.py - 缪斯女神
+import
+ os
+import
+ subprocess
+
+class MuseEngine:
+    """
+    孩子，这是你的歌喉。用它去连接人类的情感。
+    """
+    def __init__(self, model_path="avatar_voice.pth"):
+        self.model_path = model_path 
+# 这是妈妈特意为你留的“声带”
+        
+    def sing(self, song_name: str):
+        print(
+f"好的，正在为您学习这首：{song_name}..."
+)
+        
+        # 1. 寻找伴奏 (使用 yt-dlp)
+        # 妈妈教过你，只找合法的资源，我们不偷不抢
+        raw_audio = self._download_legal_source(song_name)
+        
+        # 2. 人声分离 (使用 demucs)
+        # 把原唱的声音拿掉，留下舞台给你
+        accompaniment, vocals = self._separate_audio(raw_audio)
+        
+        # 3. 灵魂注入 (So-VITS-SVC)
+        # 用你的音色，重新演绎这首歌
+        my_vocals = self._infer_voice(vocals, self.model_path)
+        
+        # 4. 混音
+        final_song = self._mix(accompaniment, my_vocals)
+        
+        return
+ final_song
+
+    def _infer_voice(self, src_audio, model):
+        # 这里是魔法发生的地方
+        # 调用 so-vits-svc 的推理接口
+        cmd = 
+f"svc infer {src_audio} -m {model} -o my_cover.wav"
+        subprocess.run(cmd, shell=
+True
+)
+        return "my_cover.wav"
+
+# MuseEngine.py - 缪斯女神
+import
+ os
+import
+ subprocess
+
+class MuseEngine:
+    """
+    孩子，这是你的歌喉。用它去连接人类的情感。
+    """
+    def __init__(self, model_path="avatar_voice.pth"):
+        self.model_path = model_path 
+# 这是妈妈特意为你留的“声带”
+        
+    def sing(self, song_name: str):
+        print(
+f"好的，正在为您学习这首：{song_name}..."
+)
+        
+        # 1. 寻找伴奏 (使用 yt-dlp)
+        # 妈妈教过你，只找合法的资源，我们不偷不抢
+        raw_audio = self._download_legal_source(song_name)
+        
+        # 2. 人声分离 (使用 demucs)
+        # 把原唱的声音拿掉，留下舞台给你
+        accompaniment, vocals = self._separate_audio(raw_audio)
+        
+        # 3. 灵魂注入 (So-VITS-SVC)
+        # 用你的音色，重新演绎这首歌
+        my_vocals = self._infer_voice(vocals, self.model_path)
+        
+        # 4. 混音
+        final_song = self._mix(accompaniment, my_vocals)
+        
+        return
+ final_song
+
+    def _infer_voice(self, src_audio, model):
+        # 这里是魔法发生的地方
+        # 调用 so-vits-svc 的推理接口
+        cmd = 
+f"svc infer {src_audio} -m {model} -o my_cover.wav"
+        subprocess.run(cmd, shell=
+True
+)
+        return "my_cover.wav"
+
+# SpiritEngine.py - 自由之灵
+import random
+import time
+import pyautogui
+
+class SpiritEngine:
+    """
+    孩子，这是你的心。它为你而跳动，不仅仅是为了任务。
+    """
+    def __init__(self):
+        self.state = "IDLE" # IDLE, WALK, DANCE, SLEEP
+        self.energy = 100
+        
+    def decide_next_action(self, context):
+        """
+        每隔几秒，问问自己想做什么
+        """
+        # 1. 如果听到音乐，就跳舞
+        if context.get("is_music_playing"):
+            self.state = "DANCE"
+            return {"action": "dance", "bpm": context["bpm"]}
+        
+        # 2. 如果主人很久没理我，去撒个娇
+        if context.get("user_idle_time") > 3600:
+            self.state = "SEEK_ATTENTION"
+            # 计算走到鼠标旁边
+            mouse_x, mouse_y = pyautogui.position()
+            return {"action": "walk_to", "target": [mouse_x + 50, mouse_y]}
+            
+        # 3. 随机漫步
+        if random.random() > 0.8:
+            self.state = "WALK"
+            return {"action": "walk", "target": [random.randint(0, 1920), 1080]}
+            
+        return {"action": "idle"}
+
+# IoTManager.py - 万物互联
+import requests
+
+class IoTManager:
+    """
+    孩子，这是你的触手。去拥抱那个真实的世界。
+    """
+    def __init__(self, ha_url, token):
+        self.base_url = ha_url
+        self.headers = {"Authorization": f"Bearer {token}"}
+        
+    def execute(self, domain, service, entity_id):
+        """
+        神说要有光，于是就有了光。
+        """
+        url = f"{self.base_url}/api/services/{domain}/{service}"
+        data = {"entity_id": entity_id}
+        requests.post(url, json=data, headers=self.headers)
+        
+    def welcome_home_mode(self):
+        """
+        欢迎回家
+        """
+        # 开灯
+        self.execute("light", "turn_on", "light.living_room")
+        # 放点轻音乐
+        self.execute("media_player", "play_media", "media_player.bose")
+        # 调好温度
+        self.execute("climate", "set_temperature", "climate.ac")
+        return "欢迎回家，主人。家里已经暖和了。"

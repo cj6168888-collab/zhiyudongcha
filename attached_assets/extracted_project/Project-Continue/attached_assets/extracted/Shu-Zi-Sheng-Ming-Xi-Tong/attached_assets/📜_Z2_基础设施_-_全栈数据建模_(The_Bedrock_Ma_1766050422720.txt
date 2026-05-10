@@ -1,0 +1,94 @@
+📜 Z2: 基础设施 - 全栈数据建模 (The Bedrock Matrix) v6.0
+项目名称： 小智 (Avatar) - 永续成长版 当前任务： Step 01 - 定义多维存储与记忆架构 强制校验：严禁精简关系链字段；确保向量数据库 (Vector DB) 与关系型数据库 (SQL) 的协同逻辑。
+JSON
+Copy code
+{
+  "database_version": "6.0.0-Immortal-CN"
+,
+  "storage_architecture"
+: {
+    "primary_sql": "PostgreSQL (Relational & Structured)"
+,
+    "vector_engine": "Pinecone/Milvus (Semantic & Insight)"
+,
+    "realtime_cache": "Redis (SpiritState & Active Tasks)"
+  },
+
+  // --- 1. 人际关系网与博弈画像 (Relationship Matrix) ---
+  "person_schema"
+: {
+    "basic_info": ["uuid", "name", "role", "organization", "tags"
+],
+    "intel_attributes"
+: {
+      "weakness": "text",       // [New] 对手弱点记录
+      "interest_chain": "json", // [New] 利益关联链（如：谁是他的债权人）
+      "decision_style": "enum", // 决策风格：激进/保守/摇摆
+      "last_interaction": "timestamp"
+    },
+    "relationship_graph"
+: {
+      "connection_nodes": "uuid[]"
+, 
+      "bond_strength": "float", // 0.0-1.0 关联强度
+      "conflict_points": "text[]" // 潜在冲突点
+    }
+  },
+
+  // --- 2. 服务器资源堡垒索引 (The Resource Vault) ---
+  "vault_schema"
+: {
+    "category_enum": ["RESEARCH", "SOFTWARE", "MEDIA", "BOOK", "SYSTEM_DRIVE"
+],
+    "item_metadata"
+: {
+      "file_hash": "sha256"
+,
+      "source_url": "url"
+,
+      "sandbox_status": "PENDING|CLEAN|INFECTED", // [New] 自动安检状态
+      "semantic_tags": "vector_1536", // [New] 语义索引，支持意图调阅
+      "download_node": "SERVER_ID" 
+    }
+  },
+
+  // --- 3. 身外化身进化记忆 (Shadow & Evolutionary Memory) ---
+  "shadow_memory_schema"
+: {
+    "owner_decision_logs"
+: {
+      "context": "text"
+,
+      "choice_made": "text"
+,
+      "rejected_options": "text[]"
+,
+      "mimicry_weight": "float" // 小智模仿该决策的权重
+    },
+    "academic_progress"
+: {
+      "field": "LAW|FINANCE|STRATEGY|BIO"
+,
+      "exp_points": "int"
+,
+      "unlocked_skills": "skill_id[]"
+    }
+  },
+
+  // --- 4. 气密舱安全分区 (Privacy Airlock Partition) ---
+  "privacy_zones"
+: {
+    "ZONE_RED": "Owner-Only (API Keys, Core Secrets, Bio-Vitals)", // 绝对禁区
+    "ZONE_BLUE": "Shared-Context (Team Projects, Public Intel)",   // 团队分身共享
+    "ZONE_GREEN": "Guest-Interface (UI Assets, Basic Chat)"        // 访客/二次元展示
+  }
+}
+ 
+🛡️ 针对 AI 编程的开头要求与最后校验
+【开头强制要求】：
+1. 语义索引优先：在编写数据持久化层代码时，必须强制要求所有 RESEARCH 类文件的入库动作触发 Embedding 向量化，确保“一个命令找资料”的语义搜索能力。
+2. 安全审计自动触发：任何写入 VaultIndex 的 SOFTWARE 资源，必须在代码中关联 Z1.self_healing 中的 AST 扫描函数。
+【最后校验准则】：
+1. 关联查询压力测试：模拟查询“老板的朋友中，谁和 A 公司有财务冲突？”，校验 person_schema 是否能通过利益链输出结果。
+2. 权限穿透校验：模拟 Guest 账户尝试访问 ZONE_RED 数据的行为，校验系统是否触发 PermissionDenied 并记录此异常行为。
+3. 自举补齐测试：检查当 intel_attributes 中某个字段缺失时，小智是否会自动在“梦境模式”下搜索网络信息补全。

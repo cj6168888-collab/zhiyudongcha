@@ -1,0 +1,71 @@
+name: R1 Release Gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  assistant-r1-gate:
+    name: Assistant R1 Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: r1_gate
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run R1 release gate
+        run: npm run release:r1-gate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/r1_gate
+          REDIS_HOST: localhost
+          REDIS_PORT: '6379'
+          DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DOUBAO_API_KEY: ${{ secrets.DOUBAO_API_KEY }}
+          SESSION_SECRET: r1-gate-session-secret-000000000000000000000000000000000000000000
+          AVATAR_MASTER_SECRET: r1-gate-avatar-master-secret-000000000000000000000000000000000000
+          MASTER_SECRET: r1-gate-master-secret-000000000000000000000000000000000000000000
+
+      - name: Upload R1 gate logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r1-release-gate-logs
+          path: .local/
+          retention-days: 14

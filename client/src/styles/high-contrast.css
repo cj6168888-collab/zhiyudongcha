@@ -1,0 +1,277 @@
+/**
+ * High Contrast Mode - 高对比度模式
+ * 
+ * WCAG 2.2 AAA 合规（对比度 7:1）
+ * 支持强制颜色模式（Windows 高对比度）
+ * 
+ * 触发方式：
+ * 1. 系统设置：Windows/Mac 高对比度模式
+ * 2. 手动切换：添加类名 .high-contrast 到 html 元素
+ * 
+ * 更新日期: 2026-02-14
+ * 版本: 2.0.0
+ */
+
+/* ========================================
+   基础高对比度模式
+   ======================================== */
+
+.high-contrast,
+[data-high-contrast="true"] {
+  /* 颜色覆盖 - 强制高对比度 */
+  --color-bg-primary: #ffffff !important;
+  --color-bg-secondary: #ffffff !important;
+  --color-bg-tertiary: #f0f0f0 !important;
+  
+  --color-text-primary: #000000 !important;
+  --color-text-secondary: #000000 !important;
+  --color-text-tertiary: #333333 !important;
+  --color-text-inverse: #ffffff !important;
+  --color-text-link: #0000ff !important;
+  --color-text-link-hover: #0000cc !important;
+  
+  --color-border-light: #000000 !important;
+  --color-border-medium: #000000 !important;
+  --color-border-strong: #000000 !important;
+  
+  /* 主色调 - 高对比度 */
+  --color-primary-500: #0000ff !important;
+  --color-primary-600: #0000cc !important;
+  --color-primary-700: #000099 !important;
+  
+  /* 语义色 - 高对比度 */
+  --color-success-500: #006600 !important;
+  --color-success-600: #004d00 !important;
+  --color-warning-500: #cc6600 !important;
+  --color-warning-600: #994d00 !important;
+  --color-error-500: #cc0000 !important;
+  --color-error-600: #990000 !important;
+  --color-info-500: #0066cc !important;
+  --color-info-600: #004d99 !important;
+  
+  /* 焦点环 - 更明显的焦点 */
+  --focus-ring-width: 4px !important;
+  --focus-ring-color: #000000 !important;
+  --focus-ring-offset: 3px !important;
+  
+  /* 阴影 - 在高对比度下减少使用 */
+  --shadow-sm: none !important;
+  --shadow-md: none !important;
+  --shadow-lg: none !important;
+  --shadow-xl: none !important;
+}
+
+/* ========================================
+   高对比度模式下的组件样式
+   ======================================== */
+
+.high-contrast .btn,
+[data-high-contrast="true"] .btn,
+.high-contrast button,
+[data-high-contrast="true"] button {
+  border: 2px solid #000000 !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.high-contrast .btn:hover,
+[data-high-contrast="true"] .btn:hover,
+.high-contrast button:hover,
+[data-high-contrast="true"] button:hover {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.high-contrast .btn-primary,
+[data-high-contrast="true"] .btn-primary {
+  background-color: #0000ff !important;
+  color: #ffffff !important;
+  border-color: #0000ff !important;
+}
+
+.high-contrast .btn-primary:hover,
+[data-high-contrast="true"] .btn-primary:hover {
+  background-color: #000000 !important;
+  border-color: #000000 !important;
+}
+
+.high-contrast input,
+.high-contrast textarea,
+.high-contrast select,
+[data-high-contrast="true"] input,
+[data-high-contrast="true"] textarea,
+[data-high-contrast="true"] select {
+  border: 2px solid #000000 !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.high-contrast input:focus,
+.high-contrast textarea:focus,
+.high-contrast select:focus,
+[data-high-contrast="true"] input:focus,
+[data-high-contrast="true"] textarea:focus,
+[data-high-contrast="true"] select:focus {
+  outline: 3px solid #000000 !important;
+  outline-offset: 2px !important;
+}
+
+.high-contrast .card,
+[data-high-contrast="true"] .card {
+  border: 2px solid #000000 !important;
+  background-color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.high-contrast a,
+[data-high-contrast="true"] a {
+  color: #0000ff !important;
+  text-decoration: underline !important;
+}
+
+.high-contrast a:hover,
+[data-high-contrast="true"] a:hover {
+  color: #000000 !important;
+  background-color: #ffff00 !important;
+}
+
+.high-contrast a:focus,
+[data-high-contrast="true"] a:focus {
+  outline: 3px solid #000000 !important;
+  outline-offset: 2px !important;
+}
+
+/* ========================================
+   Windows 强制颜色模式支持
+   ======================================== */
+
+@media (forced-colors: active) {
+  :root {
+    /* 使用系统颜色 */
+    --color-bg-primary: Canvas;
+    --color-bg-secondary: Canvas;
+    --color-text-primary: CanvasText;
+    --color-text-secondary: CanvasText;
+    --color-text-link: LinkText;
+    --color-border-light: CanvasText;
+    --color-border-medium: CanvasText;
+    --color-border-strong: CanvasText;
+  }
+  
+  /* 确保所有交互元素都有可见边框 */
+  button,
+  input,
+  textarea,
+  select,
+  .btn,
+  .card {
+    border: 2px solid CanvasText !important;
+    forced-color-adjust: none;
+  }
+  
+  /* 焦点样式 */
+  :focus-visible {
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+  
+  /* 禁用阴影 */
+  * {
+    box-shadow: none !important;
+  }
+}
+
+/* ========================================
+   高对比度切换按钮样式
+   ======================================== */
+
+.high-contrast-toggle {
+  position: fixed;
+  bottom: var(--space-4);
+  right: var(--space-4);
+  z-index: var(--z-tooltip);
+  
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  
+  background-color: var(--color-bg-primary);
+  border: 2px solid var(--color-border-medium);
+  border-radius: var(--radius-lg);
+  
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+  
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.high-contrast-toggle:hover {
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border-strong);
+}
+
+.high-contrast-toggle:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.high-contrast-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* 高对比度模式下的切换按钮 */
+.high-contrast .high-contrast-toggle,
+[data-high-contrast="true"] .high-contrast-toggle {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+.high-contrast .high-contrast-toggle:hover,
+[data-high-contrast="true"] .high-contrast-toggle:hover {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* ========================================
+   打印样式 - 始终使用高对比度
+   ======================================== */
+
+@media print {
+  :root {
+    --color-bg-primary: #ffffff !important;
+    --color-text-primary: #000000 !important;
+    --color-text-secondary: #000000 !important;
+    --color-border-light: #000000 !important;
+    --color-border-medium: #000000 !important;
+    --color-text-link: #0000ff !important;
+    
+    --shadow-sm: none !important;
+    --shadow-md: none !important;
+    --shadow-lg: none !important;
+  }
+  
+  /* 移除背景色和阴影 */
+  * {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  /* 确保链接可识别 */
+  a {
+    text-decoration: underline !important;
+    color: #0000ff !important;
+  }
+  
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 90%;
+    color: #666666;
+  }
+}
