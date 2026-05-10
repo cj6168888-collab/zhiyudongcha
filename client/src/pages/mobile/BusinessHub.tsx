@@ -6,8 +6,8 @@
 import { SafeLayout } from "@/components/mobile/SafeLayout";
 import {
   ShieldCheck, Wallet, FileText, BrainCircuit, Heart,
-  TrendingUp, Sparkles, FolderKanban, Users2, Cpu, Zap, Shield,
-  ArrowRight, AlertCircle, FileBarChart, Clock, Scan, ListTodo
+  FolderKanban, Users2, Cpu, Zap, Shield,
+  ArrowRight, FileBarChart, Scan, ListTodo, Monitor, Sparkles, Layers
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
@@ -74,47 +74,47 @@ export default function BusinessHub() {
 
   return (
     <SafeLayout headerTitle="指挥中心">
-      <div className="space-y-6 pb-10">
+      <div className="space-y-4 pb-6">
 
         {/* 系统状态遥测 */}
-        <div className="grid grid-cols-3 gap-2 px-1">
+        <div className="grid grid-cols-3 gap-2">
           <div
-            className="p-3 rounded-2xl bg-white/5 border border-white/5 flex flex-col items-center gap-1 active:bg-white/10 cursor-pointer transition-all"
+            className="min-h-14 rounded-lg bg-white/[0.04] border border-white/10 flex flex-col items-center justify-center gap-1 active:bg-white/10 cursor-pointer transition-all"
             onClick={() => setLocation('/resources')}
           >
-            <Zap className="w-3.5 h-3.5 text-primary" />
-            <span className="text-[9px] text-gray-500 uppercase">HP 状态</span>
+            <Zap className="w-4 h-4 text-primary" />
+            <span className="text-[10px] text-gray-500">HP 状态</span>
             <span className="text-xs font-black text-white">{systemStatus?.hp ?? '--'}%</span>
           </div>
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/5 flex flex-col items-center gap-1">
-            <Cpu className="w-3.5 h-3.5 text-purple-400" />
-            <span className="text-[9px] text-gray-500 uppercase">算力模式</span>
-            <span className="text-[10px] font-black text-white uppercase italic tracking-tighter">{systemStatus?.computeMode ?? '--'}</span>
+          <div className="min-h-14 rounded-lg bg-white/[0.04] border border-white/10 flex flex-col items-center justify-center gap-1">
+            <Cpu className="w-4 h-4 text-purple-400" />
+            <span className="text-[10px] text-gray-500">算力模式</span>
+            <span className="max-w-full px-1 text-[10px] font-black text-white uppercase italic truncate">{systemStatus?.computeMode ?? '--'}</span>
           </div>
           <div
-            className="p-3 rounded-2xl bg-white/5 border border-white/5 flex flex-col items-center gap-1 active:bg-white/10 cursor-pointer transition-all"
+            className="min-h-14 rounded-lg bg-white/[0.04] border border-white/10 flex flex-col items-center justify-center gap-1 active:bg-white/10 cursor-pointer transition-all"
             onClick={() => setLocation('/security')}
           >
-            <Shield className="w-3.5 h-3.5 text-green-500" />
-            <span className="text-[9px] text-gray-500 uppercase">防线等级</span>
+            <Shield className="w-4 h-4 text-green-500" />
+            <span className="text-[10px] text-gray-500">防线等级</span>
             <span className="text-xs font-black text-white">{systemStatus?.defenseLevel ?? '--'}</span>
           </div>
           </div>
 
         {/* 当前项目上下文（全局 Store 联动） */}
         {currentProject && (
-          <section className="px-1">
-            <div className="p-4 rounded-[2.5rem] bg-primary/10 border border-primary/20 flex items-center justify-between">
+          <section>
+            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <FolderKanban className="w-4 h-4 text-primary" />
                 <div>
-                  <p className="text-[9px] text-primary/60 uppercase tracking-widest font-black">Active Context</p>
+                  <p className="text-[10px] text-primary/60 uppercase font-black">Active Context</p>
                   <p className="text-xs font-bold text-white">{currentProject.title}</p>
                 </div>
               </div>
               <button
                 onClick={() => setLocation('/projects')}
-                className="text-[9px] text-primary/60 font-bold uppercase tracking-widest"
+                className="px-2 py-1 rounded-md text-[10px] text-primary/70 font-bold active:bg-primary/10"
               >
                 切换
               </button>
@@ -123,20 +123,20 @@ export default function BusinessHub() {
         )}
 
         {/* 每日战备报告摘要 */}
-        <section className="px-1">
-          <div className="p-5 rounded-[2.5rem] bg-gradient-to-br from-amber-500/20 to-transparent border border-amber-500/30 relative overflow-hidden group">
-            <div className="flex items-center justify-between mb-4">
+        <section>
+          <div className="p-3 rounded-lg bg-gradient-to-br from-amber-500/15 to-white/[0.02] border border-amber-500/25 relative overflow-hidden group">
+            <div className="flex items-center justify-between gap-3 mb-2">
               <div className="flex items-center gap-2 text-amber-400">
-                <FileBarChart className="w-5 h-5" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Battle Report Summary</span>
+                <FileBarChart className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase">Battle Report</span>
               </div>
-              <span className="text-[9px] text-gray-600 font-mono">{displayDate}</span>
+              <span className="text-[10px] text-gray-600 font-mono shrink-0">{displayDate}</span>
             </div>
             <div className="space-y-2">
-              <p className="text-xs text-white font-medium italic">“今日核心：{report.highlights}”</p>
+              <p className="text-xs text-white font-semibold leading-snug">今日核心：{report.highlights}</p>
               <p className="text-[11px] text-gray-400 leading-relaxed">风险预警：{report.concerns}</p>
             </div>
-            <button onClick={() => setLocation('/vault')} className="mt-5 flex items-center gap-1.5 text-[9px] font-black text-amber-400 uppercase tracking-widest active:translate-x-1 transition-transform">
+            <button onClick={() => setLocation('/vault')} className="mt-3 inline-flex items-center gap-1.5 rounded-md py-1 text-[11px] font-black text-amber-400 active:translate-x-1 transition-transform">
               立即查看全量战报 <ArrowRight className="w-3 h-3" />
             </button>
           </div>
@@ -145,7 +145,7 @@ export default function BusinessHub() {
         {/* 专家矩阵 */}
         <section>
           <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] italic">Intelligence Nodes</h2>
+            <h2 className="text-[10px] font-black text-gray-500 uppercase">Intelligence Nodes</h2>
           </div>
           <div className="grid grid-cols-5 gap-2">
             {[
@@ -158,9 +158,9 @@ export default function BusinessHub() {
               <button
                 key={expert.id}
                 onClick={() => setLocation(`/experts/${expert.id}`)}
-                className="flex flex-col items-center gap-2 p-2 rounded-2xl bg-white/5 border border-white/5 active:bg-white/10 transition-all"
+                className="flex flex-col items-center gap-2 p-2 rounded-lg bg-white/[0.04] border border-white/10 active:bg-white/10 transition-all"
               >
-                <div className="p-2 rounded-xl bg-white/5">
+                <div className="p-2 rounded-lg bg-white/5">
                   <expert.icon className={cn("w-5 h-5", expert.color)} />
                 </div>
                 <span className="text-[9px] font-bold text-gray-300 text-center leading-tight">{expert.name}</span>
@@ -171,15 +171,15 @@ export default function BusinessHub() {
 
         {/* 商务核心入口 */}
         <div className="grid grid-cols-2 gap-3 pb-4">
-          <button onClick={() => setLocation('/projects')} className="p-5 rounded-[2.5rem] bg-white/5 border border-white/5 text-left active:scale-95 transition-all">
+          <button onClick={() => setLocation('/projects')} className="p-4 min-h-24 rounded-lg bg-white/[0.04] border border-white/10 text-left active:scale-[0.98] transition-all">
             <FolderKanban className="w-6 h-6 text-blue-400 mb-3" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-tighter">Strategic Core</h3>
-            <p className="text-[9px] text-gray-500 mt-1">项目建设</p>
+            <h3 className="text-sm font-bold text-white uppercase leading-tight">Strategic Core</h3>
+            <p className="text-[10px] text-gray-500 mt-1">项目建设</p>
           </button>
-          <button onClick={() => setLocation('/contacts')} className="p-5 rounded-[2.5rem] bg-white/5 border border-white/5 text-left active:scale-95 transition-all">
+          <button onClick={() => setLocation('/contacts')} className="p-4 min-h-24 rounded-lg bg-white/[0.04] border border-white/10 text-left active:scale-[0.98] transition-all">
             <Users2 className="w-6 h-6 text-amber-400 mb-3" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-tighter">Human Assets</h3>
-            <p className="text-[9px] text-gray-500 mt-1">人脉/档案库</p>
+            <h3 className="text-sm font-bold text-white uppercase leading-tight">Human Assets</h3>
+            <p className="text-[10px] text-gray-500 mt-1">人脉/档案库</p>
           </button>
         </div>
 
@@ -187,9 +187,9 @@ export default function BusinessHub() {
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setLocation('/scanner')}
-            className="p-4 rounded-[2.5rem] bg-green-500/10 border border-green-500/20 text-left active:scale-95 transition-all flex items-center gap-3"
+            className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-left active:scale-[0.98] transition-all flex items-center gap-3"
           >
-            <div className="w-10 h-10 rounded-2xl bg-green-500/20 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center shrink-0">
               <Scan className="w-5 h-5 text-green-400" />
             </div>
             <div>
@@ -203,9 +203,9 @@ export default function BusinessHub() {
           </button>
           <button
             onClick={() => setLocation('/tasks')}
-            className="p-4 rounded-[2.5rem] bg-purple-500/10 border border-purple-500/20 text-left active:scale-95 transition-all flex items-center gap-3"
+            className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 text-left active:scale-[0.98] transition-all flex items-center gap-3"
           >
-            <div className="w-10 h-10 rounded-2xl bg-purple-500/20 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0">
               <ListTodo className="w-5 h-5 text-purple-400" />
             </div>
             <div>
@@ -214,6 +214,26 @@ export default function BusinessHub() {
             </div>
           </button>
         </div>
+
+        <section>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: '远程', desc: 'PC 控制', icon: Monitor, path: '/remote-pc', color: 'text-blue-300' },
+              { label: '技能', desc: '能力库', icon: Sparkles, path: '/skills', color: 'text-violet-300' },
+              { label: '工作流', desc: '自动化', icon: Layers, path: '/workflow', color: 'text-cyan-300' },
+            ].map((item) => (
+              <button
+                key={item.path}
+                onClick={() => setLocation(item.path)}
+                className="rounded-lg border border-white/10 bg-white/[0.035] p-3 text-left active:bg-white/10"
+              >
+                <item.icon className={cn("mb-2 h-4 w-4", item.color)} />
+                <p className="text-xs font-bold text-white">{item.label}</p>
+                <p className="mt-0.5 text-[10px] text-gray-500">{item.desc}</p>
+              </button>
+            ))}
+          </div>
+        </section>
 
       </div>
     </SafeLayout>

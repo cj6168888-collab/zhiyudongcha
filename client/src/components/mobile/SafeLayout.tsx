@@ -27,11 +27,11 @@ export function SafeLayout({ children, headerTitle, headerRight, noPadding = fal
     <div className="flex flex-col h-full bg-[#030712] overflow-hidden text-white relative">
       <div className="flex-shrink-0 h-[env(safe-area-inset-top,24px)] w-full bg-[#030712]" />
 
-      <header className="flex-shrink-0 flex items-center px-4 h-14 border-b border-white/5 bg-black/40 backdrop-blur-md gap-3 z-50">
+      <header className="flex-shrink-0 flex items-center px-4 h-14 border-b border-white/5 bg-black/50 backdrop-blur-md gap-3 z-50">
         {shouldShowBack ? (
-          <button onClick={() => window.history.back()} className="p-2 -ml-2 text-gray-400 active:text-primary"><ArrowLeft className="w-6 h-6" /></button>
+          <button onClick={() => window.history.back()} className="p-2 -ml-2 rounded-lg text-gray-400 active:text-primary active:bg-white/10"><ArrowLeft className="w-5 h-5" /></button>
         ) : (
-          <div className="w-9 h-9 rounded-xl overflow-hidden border border-primary/30 shadow-[0_0_15px_rgba(99,102,241,0.3)] bg-gray-900 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-lg overflow-hidden border border-primary/30 shadow-[0_0_15px_rgba(99,102,241,0.25)] bg-gray-900 flex items-center justify-center">
             {!imgError ? (
               <img src="/xiaoji-avatar.png" alt="小吉" className="w-full h-full object-cover" onError={() => setImgError(true)} />
             ) : (
@@ -45,11 +45,11 @@ export function SafeLayout({ children, headerTitle, headerRight, noPadding = fal
           <div className="flex items-center gap-1.5 mt-0.5">
             {/* 大脑状态指示灯：解决硬伤 4 */}
             <div className={cn(
-              "flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[8px] font-black uppercase tracking-tighter transition-all",
+              "inline-flex max-w-full items-center gap-1 px-1.5 py-0.5 rounded-md border text-[8px] font-black uppercase transition-all",
               isCloudMode ? "border-primary/30 text-primary" : "border-purple-500/30 text-purple-400"
             )}>
               {isCloudMode ? <CloudLightning className="w-2 h-2" /> : <Brain className="w-2 h-2" />}
-              {brainMode} CORE ACTIVE
+              <span className="truncate">{brainMode} CORE ACTIVE</span>
             </div>
           </div>
         </div>
@@ -58,7 +58,7 @@ export function SafeLayout({ children, headerTitle, headerRight, noPadding = fal
         {headerRight && <div className="flex-shrink-0">{headerRight}</div>}
       </header>
 
-      <main className={cn("flex-1 overflow-y-auto overscroll-contain z-10", !noPadding && "px-5 pt-4", "pb-32")}>
+      <main className={cn("flex-1 overflow-y-auto overscroll-contain z-10", !noPadding && "px-4 pt-3", "pb-28")}>
         {children}
       </main>
     </div>
