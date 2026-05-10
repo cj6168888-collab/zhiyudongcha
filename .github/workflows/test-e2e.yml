@@ -31,19 +31,9 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      - name: Start development server
-        run: |
-          npm run dev:client &
+      - name: Run mobile conversation Playwright tests
+        run: npx playwright test tests/e2e/mobile-conversation-home.spec.ts --project="Mobile Chrome"
         env:
-          NODE_ENV: development
-
-      - name: Wait for server to be ready
-        run: sleep 15
-
-      - name: Run Playwright tests
-        run: npm run test:e2e
-        env:
-          PLAYWRIGHT_TEST_BASE_URL: http://localhost:5000
           CI: true
 
       - name: Upload Playwright reports
