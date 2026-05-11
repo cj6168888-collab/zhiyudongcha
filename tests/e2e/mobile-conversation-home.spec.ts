@@ -1,11 +1,16 @@
 import { expect, type Page, test } from 'playwright/test';
 
 const mobileViewport = { width: 390, height: 844 };
+const appUrl = 'http://localhost:5173/';
+const localStateKey = 'navigator.mobile.conversation-home.local-state.v1';
 
 async function mockConversationShell(page: Page, options?: {
   pendingSummary?: Record<string, unknown>;
   assistantFailure?: boolean;
+  assistantFailureCount?: number;
   assistantResult?: Record<string, unknown>;
+  preserveLocalState?: boolean;
+  offline?: boolean;
 }) {
   await page.addInitScript((mockOptions) => {
     const jsonResponse = (body: unknown, status = 200) =>
@@ -14,6 +19,19 @@ async function mockConversationShell(page: Page, options?: {
         headers: { 'Content-Type': 'application/json' },
       });
     const originalFetch = window.fetch.bind(window);
+
+    if (!mockOptions.preserveLocalState) {
+      window.localStorage.removeItem('navigator.mobile.conversation-home.local-state.v1');
+    }
+    (window as unknown as { __assistantCalls?: number }).__assistantCalls = 0;
+    let assistantCallCount = 0;
+
+    if (mockOptions.offline) {
+      Object.defineProperty(window.navigator, 'onLine', {
+        configurable: true,
+        get: () => false,
+      });
+    }
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string'
@@ -46,6 +64,30 @@ async function mockConversationShell(page: Page, options?: {
         return jsonResponse({ success: true, devices: [] });
       }
 
+      if (path === '/api/tasks' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          count: 1,
+          data: [
+            {
+              id: 'task-heartbeat',
+              name: 'Contract review reminder',
+              enabled: true,
+              trigger: { type: 'HEARTBEAT', config: {} },
+              nextRunAt: Date.now() + 30 * 60 * 1000,
+            },
+          ],
+        });
+      }
+
+      if (path === '/api/alerts/pending' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          count: 0,
+          data: [],
+        });
+      }
+
       if (path === '/api/assistant/pending' && method === 'GET') {
         return jsonResponse(mockOptions.pendingSummary ?? {
           success: true,
@@ -72,7 +114,12 @@ async function mockConversationShell(page: Page, options?: {
       }
 
       if ((path === '/api/assistant' || path === '/api/assistant/') && method === 'POST') {
-        if (mockOptions.assistantFailure) {
+        assistantCallCount += 1;
+        (window as unknown as { __assistantCalls?: number }).__assistantCalls = assistantCallCount;
+        const failureCount = typeof mockOptions.assistantFailureCount === 'number'
+          ? mockOptions.assistantFailureCount
+          : 0;
+        if (mockOptions.assistantFailure || assistantCallCount <= failureCount) {
           return jsonResponse({ success: false, error: 'assistant unavailable' }, 400);
         }
         return jsonResponse(mockOptions.assistantResult ?? {
@@ -81,7 +128,7 @@ async function mockConversationShell(page: Page, options?: {
             id: 'resp-ok',
             handler: 'ai',
             type: 'greeting',
-            message: '收到，我来处理。',
+            message: 'received',
           },
         });
       }
@@ -91,8 +138,16 @@ async function mockConversationShell(page: Page, options?: {
   }, {
     pendingSummary: options?.pendingSummary,
     assistantFailure: options?.assistantFailure,
+    assistantFailureCount: options?.assistantFailureCount,
     assistantResult: options?.assistantResult,
+    preserveLocalState: options?.preserveLocalState,
+    offline: options?.offline,
   });
+}
+
+async function sendConversationMessage(page: Page, message: string) {
+  await page.getByTestId('conversation-input').fill(message);
+  await page.getByTestId('conversation-send').click();
 }
 
 test.describe('Mobile conversation home', () => {
@@ -102,26 +157,175 @@ test.describe('Mobile conversation home', () => {
   test('renders conversation-first controls', async ({ page }) => {
     await mockConversationShell(page);
 
-    await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' });
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
 
-    await expect(page.getByRole('heading', { name: '小智' })).toBeVisible();
-    await expect(page.getByPlaceholder('直接告诉小智要做什么...')).toBeVisible();
-    await expect(page.getByRole('button', { name: '语音输入' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '添加材料' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '发送' })).toBeVisible();
+    await expect(page.locator('header')).toBeVisible();
+    await expect(page.getByTestId('now-strip')).toBeVisible();
+    await expect(page.getByTestId('now-strip')).toHaveAttribute('aria-label', /.+/);
+    await expect(page.getByTestId('now-context')).toBeVisible();
+    await expect(page.getByTestId('now-context')).toHaveAttribute('aria-label', /.+/);
+    await expect(page.getByTestId('now-pending')).toBeVisible();
+    await expect(page.getByTestId('now-pending')).toHaveAttribute('aria-label', /.+/);
+    await expect(page.getByTestId('now-automations')).toBeVisible();
+    await expect(page.getByTestId('now-automations')).toHaveAttribute('aria-label', /.+/);
+    await expect(page.getByTestId('now-next-reminder')).toBeVisible();
+    await expect(page.getByTestId('now-next-reminder')).toHaveAttribute('aria-label', /.+/);
+    await expect(page.getByTestId('conversation-input')).toBeVisible();
+    await expect(page.getByTestId('conversation-send')).toBeDisabled();
+    await expect(page.getByTestId('bottom-nav')).toHaveAttribute('aria-label', /.+/);
+    await expect(page.getByTestId('nav-item-conversation')).toHaveAttribute('aria-current', 'page');
+  });
+
+  test('restores unsent composer text after reload', async ({ page }) => {
+    await mockConversationShell(page, { preserveLocalState: true });
+
+    const message = 'unfinished composer text should survive reload';
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await page.evaluate((key) => window.localStorage.removeItem(key), localStateKey);
+    await page.getByTestId('conversation-input').fill(message);
+
+    await expect.poll(() => page.evaluate(
+      ({ key, expected }) => window.localStorage.getItem(key)?.includes(expected) ?? false,
+      { key: localStateKey, expected: message }
+    )).toBe(true);
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByTestId('conversation-input')).toHaveValue(message);
+    await expect(page.getByTestId('conversation-send')).toBeEnabled();
+  });
+
+  test('shows device setup guidance when no bound device is available', async ({ page }) => {
+    await mockConversationShell(page);
+
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByTestId('device-setup-card')).toBeVisible();
+    await expect(page.getByTestId('device-setup-action')).toBeVisible();
+  });
+
+  test('shows offline guidance and retains a send without calling the assistant', async ({ page }) => {
+    await mockConversationShell(page, {
+      offline: true,
+      preserveLocalState: true,
+    });
+
+    const message = 'offline send should be retained locally';
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await page.evaluate((key) => window.localStorage.removeItem(key), localStateKey);
+
+    await expect(page.getByTestId('backend-degraded-card')).toBeVisible();
+    await expect(page.getByTestId('backend-degraded-title')).toContainText('离线');
+    await sendConversationMessage(page, message);
+
+    await expect(page.getByTestId('failed-send-card')).toContainText(message);
+    await expect(page.getByTestId('failed-send-card')).toContainText('第 1 次失败');
+    expect(await page.evaluate(() =>
+      (window as unknown as { __assistantCalls?: number }).__assistantCalls ?? 0
+    )).toBe(0);
+    await expect.poll(() => page.evaluate(
+      ({ key, expected }) => window.localStorage.getItem(key)?.includes(expected) ?? false,
+      { key: localStateKey, expected: message }
+    )).toBe(true);
   });
 
   test('keeps a failed send available for retry or edit', async ({ page }) => {
     await mockConversationShell(page, { assistantFailure: true });
 
-    await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' });
-    await page.getByPlaceholder('直接告诉小智要做什么...').fill('帮我创建失败重试测试');
-    await page.getByRole('button', { name: '发送' }).click();
+    const message = 'create a failed-send retry test';
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await sendConversationMessage(page, message);
 
-    await expect(page.getByText('消息没有送达')).toBeVisible();
-    await expect(page.getByText('帮我创建失败重试测试').last()).toBeVisible();
-    await expect(page.getByRole('button', { name: '重试发送' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '放回输入' })).toBeVisible();
+    await expect(page.getByTestId('failed-send-card')).toContainText(message);
+    await expect(page.getByTestId('failed-send-retry')).toBeVisible();
+    await expect(page.getByTestId('failed-send-restore')).toBeVisible();
+    await expect(page.getByTestId('failed-send-dismiss')).toBeVisible();
+  });
+
+  test('clears a retained failed send after a successful retry', async ({ page }) => {
+    await mockConversationShell(page, {
+      assistantFailureCount: 1,
+      preserveLocalState: true,
+    });
+
+    const message = 'retry succeeds without duplicating the user message';
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await page.evaluate((key) => window.localStorage.removeItem(key), localStateKey);
+    await sendConversationMessage(page, message);
+
+    await expect(page.getByTestId('failed-send-card')).toContainText('第 1 次失败');
+    await expect(page.getByText(message)).toHaveCount(2);
+
+    await page.getByTestId('failed-send-retry').click();
+
+    await expect(page.getByTestId('failed-send-card')).toBeHidden();
+    await expect(page.getByText(message)).toHaveCount(1);
+    await expect(page.getByText('received')).toBeVisible();
+    expect(await page.evaluate(() =>
+      (window as unknown as { __assistantCalls?: number }).__assistantCalls ?? 0
+    )).toBe(2);
+    await expect.poll(() => page.evaluate(
+      ({ key, expected }) => window.localStorage.getItem(key)?.includes(expected) ?? false,
+      { key: localStateKey, expected: message }
+    )).toBe(false);
+  });
+
+  test('increments failed send attempts and can discard the retained message', async ({ page }) => {
+    await mockConversationShell(page, {
+      assistantFailure: true,
+      preserveLocalState: true,
+    });
+
+    const message = 'retry attempts should keep counting';
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await page.evaluate((key) => window.localStorage.removeItem(key), localStateKey);
+    await sendConversationMessage(page, message);
+
+    await expect(page.getByTestId('failed-send-card')).toContainText('第 1 次失败');
+    await expect(page.getByText(message)).toHaveCount(2);
+
+    await page.getByTestId('failed-send-retry').click();
+
+    await expect(page.getByTestId('failed-send-card')).toContainText('第 2 次失败');
+    await expect(page.getByText(message)).toHaveCount(2);
+    await expect.poll(() => page.evaluate(
+      ({ key, expected }) => window.localStorage.getItem(key)?.includes(expected) ?? false,
+      { key: localStateKey, expected: message }
+    )).toBe(true);
+
+    await page.getByTestId('failed-send-dismiss').click();
+
+    await expect(page.getByTestId('failed-send-card')).toBeHidden();
+    await expect.poll(() => page.evaluate(
+      ({ key, expected }) => window.localStorage.getItem(key)?.includes(expected) ?? false,
+      { key: localStateKey, expected: message }
+    )).toBe(false);
+  });
+
+  test('restores a locally retained failed send after reload', async ({ page }) => {
+    await mockConversationShell(page, {
+      assistantFailure: true,
+      preserveLocalState: true,
+    });
+
+    const message = 'local failed send should survive reload';
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await page.evaluate((key) => window.localStorage.removeItem(key), localStateKey);
+    await sendConversationMessage(page, message);
+
+    await expect(page.getByTestId('failed-send-card')).toContainText(message);
+    await expect.poll(() => page.evaluate(
+      ({ key, expected }) => window.localStorage.getItem(key)?.includes(expected) ?? false,
+      { key: localStateKey, expected: message }
+    )).toBe(true);
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByTestId('failed-send-card')).toContainText(message);
+    await expect.poll(() => page.evaluate(
+      ({ key, expected }) => window.localStorage.getItem(key)?.includes(expected) ?? false,
+      { key: localStateKey, expected: message }
+    )).toBe(true);
   });
 
   test('shows a confirmation card returned by the assistant', async ({ page }) => {
@@ -132,30 +336,28 @@ test.describe('Mobile conversation home', () => {
           id: 'pending-project',
           handler: 'ai',
           type: 'confirm',
-          message: '需要您确认是否创建项目。',
+          message: 'approval required',
           action: 'create_project',
-          actionParams: { title: '待确认项目' },
+          actionParams: { title: 'Approval Project' },
           authorization: {
             required: true,
-            reason: '准备执行：项目「待确认项目」',
+            reason: 'Ready to create Approval Project',
             operation: 'create_project',
             options: [
-              { label: '确认执行', action: 'approve' },
-              { label: '取消', action: 'deny' },
+              { label: 'Approve', action: 'approve' },
+              { label: 'Cancel', action: 'deny' },
             ],
           },
         },
       },
     });
 
-    await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' });
-    await page.getByPlaceholder('直接告诉小智要做什么...').fill('帮我创建一个需要确认的项目');
-    await page.getByRole('button', { name: '发送' }).click();
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await sendConversationMessage(page, 'create a project that needs approval');
 
-    await expect(page.getByText('需要确认后执行')).toBeVisible();
-    await expect(page.getByText('准备执行：项目「待确认项目」')).toBeVisible();
-    await expect(page.getByRole('button', { name: '确认执行' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '取消' })).toBeVisible();
+    await expect(page.getByTestId('pending-confirmation-card')).toContainText('Ready to create Approval Project');
+    await expect(page.getByTestId('pending-confirmation-approve')).toBeVisible();
+    await expect(page.getByTestId('pending-confirmation-deny')).toBeVisible();
   });
 
   test('edits and saves a draft before execution', async ({ page }) => {
@@ -166,40 +368,89 @@ test.describe('Mobile conversation home', () => {
           id: 'draft-edit',
           handler: 'ai',
           type: 'draft',
-          message: '我整理了一份草案。',
+          message: 'draft prepared',
           draftItems: [
             {
               action: 'create_project',
-              label: '创建项目：旧项目',
-              actionParams: { title: '旧项目', description: '旧说明' },
+              label: 'Create project: Old Project',
+              actionParams: { title: 'Old Project', description: 'Old description' },
             },
           ],
         },
       },
     });
 
-    await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' });
-    await page.getByPlaceholder('直接告诉小智要做什么...').fill('帮我起草一个项目');
-    await page.getByRole('button', { name: '发送' }).click();
-    await expect(page.getByText('草案待确认')).toBeVisible();
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await sendConversationMessage(page, 'draft a project');
+    await expect(page.getByTestId('pending-draft-card')).toBeVisible();
 
-    await page.getByRole('button', { name: '修改' }).click();
-    await page.getByLabel('项目名').fill('新项目');
-    await page.getByLabel('说明').fill('新说明');
-    await page.getByRole('button', { name: '保存修改' }).click();
+    await page.getByTestId('draft-edit-button').click();
+    await page.getByTestId('draft-field-0-title').fill('New Project');
+    await page.getByTestId('draft-field-0-description').fill('New description');
+    await page.getByTestId('draft-save-button').click();
 
-    await expect(page.getByText('已保存草案修改，共 1 项。')).toBeVisible();
-    const updatePayload = await page.evaluate(() =>
+    await expect.poll(() => page.evaluate(() =>
       (window as unknown as { __draftUpdatePayload?: unknown }).__draftUpdatePayload
-    );
-    expect(updatePayload).toMatchObject({
+    )).toMatchObject({
       responseId: 'draft-edit',
       items: [
         {
           action: 'create_project',
-          actionParams: { title: '新项目', description: '新说明' },
+          actionParams: { title: 'New Project', description: 'New description' },
         },
       ],
     });
+  });
+
+  test('restores in-progress draft edits after reload', async ({ page }) => {
+    const pendingSummary = {
+      success: true,
+      count: 1,
+      pending: [],
+      draft: [
+        {
+          id: 'pending-draft-restore',
+          entryType: 'draft',
+          action: null,
+          items: [
+            {
+              action: 'create_project',
+              label: 'Create project: Original Project',
+              actionParams: { title: 'Original Project', description: 'Original description' },
+            },
+          ],
+          expiresAt: new Date(Date.now() + 600000).toISOString(),
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    };
+
+    await mockConversationShell(page, {
+      pendingSummary,
+      preserveLocalState: true,
+    });
+    await page.addInitScript(({ key, updatedAt }) => {
+      window.localStorage.setItem(key, JSON.stringify({
+        activeDraft: {
+          responseId: 'pending-draft-restore',
+          items: [
+            {
+              action: 'create_project',
+              label: 'Create project: Restored Project',
+              actionParams: { title: 'Restored Project', description: 'Restored description' },
+            },
+          ],
+          editing: true,
+          updatedAt,
+        },
+        updatedAt,
+      }));
+    }, { key: localStateKey, updatedAt: Date.now() });
+
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByTestId('pending-draft-card')).toBeVisible();
+    await expect(page.getByTestId('draft-field-0-title')).toHaveValue('Restored Project');
+    await expect(page.getByTestId('draft-field-0-description')).toHaveValue('Restored description');
   });
 });

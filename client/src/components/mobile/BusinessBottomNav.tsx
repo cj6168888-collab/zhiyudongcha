@@ -19,6 +19,7 @@ export function BusinessBottomNav() {
   return (
     <nav
       data-testid="bottom-nav"
+      aria-label="移动端主导航"
       className="flex-shrink-0 bg-[#0a0a0f]/95 border-t border-white/10 z-[999] pt-1.5 backdrop-blur-xl"
     >
       <div className="grid grid-cols-5 h-14 max-w-lg mx-auto px-1">
@@ -31,6 +32,8 @@ export function BusinessBottomNav() {
               key={item.id}
               onClick={() => setLocation(item.path)}
               data-testid={`nav-item-${item.id}`}
+              aria-label={`${item.label}${isActive ? "，当前页面" : ""}`}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "relative flex flex-col items-center justify-center gap-1 min-w-0 rounded-lg active:scale-95 transition-all duration-200",
                 isActive ? "text-[#8b5cf6]" : "text-gray-500"

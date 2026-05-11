@@ -32,6 +32,8 @@ import {
 } from "@/components/mobile/conversation/ConversationHomeSections";
 import { useAvatarStore } from "@/lib/avatar/avatar-store";
 import { useBirthStore } from "@/lib/birth-state-store";
+import { useNetworkStatus } from "@/hooks/use-device-info";
+import { apiRequest } from "@/lib/queryClient";
 import { MAX_HP, useZ1Store } from "@/lib/z1/god-protocol";
 import { useGlobalStore } from "@/store/globalStore";
 import { useNativeVoice } from "@/hooks/use-native-voice";
@@ -82,6 +84,40 @@ interface DeviceBindingsResponse {
   devices: DeviceBinding[];
 }
 
+interface TaskDefinitionSummary {
+  id: string;
+  name: string;
+  enabled: boolean;
+  trigger?: {
+    type?: "CRON" | "HEARTBEAT" | "MANUAL" | "WEBHOOK";
+    config?: Record<string, unknown>;
+  };
+  nextRunAt?: number;
+  updatedAt?: number;
+}
+
+interface TaskSummaryResponse {
+  success: boolean;
+  count: number;
+  data: TaskDefinitionSummary[];
+}
+
+interface PendingAlert {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  timestamp?: number;
+  createdAt?: string | number;
+}
+
+interface PendingAlertsResponse {
+  success: boolean;
+  count: number;
+  data: PendingAlert[];
+}
+
 interface PendingConfirmation {
   responseId: string;
   message: string;
@@ -112,12 +148,27 @@ interface PendingQueueItem {
   itemCount?: number;
 }
 
+interface LocalConversationHomeState {
+  inputText?: string;
+  failedSend?: FailedSend | null;
+  activeDraft?: {
+    responseId: string;
+    items: DraftItem[];
+    editing: boolean;
+    updatedAt: number;
+  } | null;
+  updatedAt: number;
+}
+
 const ACTION_META: Record<string, { label: string; icon: typeof FolderKanban }> = {
   create_project: { label: "项目", icon: FolderKanban },
   create_task: { label: "任务", icon: Check },
   save_memory: { label: "记忆", icon: Brain },
   create_person: { label: "联系人", icon: UserRound },
 };
+
+const LOCAL_STATE_KEY = "navigator.mobile.conversation-home.local-state.v1";
+const LOCAL_STATE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 const starterPrompts = [
   "帮我整理今天最该推进的三件事",
@@ -210,9 +261,152 @@ function draftQueueLabel(items?: DraftItem[]) {
   return firstItem.label || describePendingAction(firstItem.action, firstItem.actionParams);
 }
 
+const TRIGGER_LABELS: Record<string, string> = {
+  CRON: "定时任务",
+  HEARTBEAT: "心跳任务",
+  MANUAL: "手动任务",
+  WEBHOOK: "Webhook",
+};
+
+const ALERT_SEVERITY_PRIORITY: Record<PendingAlert["severity"], number> = {
+  CRITICAL: 0,
+  HIGH: 1,
+  MEDIUM: 2,
+  LOW: 3,
+};
+
+const ALERT_SEVERITY_LABEL: Record<PendingAlert["severity"], string> = {
+  CRITICAL: "高危风险",
+  HIGH: "高优先风险",
+  MEDIUM: "提醒",
+  LOW: "观察",
+};
+
+function sortAlertsByPriority(alerts: PendingAlert[]) {
+  return [...alerts].sort((left, right) => {
+    const severityDiff = ALERT_SEVERITY_PRIORITY[left.severity] - ALERT_SEVERITY_PRIORITY[right.severity];
+    if (severityDiff !== 0) return severityDiff;
+
+    const leftTime = Number(left.timestamp ?? left.createdAt ?? 0);
+    const rightTime = Number(right.timestamp ?? right.createdAt ?? 0);
+    return rightTime - leftTime;
+  });
+}
+
+function formatTriggerLabel(triggerType?: string) {
+  if (!triggerType) return "等待配置";
+  return TRIGGER_LABELS[triggerType] ?? triggerType;
+}
+
+function describeCronExpression(expression?: unknown) {
+  if (typeof expression !== "string" || !expression.trim()) return "未配置时间";
+  const parts = expression.trim().split(/\s+/);
+  if (parts.length !== 5) return expression;
+
+  const [minute, hour, , , weekday] = parts;
+  if (minute === "0" && hour === "*") return "每小时";
+  if (minute === "0" && hour === "0") return "每天午夜";
+  if (minute === "0" && hour === "9" && weekday === "1") return "每周一 09:00";
+  if (minute === "0" && hour !== "*") return `每天 ${hour.padStart(2, "0")}:00`;
+  return expression;
+}
+
+function formatNextReminderTime(timestamp?: number) {
+  if (!timestamp) return "暂无安排";
+
+  const delta = timestamp - Date.now();
+  if (delta <= 0) return "即将触发";
+
+  const minutes = Math.round(delta / 60_000);
+  if (minutes < 60) return `${minutes} 分钟后`;
+
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} 小时后`;
+
+  const date = new Date(timestamp);
+  return date.toLocaleDateString("zh-CN", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function isDraftItemArray(value: unknown): value is DraftItem[] {
+  return Array.isArray(value) && value.every((item) => {
+    if (!item || typeof item !== "object") return false;
+    const candidate = item as Partial<DraftItem>;
+    return typeof candidate.action === "string" && typeof candidate.actionParams === "object" && candidate.actionParams !== null;
+  });
+}
+
+function readLocalConversationHomeState(): LocalConversationHomeState | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(LOCAL_STATE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<LocalConversationHomeState>;
+    if (typeof parsed.updatedAt !== "number" || Date.now() - parsed.updatedAt > LOCAL_STATE_MAX_AGE_MS) {
+      window.localStorage.removeItem(LOCAL_STATE_KEY);
+      return null;
+    }
+
+    const inputText = typeof parsed.inputText === "string" ? parsed.inputText : "";
+    const failedSend = parsed.failedSend && typeof parsed.failedSend.message === "string"
+      ? {
+          message: parsed.failedSend.message,
+          detail: typeof parsed.failedSend.detail === "string" ? parsed.failedSend.detail : "待重新发送",
+          attempts: typeof parsed.failedSend.attempts === "number" ? parsed.failedSend.attempts : 1,
+          createdAt: typeof parsed.failedSend.createdAt === "number" ? parsed.failedSend.createdAt : Date.now(),
+        }
+      : null;
+    const activeDraft = parsed.activeDraft &&
+      typeof parsed.activeDraft.responseId === "string" &&
+      isDraftItemArray(parsed.activeDraft.items)
+      ? {
+          responseId: parsed.activeDraft.responseId,
+          items: parsed.activeDraft.items,
+          editing: parsed.activeDraft.editing === true,
+          updatedAt: typeof parsed.activeDraft.updatedAt === "number" ? parsed.activeDraft.updatedAt : parsed.updatedAt,
+        }
+      : null;
+
+    return {
+      inputText,
+      failedSend,
+      activeDraft,
+      updatedAt: parsed.updatedAt,
+    };
+  } catch {
+    window.localStorage.removeItem(LOCAL_STATE_KEY);
+    return null;
+  }
+}
+
+function writeLocalConversationHomeState(state: Omit<LocalConversationHomeState, "updatedAt">) {
+  if (typeof window === "undefined") return;
+
+  const hasInput = Boolean(state.inputText?.trim());
+  const hasFailedSend = Boolean(state.failedSend?.message?.trim());
+  const hasActiveDraft = Boolean(state.activeDraft?.responseId && state.activeDraft.items.length);
+
+  if (!hasInput && !hasFailedSend && !hasActiveDraft) {
+    window.localStorage.removeItem(LOCAL_STATE_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(LOCAL_STATE_KEY, JSON.stringify({
+    ...state,
+    updatedAt: Date.now(),
+  }));
+}
+
 export default function ConversationHome() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const networkStatus = useNetworkStatus();
   const { avatarConfig } = useBirthStore();
   const { messages, isProcessing, addMessage } = useAvatarStore();
   const {
@@ -229,25 +423,66 @@ export default function ConversationHome() {
   const currentProject = useGlobalStore((s) => s.currentProject);
   const deviceHealth = useGlobalStore((s) => s.deviceHealth);
 
-  const { data: hpStatus } = useQuery<HpBalanceResponse>({
+  const {
+    data: hpStatus,
+    isLoading: hpLoading,
+    isError: hpError,
+  } = useQuery<HpBalanceResponse>({
     queryKey: ["/api/hp/balance"],
     refetchInterval: 30000,
   });
 
-  const { data: modelStatus } = useQuery<ModelStatusResponse>({
+  const {
+    data: modelStatus,
+    isLoading: modelLoading,
+    isError: modelError,
+  } = useQuery<ModelStatusResponse>({
     queryKey: ["/api/models/status"],
     refetchInterval: 30000,
   });
 
-  const { data: deviceBindings } = useQuery<DeviceBindingsResponse>({
+  const {
+    data: deviceBindings,
+    isLoading: deviceBindingsLoading,
+    isError: deviceBindingsError,
+  } = useQuery<DeviceBindingsResponse>({
     queryKey: ["/api/device-bindings"],
     refetchInterval: 30000,
   });
 
-  const { data: assistantPending } = useQuery({
+  const {
+    data: assistantPending,
+    isError: assistantPendingError,
+  } = useQuery({
     queryKey: ["assistant-pending-summary"],
     queryFn: getAssistantPendingSummary,
     refetchInterval: 15000,
+  });
+
+  const {
+    data: taskSummary,
+    isLoading: tasksLoading,
+    isError: tasksError,
+  } = useQuery<TaskSummaryResponse>({
+    queryKey: ["conversation-home-tasks"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/tasks");
+      return await response.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const {
+    data: alertSummary,
+    isLoading: alertsLoading,
+    isError: alertsError,
+  } = useQuery<PendingAlertsResponse>({
+    queryKey: ["conversation-home-alerts"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/alerts/pending?limit=5");
+      return await response.json();
+    },
+    refetchInterval: 30000,
   });
 
   const [inputText, setInputText] = useState("");
@@ -261,8 +496,10 @@ export default function ConversationHome() {
   const [draftEdits, setDraftEdits] = useState<DraftItem[]>([]);
   const [selectedPendingId, setSelectedPendingId] = useState<string | null>(null);
   const [consumedPendingIds, setConsumedPendingIds] = useState<string[]>([]);
+  const [localStateHydrated, setLocalStateHydrated] = useState(false);
   const streamEndRef = useRef<HTMLDivElement>(null);
   const lastVoiceTranscriptRef = useRef("");
+  const retainedActiveDraftRef = useRef<LocalConversationHomeState["activeDraft"]>(null);
 
   const activeService = useMemo(
     () => aiServices.find((service) => service.isActive && service.isConfigured) ?? null,
@@ -271,7 +508,17 @@ export default function ConversationHome() {
   const hpCurrent = hpStatus?.data?.current ?? hpBalance;
   const hpMax = hpStatus?.data?.maximum ?? MAX_HP;
   const hpPercent = Math.max(0, Math.min(100, Math.round((hpCurrent / hpMax) * 100)));
+  const isOffline = networkStatus === "offline";
   const boundDevices = deviceBindings?.devices ?? [];
+  const tasks = taskSummary?.data ?? [];
+  const enabledTasks = tasks.filter((task) => task.enabled);
+  const nextAutomation = enabledTasks[0] ?? null;
+  const nextReminderTask = enabledTasks
+    .filter((task) => typeof task.nextRunAt === "number" && task.nextRunAt > Date.now())
+    .sort((left, right) => (left.nextRunAt ?? 0) - (right.nextRunAt ?? 0))[0] ?? null;
+  const fallbackScheduledTask = enabledTasks.find((task) => task.trigger?.type === "CRON") ?? nextAutomation;
+  const pendingAlerts = sortAlertsByPriority(alertSummary?.data ?? []);
+  const highestPendingAlert = pendingAlerts[0] ?? null;
   const onlineBoundDevices = boundDevices.filter((device) => {
     if (device.status?.toUpperCase() === "ONLINE") return true;
     if (!device.lastSeenAt) return false;
@@ -286,6 +533,38 @@ export default function ConversationHome() {
         ? "本机在线"
         : "未绑定";
   const deviceHealthy = onlineBoundDevices.length > 0 || hasNativeDeviceSignal;
+  const headerLoading = !hpStatus && !modelStatus && !deviceBindings && (hpLoading || modelLoading || deviceBindingsLoading);
+  const summaryLoading = (tasksLoading && !taskSummary) || (alertsLoading && !alertSummary);
+  const backendDegraded = isOffline || hpError || modelError || deviceBindingsError || assistantPendingError || tasksError || alertsError;
+  const deviceSetupNeeded = !deviceHealthy && !deviceBindingsLoading;
+  const automationLabel = enabledTasks.length > 0
+    ? nextAutomation
+      ? `${formatTriggerLabel(nextAutomation.trigger?.type)} · ${nextAutomation.name}`
+      : "已启用"
+    : "去查看";
+  const nextReminderLabel = nextReminderTask
+    ? formatNextReminderTime(nextReminderTask.nextRunAt)
+    : fallbackScheduledTask?.trigger?.type === "CRON"
+      ? describeCronExpression(fallbackScheduledTask.trigger.config?.expression)
+      : "暂无安排";
+  const nextReminderDetail = nextReminderTask
+    ? nextReminderTask.name
+    : fallbackScheduledTask
+      ? `${formatTriggerLabel(fallbackScheduledTask.trigger?.type)} · ${fallbackScheduledTask.name}`
+      : "去任务中心创建提醒";
+  const noticeTitle = highestPendingAlert
+    ? `${ALERT_SEVERITY_LABEL[highestPendingAlert.severity]} · ${highestPendingAlert.title}`
+    : enabledTasks.length > 0
+      ? `已启用 ${enabledTasks.length} 个自动化任务`
+      : null;
+  const noticeDetail = highestPendingAlert
+    ? highestPendingAlert.message
+    : nextAutomation
+      ? `${formatTriggerLabel(nextAutomation.trigger?.type)} 已待命，可前往任务中心查看执行细节。`
+      : null;
+  const noticeTone = highestPendingAlert
+    ? (highestPendingAlert.severity === "CRITICAL" || highestPendingAlert.severity === "HIGH" ? "danger" : "warning")
+    : "info";
   const rawPendingQueue = useMemo<PendingQueueItem[]>(() => {
     const pending = (assistantPending?.pending ?? []).map((item) => ({
       id: item.id,
@@ -321,6 +600,37 @@ export default function ConversationHome() {
       : activeService?.name ?? modelStatus?.currentModel ?? modelStatus?.localModel ?? "模型待配置";
 
   useEffect(() => {
+    const localState = readLocalConversationHomeState();
+    if (localState?.inputText) setInputText(localState.inputText);
+    if (localState?.failedSend) setFailedSend(localState.failedSend);
+    retainedActiveDraftRef.current = localState?.activeDraft ?? null;
+    setLocalStateHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!localStateHydrated) return;
+
+    const activeDraft = pendingDraft && draftEditing
+      ? {
+          responseId: pendingDraft.responseId,
+          items: draftEdits.map(normalizeDraftItem),
+          editing: true,
+          updatedAt: Date.now(),
+        }
+      : pendingDraft
+        ? null
+        : retainedActiveDraftRef.current;
+
+    retainedActiveDraftRef.current = activeDraft;
+
+    writeLocalConversationHomeState({
+      inputText,
+      failedSend,
+      activeDraft,
+    });
+  }, [draftEditing, draftEdits, failedSend, inputText, localStateHydrated, pendingDraft]);
+
+  useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, pendingConfirmation, pendingDraft, failedSend, actionError, isProcessing]);
 
@@ -341,6 +651,21 @@ export default function ConversationHome() {
     });
     setVoiceNotice("语音已写入输入框");
   }, [voiceTranscript]);
+
+  const restoreDraftEdits = (responseId: string, items: DraftItem[]) => {
+    const activeDraft = retainedActiveDraftRef.current;
+    if (activeDraft?.responseId !== responseId) {
+      return {
+        edits: cloneDraftItems(items),
+        editing: false,
+      };
+    }
+
+    return {
+      edits: activeDraft.items.map(normalizeDraftItem),
+      editing: activeDraft.editing,
+    };
+  };
 
   const selectPendingQueueItem = (responseId: string) => {
     if (isBusy) return;
@@ -365,6 +690,7 @@ export default function ConversationHome() {
     const draftItem = assistantPending?.draft?.find((item) => item.id === responseId && item.items?.length);
     if (draftItem?.items?.length) {
       const items = draftItem.items.map(normalizeDraftItem);
+      const restored = restoreDraftEdits(draftItem.id, items);
       setSelectedPendingId(responseId);
       setPendingDraft({
         responseId: draftItem.id,
@@ -372,8 +698,8 @@ export default function ConversationHome() {
         items,
       });
       setPendingConfirmation(null);
-      setDraftEditing(false);
-      setDraftEdits(cloneDraftItems(items));
+      setDraftEditing(restored.editing);
+      setDraftEdits(restored.edits);
       setActionError(null);
     }
   };
@@ -427,23 +753,43 @@ export default function ConversationHome() {
     const firstDraft = assistantPending?.draft?.find((item) => item.id === firstQueueItem.id && item.items?.length);
     if (firstDraft?.items?.length) {
       const items = firstDraft.items.map(normalizeDraftItem);
+      const restored = restoreDraftEdits(firstDraft.id, items);
       setSelectedPendingId(firstDraft.id);
       setPendingDraft({
         responseId: firstDraft.id,
         message: `我恢复了一份待确认草案，共 ${firstDraft.items.length} 项。`,
         items,
       });
-      setDraftEditing(false);
-      setDraftEdits(cloneDraftItems(items));
+      setDraftEditing(restored.editing);
+      setDraftEdits(restored.edits);
       setActionError(null);
     }
   }, [assistantPending, pendingConfirmation, pendingDraft, pendingQueue, rawPendingQueue, selectedPendingId]);
+
+  useEffect(() => {
+    if (!localStateHydrated || !assistantPending || pendingDraft) return;
+    const activeDraft = retainedActiveDraftRef.current;
+    if (!activeDraft) return;
+
+    const draftStillPending = assistantPending.draft?.some((item) =>
+      item.id === activeDraft.responseId && item.items?.length
+    );
+    if (draftStillPending) return;
+
+    retainedActiveDraftRef.current = null;
+    writeLocalConversationHomeState({
+      inputText,
+      failedSend,
+      activeDraft: null,
+    });
+  }, [assistantPending, failedSend, inputText, localStateHydrated, pendingDraft]);
 
   const appendAssistantResponse = (response: AssistantResponse, executionSummary?: string | null) => {
     const content = executionSummary ? `${response.message}\n\n${executionSummary}` : response.message;
     addMessage({ role: "assistant", content, timestamp: Date.now() });
     setFailedSend(null);
     setActionError(null);
+    retainedActiveDraftRef.current = null;
 
     if (response.type === "confirm") {
       setSelectedPendingId(response.id);
@@ -484,9 +830,18 @@ export default function ConversationHome() {
     setDraftEdits([]);
   };
 
+  const requireBackendConnection = (message: string) => {
+    if (!isOffline) return true;
+    setActionError(message);
+    return false;
+  };
+
   const handleSend = async (overrideText?: string, options?: { appendUser?: boolean }) => {
     const message = (overrideText ?? inputText).trim();
     if (!message || isBusy) return;
+    const retainedFailure = options?.appendUser === false && failedSend?.message === message ? failedSend : null;
+    const nextAttempt = retainedFailure ? retainedFailure.attempts + 1 : 1;
+    const failedAt = retainedFailure?.createdAt ?? Date.now();
 
     if (options?.appendUser ?? true) {
       addMessage({ role: "user", content: message, timestamp: Date.now() });
@@ -500,6 +855,16 @@ export default function ConversationHome() {
     setFailedSend(null);
     setActionError(null);
 
+    if (isOffline) {
+      setFailedSend({
+        message,
+        detail: "当前离线，我先替你保留这条请求",
+        attempts: nextAttempt,
+        createdAt: failedAt,
+      });
+      return;
+    }
+
     try {
       useAvatarStore.getState().setProcessing(true);
       const result = await sendAssistantMessage(message);
@@ -508,8 +873,8 @@ export default function ConversationHome() {
       setFailedSend((current) => ({
         message,
         detail: errorDetail(error, "助手服务暂无响应"),
-        attempts: current?.message === message ? current.attempts + 1 : 1,
-        createdAt: Date.now(),
+        attempts: current?.message === message ? current.attempts + 1 : nextAttempt,
+        createdAt: current?.message === message ? current.createdAt : failedAt,
       }));
       setPendingConfirmation(null);
       setPendingDraft(null);
@@ -529,8 +894,14 @@ export default function ConversationHome() {
     setFailedSend(null);
   };
 
+  const handleDismissFailedSend = () => {
+    setFailedSend(null);
+    setActionError(null);
+  };
+
   const handleApprove = async () => {
     if (!pendingConfirmation || isBusy) return;
+    if (!requireBackendConnection("当前离线，恢复连接后再确认执行。")) return;
     try {
       setActiveAction("approve");
       setActionError(null);
@@ -546,6 +917,8 @@ export default function ConversationHome() {
       setPendingConfirmation(null);
       void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
       void queryClient.invalidateQueries({ queryKey: ["/api/hp/balance"] });
+      void queryClient.invalidateQueries({ queryKey: ["conversation-home-tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["conversation-home-alerts"] });
     } catch (error) {
       setActionError(`确认执行失败：${errorDetail(error, "请稍后重试")}`);
     } finally {
@@ -556,6 +929,7 @@ export default function ConversationHome() {
 
   const handleDeny = async () => {
     if (!pendingConfirmation || isBusy) return;
+    if (!requireBackendConnection("当前离线，恢复连接后再取消这项执行。")) return;
     try {
       setActiveAction("deny");
       setActionError(null);
@@ -573,6 +947,7 @@ export default function ConversationHome() {
 
   const handleConfirmDraft = async () => {
     if (!pendingDraft || isBusy) return;
+    if (!requireBackendConnection("当前离线，恢复连接后再执行这份草稿。")) return;
     try {
       setActiveAction("confirmDraft");
       setActionError(null);
@@ -586,11 +961,14 @@ export default function ConversationHome() {
         timestamp: Date.now(),
       });
       consumePendingItem(pendingDraft.responseId);
+      retainedActiveDraftRef.current = null;
       setPendingDraft(null);
       setDraftEditing(false);
       setDraftEdits([]);
       void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
       void queryClient.invalidateQueries({ queryKey: ["/api/hp/balance"] });
+      void queryClient.invalidateQueries({ queryKey: ["conversation-home-tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["conversation-home-alerts"] });
     } catch (error) {
       setActionError(`草案执行失败：${errorDetail(error, "请稍后重试")}`);
     } finally {
@@ -601,12 +979,14 @@ export default function ConversationHome() {
 
   const handleDenyDraft = async () => {
     if (!pendingDraft || isBusy) return;
+    if (!requireBackendConnection("当前离线，恢复连接后再取消这份草稿。")) return;
     try {
       setActiveAction("denyDraft");
       setActionError(null);
       await discardAssistantPending(pendingDraft.responseId);
       addMessage({ role: "assistant", content: "好的，已取消这份草案。", timestamp: Date.now() });
       consumePendingItem(pendingDraft.responseId);
+      retainedActiveDraftRef.current = null;
       setPendingDraft(null);
       setDraftEditing(false);
       setDraftEdits([]);
@@ -648,6 +1028,7 @@ export default function ConversationHome() {
 
   const handleSaveDraftEdits = async () => {
     if (!pendingDraft || isBusy) return;
+    if (!requireBackendConnection("当前离线，恢复连接后再保存草稿修改。")) return;
     const items = draftEdits.map(normalizeDraftItem);
     try {
       setActiveAction("saveDraft");
@@ -700,6 +1081,7 @@ export default function ConversationHome() {
         hpToneClass={hpTone(hpCurrent)}
         deviceLabel={deviceLabel}
         deviceHealthy={deviceHealthy}
+        loading={headerLoading}
         onOpenNavigator={() => setLocation("/navigator-command")}
       />
 
@@ -707,10 +1089,72 @@ export default function ConversationHome() {
         <NowStrip
           currentProjectTitle={currentProject?.title ?? null}
           pendingCount={pendingCount}
+          automationCount={enabledTasks.length}
+          automationLabel={automationLabel}
+          nextReminderLabel={nextReminderLabel}
+          nextReminderDetail={nextReminderDetail}
+          noticeTitle={noticeTitle}
+          noticeDetail={noticeDetail}
+          noticeTone={noticeTone}
+          loading={summaryLoading}
           onOpenContext={() => currentProject && setLocation("/projects")}
           onOpenPending={() => pendingCount > 0 && streamEndRef.current?.scrollIntoView({ behavior: "smooth" })}
           onOpenTasks={() => setLocation("/tasks")}
         />
+
+        {backendDegraded && (
+          <section data-testid="backend-degraded-card" className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/10 p-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-200" />
+              <div className="min-w-0 flex-1">
+                <p data-testid="backend-degraded-title" className="text-xs font-black text-amber-100">
+                  {isOffline ? "当前离线，执行确认暂不可用" : "服务状态同步异常"}
+                </p>
+                <p data-testid="backend-degraded-detail" className="mt-1 text-[11px] leading-relaxed text-amber-50/80">
+                  {isOffline
+                    ? "我会保留你的输入，等连接恢复后可以直接重试发送、确认或保存草稿。"
+                    : "首页部分状态暂时没有同步成功，你仍可继续浏览，稍后再尝试执行需要服务器确认的操作。"}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    data-testid="backend-degraded-action"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 border-white/10 bg-white/5 text-xs"
+                    onClick={() => setLocation("/navigator-settings")}
+                  >
+                    检查连接
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {deviceSetupNeeded && (
+          <section data-testid="device-setup-card" className="mt-3 rounded-lg border border-sky-300/20 bg-sky-300/10 p-3">
+            <div className="flex items-start gap-2">
+              <Monitor className="mt-0.5 h-4 w-4 shrink-0 text-sky-200" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-black text-sky-100">设备协同尚未完成配置</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-sky-50/80">
+                  现在可以继续聊天和整理草稿，但远程控制、设备联动和更可靠的执行回流还需要先绑定设备。
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    data-testid="device-setup-action"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 border-white/10 bg-white/5 text-xs"
+                    onClick={() => setLocation("/devices")}
+                  >
+                    去绑定设备
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         <XiaozhiBrief />
 
@@ -746,13 +1190,13 @@ export default function ConversationHome() {
           )}
 
           {failedSend && (
-            <div className="rounded-lg border border-red-300/25 bg-red-300/10 p-3">
+            <div data-testid="failed-send-card" className="rounded-lg border border-red-300/25 bg-red-300/10 p-3">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-200" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-black text-red-100">消息没有送达</p>
                   <p className="mt-1 text-xs leading-relaxed text-red-50/75">
-                    已保留这条请求，可以直接重试或放回输入框修改。
+                    已保留这条请求，可以直接重试、放回输入框修改，或不再保留。
                   </p>
                   <p className="mt-2 line-clamp-2 rounded-md bg-black/20 px-2.5 py-2 text-xs text-red-50/80">
                     {failedSend.message}
@@ -761,12 +1205,15 @@ export default function ConversationHome() {
                     {failedSend.detail} · 第 {failedSend.attempts} 次失败
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Button size="sm" className="h-9 bg-red-500 text-xs hover:bg-red-600" onClick={handleRetryFailedSend} disabled={isBusy}>
+                    <Button data-testid="failed-send-retry" size="sm" className="h-9 bg-red-500 text-xs hover:bg-red-600" onClick={handleRetryFailedSend} disabled={isBusy}>
                       {isProcessing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
                       重试发送
                     </Button>
-                    <Button size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleRestoreFailedSend} disabled={isBusy}>
+                    <Button data-testid="failed-send-restore" size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleRestoreFailedSend} disabled={isBusy}>
                       放回输入
+                    </Button>
+                    <Button data-testid="failed-send-dismiss" size="sm" variant="ghost" className="h-9 text-xs text-red-50/70 hover:bg-white/5 hover:text-red-50" onClick={handleDismissFailedSend} disabled={isBusy}>
+                      不再保留
                     </Button>
                   </div>
                 </div>
@@ -808,7 +1255,7 @@ export default function ConversationHome() {
           )}
 
           {pendingConfirmation && (
-            <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-3">
+            <div data-testid="pending-confirmation-card" className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-3">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-200" />
                 <div className="min-w-0 flex-1">
@@ -832,11 +1279,11 @@ export default function ConversationHome() {
                     </p>
                   )}
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Button size="sm" className="h-9 bg-emerald-500 text-xs hover:bg-emerald-600" onClick={handleApprove} disabled={isBusy}>
+                    <Button data-testid="pending-confirmation-approve" size="sm" className="h-9 bg-emerald-500 text-xs hover:bg-emerald-600" onClick={handleApprove} disabled={isBusy || isOffline}>
                       {activeAction === "approve" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-1 h-3.5 w-3.5" />}
                       确认执行
                     </Button>
-                    <Button size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleDeny} disabled={isBusy}>
+                    <Button data-testid="pending-confirmation-deny" size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleDeny} disabled={isBusy || isOffline}>
                       {activeAction === "deny" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <X className="mr-1 h-3.5 w-3.5" />}
                       取消
                     </Button>
@@ -847,7 +1294,7 @@ export default function ConversationHome() {
           )}
 
           {pendingDraft && (
-            <div className="rounded-lg border border-blue-300/25 bg-blue-300/10 p-3">
+            <div data-testid="pending-draft-card" className="rounded-lg border border-blue-300/25 bg-blue-300/10 p-3">
               <div className="flex items-start gap-2">
                 <FileText className="mt-0.5 h-4 w-4 shrink-0 text-blue-200" />
                 <div className="min-w-0 flex-1">
@@ -878,6 +1325,7 @@ export default function ConversationHome() {
                               <label className="block">
                                 <span className="text-[10px] font-bold text-blue-100/60">{primary.label}</span>
                                 <input
+                                  data-testid={`draft-field-${index}-${primary.key}`}
                                   value={String(item.actionParams[primary.key] ?? "")}
                                   onChange={(event) => handleDraftFieldChange(index, primary.key, event.target.value)}
                                   className="mt-1 h-9 w-full rounded-md border border-white/10 bg-white/[0.06] px-2.5 text-xs text-white outline-none focus:border-blue-300/40"
@@ -887,6 +1335,7 @@ export default function ConversationHome() {
                                 <label className="block">
                                   <span className="text-[10px] font-bold text-blue-100/60">{secondary.label}</span>
                                   <textarea
+                                    data-testid={`draft-field-${index}-${secondary.key}`}
                                     value={String(item.actionParams[secondary.key] ?? "")}
                                     onChange={(event) => handleDraftFieldChange(index, secondary.key, event.target.value)}
                                     rows={2}
@@ -908,26 +1357,26 @@ export default function ConversationHome() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     {draftEditing ? (
                       <>
-                        <Button size="sm" className="h-9 bg-blue-500 text-xs hover:bg-blue-600" onClick={handleSaveDraftEdits} disabled={isBusy}>
+                        <Button data-testid="draft-save-button" size="sm" className="h-9 bg-blue-500 text-xs hover:bg-blue-600" onClick={handleSaveDraftEdits} disabled={isBusy || isOffline}>
                           {activeAction === "saveDraft" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}
                           保存修改
                         </Button>
-                        <Button size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleCancelDraftEdit} disabled={isBusy}>
+                        <Button data-testid="draft-cancel-edit-button" size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleCancelDraftEdit} disabled={isBusy}>
                           <X className="mr-1 h-3.5 w-3.5" />
                           放弃
                         </Button>
                       </>
                     ) : (
                       <>
-                        <Button size="sm" className="h-9 bg-blue-500 text-xs hover:bg-blue-600" onClick={handleConfirmDraft} disabled={isBusy}>
+                        <Button data-testid="draft-confirm-button" size="sm" className="h-9 bg-blue-500 text-xs hover:bg-blue-600" onClick={handleConfirmDraft} disabled={isBusy || isOffline}>
                           {activeAction === "confirmDraft" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-1 h-3.5 w-3.5" />}
                           全部执行
                         </Button>
-                        <Button size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleStartDraftEdit} disabled={isBusy}>
+                        <Button data-testid="draft-edit-button" size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleStartDraftEdit} disabled={isBusy}>
                           <Pencil className="mr-1 h-3.5 w-3.5" />
                           修改
                         </Button>
-                        <Button size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleDenyDraft} disabled={isBusy}>
+                        <Button data-testid="draft-deny-button" size="sm" variant="outline" className="h-9 border-white/10 bg-white/5 text-xs" onClick={handleDenyDraft} disabled={isBusy || isOffline}>
                           {activeAction === "denyDraft" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <X className="mr-1 h-3.5 w-3.5" />}
                           取消
                         </Button>

@@ -8,6 +8,7 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface XiaozhiStatusHeaderProps {
@@ -19,6 +20,7 @@ interface XiaozhiStatusHeaderProps {
   hpToneClass: string;
   deviceLabel: string;
   deviceHealthy: boolean;
+  loading?: boolean;
   onOpenNavigator: () => void;
 }
 
@@ -31,8 +33,33 @@ export function XiaozhiStatusHeader({
   hpToneClass,
   deviceLabel,
   deviceHealthy,
+  loading = false,
   onOpenNavigator,
 }: XiaozhiStatusHeaderProps) {
+  if (loading) {
+    return (
+      <header className="flex-shrink-0 border-b border-white/10 bg-[#050817]/95 px-4 pb-3 pt-3 backdrop-blur-xl">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-12 w-12 rounded-xl bg-white/10" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-5 w-24 bg-white/10" />
+            <Skeleton className="h-3 w-40 bg-white/10" />
+          </div>
+          <Skeleton className="h-10 w-10 rounded-xl bg-white/10" />
+        </div>
+
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+              <Skeleton className="h-3 w-10 bg-white/10" />
+              <Skeleton className="mt-2 h-4 w-12 bg-white/10" />
+            </div>
+          ))}
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="flex-shrink-0 border-b border-white/10 bg-[#050817]/95 px-4 pb-3 pt-3 backdrop-blur-xl">
       <div className="flex items-center gap-3">
@@ -84,9 +111,19 @@ export function XiaozhiStatusHeader({
   );
 }
 
+type NowStripNoticeTone = "info" | "warning" | "danger";
+
 interface NowStripProps {
   currentProjectTitle: string | null;
   pendingCount: number;
+  automationCount: number;
+  automationLabel: string;
+  nextReminderLabel: string;
+  nextReminderDetail: string;
+  noticeTitle?: string | null;
+  noticeDetail?: string | null;
+  noticeTone?: NowStripNoticeTone;
+  loading?: boolean;
   onOpenContext: () => void;
   onOpenPending: () => void;
   onOpenTasks: () => void;
@@ -95,33 +132,89 @@ interface NowStripProps {
 export function NowStrip({
   currentProjectTitle,
   pendingCount,
+  automationCount,
+  automationLabel,
+  nextReminderLabel,
+  nextReminderDetail,
+  noticeTitle,
+  noticeDetail,
+  noticeTone = "info",
+  loading = false,
   onOpenContext,
   onOpenPending,
   onOpenTasks,
 }: NowStripProps) {
+  if (loading) {
+    return (
+      <section className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="min-h-16 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+              <Skeleton className="h-3 w-12 bg-white/10" />
+              <Skeleton className="mt-2 h-4 w-full bg-white/10" />
+            </div>
+          ))}
+        </div>
+        <Skeleton className="h-12 w-full rounded-lg bg-white/10" />
+      </section>
+    );
+  }
+
+  const noticeToneClass = {
+    info: "border-sky-400/20 bg-sky-400/10 text-sky-100",
+    warning: "border-amber-400/20 bg-amber-400/10 text-amber-100",
+    danger: "border-red-400/25 bg-red-400/10 text-red-100",
+  }[noticeTone];
+
   return (
-    <section className="grid grid-cols-3 gap-2">
-      <button
-        onClick={onOpenContext}
-        className="min-h-16 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left active:bg-white/10"
-      >
-        <p className="text-[10px] text-slate-500">当前上下文</p>
-        <p className="mt-1 truncate text-xs font-bold text-white">{currentProjectTitle ?? "未选择项目"}</p>
-      </button>
-      <button
-        onClick={onOpenPending}
-        className="min-h-16 rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-left active:bg-amber-400/15"
-      >
-        <p className="text-[10px] text-amber-200/70">待确认</p>
-        <p className="mt-1 text-xs font-black text-amber-100">{pendingCount} 项</p>
-      </button>
-      <button
-        onClick={onOpenTasks}
-        className="min-h-16 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left active:bg-white/10"
-      >
-        <p className="text-[10px] text-slate-500">自动化</p>
-        <p className="mt-1 text-xs font-bold text-slate-200">去查看</p>
-      </button>
+    <section data-testid="now-strip" aria-label="今日概览" className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          data-testid="now-context"
+          aria-label={`当前上下文：${currentProjectTitle ?? "未选择项目"}`}
+          onClick={onOpenContext}
+          className="min-h-16 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left active:bg-white/10"
+        >
+          <p className="text-[10px] text-slate-500">当前上下文</p>
+          <p className="mt-1 truncate text-xs font-bold text-white">{currentProjectTitle ?? "未选择项目"}</p>
+        </button>
+        <button
+          data-testid="now-pending"
+          aria-label={`待确认：${pendingCount} 项`}
+          onClick={onOpenPending}
+          className="min-h-16 rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-left active:bg-amber-400/15"
+        >
+          <p className="text-[10px] text-amber-200/70">待确认</p>
+          <p className="mt-1 text-xs font-black text-amber-100">{pendingCount} 项</p>
+        </button>
+        <button
+          data-testid="now-automations"
+          aria-label={`自动化：${automationCount} 项，${automationLabel}`}
+          onClick={onOpenTasks}
+          className="min-h-16 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left active:bg-white/10"
+        >
+          <p className="text-[10px] text-slate-500">自动化</p>
+          <p className="mt-1 text-xs font-black text-slate-100">{automationCount} 项</p>
+          <p className="mt-0.5 truncate text-[10px] text-slate-400">{automationLabel}</p>
+        </button>
+        <button
+          data-testid="now-next-reminder"
+          aria-label={`下次提醒：${nextReminderLabel}，${nextReminderDetail}`}
+          onClick={onOpenTasks}
+          className="min-h-16 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left active:bg-white/10"
+        >
+          <p className="text-[10px] text-slate-500">下次提醒</p>
+          <p className="mt-1 truncate text-xs font-black text-slate-100">{nextReminderLabel}</p>
+          <p className="mt-0.5 truncate text-[10px] text-slate-400">{nextReminderDetail}</p>
+        </button>
+      </div>
+
+      {noticeTitle && noticeDetail && (
+        <div className={cn("rounded-lg border px-3 py-2", noticeToneClass)}>
+          <p className="text-[11px] font-black">{noticeTitle}</p>
+          <p className="mt-1 text-[10px] leading-relaxed opacity-80">{noticeDetail}</p>
+        </div>
+      )}
     </section>
   );
 }
@@ -284,6 +377,7 @@ export function CommandComposer({
         </button>
         <div className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 focus-within:border-violet-300/40">
           <textarea
+            data-testid="conversation-input"
             value={inputText}
             onChange={(event) => onInputChange(event.target.value)}
             onKeyDown={(event) => {
@@ -298,6 +392,7 @@ export function CommandComposer({
           />
         </div>
         <button
+          data-testid="conversation-send"
           onClick={onSend}
           disabled={!inputText.trim() || isProcessing}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white disabled:bg-white/10 disabled:text-slate-600"
