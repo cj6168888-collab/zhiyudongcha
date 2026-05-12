@@ -271,7 +271,7 @@ test.describe('Mobile conversation home', () => {
               finalResult.isFinal = true;
               this.onresult?.({ results: [finalResult] });
               this.onend?.();
-            }, 30);
+            }, 300);
           }, 0);
         }
 
