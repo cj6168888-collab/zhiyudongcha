@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CommandComposer,
+  ConversationLiveSurface,
   NowStrip,
   type ConversationAttachment,
   XiaozhiStatusHeader,
@@ -1081,12 +1082,12 @@ export default function ConversationHome() {
         )}
 
         {messages.length === 0 && (
-          <section data-testid="conversation-empty-state" className="flex min-h-[34vh] flex-col justify-center rounded-xl border border-white/10 bg-white/[0.025] px-4 py-6 text-center">
-            <p className="text-sm font-black text-slate-100">这里会显示你和小智的沟通历史</p>
-            <p className="mt-2 text-xs leading-relaxed text-slate-400">
-              用底部麦克风、文字或附件发出指令；小智的执行结果、待确认事项和回传内容都会回到这里。
-            </p>
-          </section>
+          <ConversationLiveSurface
+            voiceActive={voiceListening}
+            voiceSupported={voiceSupported}
+            voiceInterimText={voicePartialTranscript}
+            voiceAudioLevel={voiceAudioLevel}
+          />
         )}
 
         <section className="mt-4 space-y-3">

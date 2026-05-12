@@ -178,6 +178,56 @@ interface CommandComposerProps {
   onSend: () => void;
 }
 
+interface ConversationLiveSurfaceProps {
+  voiceActive: boolean;
+  voiceSupported: boolean;
+  voiceInterimText: string;
+  voiceAudioLevel: number;
+}
+
+export function ConversationLiveSurface({
+  voiceActive,
+  voiceSupported,
+  voiceInterimText,
+  voiceAudioLevel,
+}: ConversationLiveSurfaceProps) {
+  const voiceLevelWidth = `${Math.max(8, Math.min(100, Math.round(voiceAudioLevel * 100)))}%`;
+  const statusText = voiceActive
+    ? (voiceInterimText || "我在听")
+    : voiceSupported
+      ? "和小智说话"
+      : "语音暂不可用";
+
+  return (
+    <section
+      data-testid="conversation-empty-state"
+      className="flex min-h-[38vh] flex-col items-center justify-center px-2 py-8 text-center"
+    >
+      <div
+        className={cn(
+          "flex h-24 w-24 items-center justify-center rounded-full border text-white shadow-[0_0_34px_rgba(139,92,246,0.22)]",
+          voiceActive
+            ? "border-red-200/50 bg-red-400/20"
+            : "border-violet-200/25 bg-violet-400/15"
+        )}
+        aria-hidden="true"
+      >
+        <Mic className="h-10 w-10" />
+      </div>
+      <p className="mt-5 max-w-[18rem] text-base font-black text-slate-100">
+        {statusText}
+      </p>
+      <div className="mt-4 h-1.5 w-44 overflow-hidden rounded-full bg-white/10">
+        <div
+          className={cn("h-full rounded-full transition-all", voiceActive ? "bg-red-200" : "bg-violet-300")}
+          style={{ width: voiceActive ? voiceLevelWidth : "36%" }}
+        />
+      </div>
+      <p className="mt-8 text-xs font-bold text-slate-500">暂无历史会话</p>
+    </section>
+  );
+}
+
 export function CommandComposer({
   inputText,
   voiceActive,
@@ -241,11 +291,11 @@ export function CommandComposer({
           )}
         </div>
       )}
-      <div className="mx-auto flex max-w-lg items-center gap-2">
+      <div className="mx-auto grid max-w-lg grid-cols-[3.25rem_3.25rem_minmax(0,1fr)_3.25rem] items-center gap-2">
         <button
           onClick={onToggleVoice}
           className={cn(
-            "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04]",
+            "inline-flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-200",
             voiceActive && "border-red-300/50 bg-red-400/15 text-red-100",
             !voiceSupported && "text-slate-600"
           )}
@@ -253,7 +303,7 @@ export function CommandComposer({
         >
           <Mic className="h-5 w-5" />
         </button>
-        <label className="inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 active:bg-white/10" aria-label="添加材料">
+        <label className="inline-flex h-[52px] min-h-[52px] w-full shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] p-0 text-slate-300 active:bg-white/10" aria-label="添加材料">
           <Paperclip className="h-5 w-5" />
           <input
             data-testid="conversation-file-input"
@@ -266,7 +316,7 @@ export function CommandComposer({
             }}
           />
         </label>
-        <div className="flex min-h-12 min-w-0 flex-1 items-center rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 focus-within:border-violet-300/40">
+        <div className="flex min-h-[52px] min-w-0 items-center rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 focus-within:border-violet-300/40">
           <textarea
             data-testid="conversation-input"
             value={inputText}
@@ -286,7 +336,7 @@ export function CommandComposer({
           data-testid="conversation-send"
           onClick={onSend}
           disabled={(!inputText.trim() && attachments.length === 0) || isProcessing}
-          className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white disabled:bg-white/10 disabled:text-slate-600"
+          className="inline-flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white disabled:bg-white/10 disabled:text-slate-600"
           aria-label="发送"
         >
           {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
