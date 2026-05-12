@@ -65,6 +65,7 @@ interface AvatarState {
   speakingEndTime: number;
 
   addMessage: (message: Message) => void;
+  setMessages: (messages: Message[]) => void;
   clearMessages: () => void;
   setListening: (listening: boolean) => void;
   setSpeaking: (speaking: boolean) => void;
@@ -121,6 +122,10 @@ export const useAvatarStore = create<AvatarState>()(
         set((state) => ({
           messages: [...state.messages.slice(-50), message],
         }));
+      },
+
+      setMessages: (messages) => {
+        set({ messages: messages.slice(-50) });
       },
 
       clearMessages: () => {

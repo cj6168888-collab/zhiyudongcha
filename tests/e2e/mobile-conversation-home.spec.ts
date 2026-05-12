@@ -19,12 +19,38 @@ async function mockConversationShell(page: Page, options?: {
         headers: { 'Content-Type': 'application/json' },
       });
     const originalFetch = window.fetch.bind(window);
+    const historyKey = 'navigator.mobile.conversation-home.mock-history.v1';
 
     if (!mockOptions.preserveLocalState) {
       window.localStorage.removeItem('navigator.mobile.conversation-home.local-state.v1');
+      window.localStorage.removeItem(historyKey);
     }
     (window as unknown as { __assistantCalls?: number }).__assistantCalls = 0;
+    (window as unknown as { __assistantHistoryCalls?: number }).__assistantHistoryCalls = 0;
     let assistantCallCount = 0;
+
+    const readHistory = (): Array<{ id: string; role: string; content: string; timestamp: string }> => {
+      try {
+        return JSON.parse(window.localStorage.getItem(historyKey) || '[]');
+      } catch {
+        return [];
+      }
+    };
+
+    const writeHistory = (messages: Array<{ id: string; role: string; content: string; timestamp: string }>) => {
+      window.localStorage.setItem(historyKey, JSON.stringify(messages.slice(-20)));
+    };
+
+    const appendHistory = (role: 'user' | 'assistant', content: string) => {
+      const history = readHistory();
+      history.push({
+        id: `mock-history-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        role,
+        content,
+        timestamp: new Date().toISOString(),
+      });
+      writeHistory(history);
+    };
 
     if (mockOptions.offline) {
       Object.defineProperty(window.navigator, 'onLine', {
@@ -97,6 +123,15 @@ async function mockConversationShell(page: Page, options?: {
         });
       }
 
+      if (path === '/api/assistant/history' && method === 'GET') {
+        (window as unknown as { __assistantHistoryCalls?: number }).__assistantHistoryCalls =
+          ((window as unknown as { __assistantHistoryCalls?: number }).__assistantHistoryCalls ?? 0) + 1;
+        return jsonResponse({
+          success: true,
+          messages: readHistory(),
+        });
+      }
+
       if (path === '/api/assistant/draft/update' && method === 'POST') {
         const payload = init?.body ? JSON.parse(String(init.body)) : {};
         (window as unknown as { __draftUpdatePayload?: unknown }).__draftUpdatePayload = payload;
@@ -134,13 +169,14 @@ async function mockConversationShell(page: Page, options?: {
       if ((path === '/api/assistant' || path === '/api/assistant/') && method === 'POST') {
         assistantCallCount += 1;
         (window as unknown as { __assistantCalls?: number }).__assistantCalls = assistantCallCount;
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
         const failureCount = typeof mockOptions.assistantFailureCount === 'number'
           ? mockOptions.assistantFailureCount
           : 0;
         if (mockOptions.assistantFailure || assistantCallCount <= failureCount) {
           return jsonResponse({ success: false, error: 'assistant unavailable' }, 400);
         }
-        return jsonResponse(mockOptions.assistantResult ?? {
+        const responseBody = mockOptions.assistantResult ?? {
           success: true,
           response: {
             id: 'resp-ok',
@@ -148,7 +184,10 @@ async function mockConversationShell(page: Page, options?: {
             type: 'greeting',
             message: 'received',
           },
-        });
+        };
+        appendHistory('user', String(payload.message ?? ''));
+        appendHistory('assistant', String((responseBody as any).response?.message ?? 'received'));
+        return jsonResponse(responseBody);
       }
 
       return originalFetch(input, init);
@@ -266,6 +305,25 @@ test.describe('Mobile conversation home', () => {
 
     await expect(page.getByTestId('conversation-input')).toHaveValue(message);
     await expect(page.getByTestId('conversation-send')).toBeEnabled();
+  });
+
+  test('hydrates recent conversation history after reload', async ({ page }) => {
+    await mockConversationShell(page, { preserveLocalState: true });
+
+    const message = '刷新后仍然能看到这条历史对话';
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await sendConversationMessage(page, message);
+
+    await expect(page.getByText(message)).toBeVisible();
+    await expect(page.getByText('received')).toBeVisible();
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByText(message)).toBeVisible();
+    await expect(page.getByText('received')).toBeVisible();
+    expect(await page.evaluate(() =>
+      (window as unknown as { __assistantHistoryCalls?: number }).__assistantHistoryCalls ?? 0
+    )).toBeGreaterThan(0);
   });
 
   test('keeps device setup out of the home surface', async ({ page }) => {

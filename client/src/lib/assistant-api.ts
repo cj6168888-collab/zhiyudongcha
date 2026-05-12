@@ -93,12 +93,29 @@ export interface AssistantPendingSummary {
   }>;
 }
 
+export interface AssistantHistoryMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp: string;
+}
+
+export interface AssistantHistoryResult {
+  success: boolean;
+  messages: AssistantHistoryMessage[];
+}
+
 export async function sendAssistantMessage(message: string): Promise<AssistantChatResult> {
   const res = await apiRequest("POST", "/api/assistant", {
     message,
     type: "text",
     source: "app",
   });
+  return await res.json();
+}
+
+export async function getAssistantHistory(limit = 20): Promise<AssistantHistoryResult> {
+  const res = await apiRequest("GET", `/api/assistant/history?limit=${encodeURIComponent(String(limit))}`);
   return await res.json();
 }
 
