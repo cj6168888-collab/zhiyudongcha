@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import {
   AlertTriangle,
@@ -562,20 +562,6 @@ export default function ConversationHome() {
     useAvatarStore.getState().setListening(voiceListening);
   }, [voiceListening]);
 
-  useEffect(() => {
-    const transcript = voiceTranscript.trim();
-    if (!transcript || transcript === lastVoiceTranscriptRef.current) return;
-
-    lastVoiceTranscriptRef.current = transcript;
-    setInputText((current) => {
-      const trimmed = current.trim();
-      if (!trimmed) return transcript;
-      if (trimmed.includes(transcript)) return current;
-      return `${trimmed}\n${transcript}`;
-    });
-    setVoiceNotice("语音已写入输入框");
-  }, [voiceTranscript]);
-
   const restoreDraftEdits = (responseId: string, items: DraftItem[]) => {
     const activeDraft = retainedActiveDraftRef.current;
     if (activeDraft?.responseId !== responseId) {
@@ -708,7 +694,7 @@ export default function ConversationHome() {
     });
   }, [assistantPending, failedSend, inputText, localStateHydrated, pendingDraft]);
 
-  const appendAssistantResponse = (
+  const appendAssistantResponse = useCallback((
     response: AssistantResponse,
     executionSummary?: string | null,
     execution?: AssistantExecution | null,
@@ -758,7 +744,7 @@ export default function ConversationHome() {
     setSelectedPendingId(null);
     setDraftEditing(false);
     setDraftEdits([]);
-  };
+  }, [addMessage, queryClient]);
 
   const requireBackendConnection = (message: string) => {
     if (!isOffline) return true;
@@ -783,7 +769,7 @@ export default function ConversationHome() {
     setAttachments((current) => current.filter((file) => file.id !== id));
   };
 
-  const handleSend = async (overrideText?: string, options?: { appendUser?: boolean }) => {
+  const handleSend = useCallback(async (overrideText?: string, options?: { appendUser?: boolean }) => {
     const baseMessage = (overrideText ?? inputText).trim();
     const attachedFileSummary = attachments.length > 0
       ? `附加材料：${attachments.map((file) => file.name).join("、")}`
@@ -835,7 +821,38 @@ export default function ConversationHome() {
     } finally {
       useAvatarStore.getState().setProcessing(false);
     }
-  };
+  }, [
+    addMessage,
+    appendAssistantResponse,
+    attachments,
+    failedSend,
+    inputText,
+    isBusy,
+    isOffline,
+  ]);
+
+  useEffect(() => {
+    const transcript = voiceTranscript.trim();
+    if (!transcript || transcript === lastVoiceTranscriptRef.current) return;
+
+    lastVoiceTranscriptRef.current = transcript;
+    const hasBlockingWorkflow = Boolean(pendingConfirmation || pendingDraft || failedSend || isBusy);
+    const hasTypedContext = inputText.trim().length > 0;
+
+    if (!hasBlockingWorkflow && !hasTypedContext) {
+      setVoiceNotice("语音已发送");
+      void handleSend(transcript);
+      return;
+    }
+
+    setInputText((current) => {
+      const trimmed = current.trim();
+      if (!trimmed) return transcript;
+      if (trimmed.includes(transcript)) return current;
+      return `${trimmed}\n${transcript}`;
+    });
+    setVoiceNotice(hasBlockingWorkflow ? "语音已写入输入框，处理完当前事项后再发送" : "语音已写入输入框");
+  }, [failedSend, handleSend, inputText, isBusy, pendingConfirmation, pendingDraft, voiceTranscript]);
 
   const handleRetryFailedSend = () => {
     if (!failedSend) return;
