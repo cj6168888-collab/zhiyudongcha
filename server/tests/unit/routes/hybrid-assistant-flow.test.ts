@@ -202,19 +202,32 @@ describe('Hybrid Assistant first product loop', () => {
 
     await request(createApp())
       .post('/api/assistant')
-      .send({ message: '帮我整理今天的三件事' })
+      .send({
+        message: '帮我整理今天的三件事',
+        sessionId: 'mobile-session-test',
+        deviceId: 'mobile-device-test',
+        source: 'mobile-home',
+      })
       .expect(200);
 
     expect(storageAdapter.createChatMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         role: 'user',
         content: '帮我整理今天的三件事',
+        userId: 'default',
+        sessionId: 'mobile-session-test',
+        deviceId: 'mobile-device-test',
+        source: 'mobile-home',
       }),
     );
     expect(storageAdapter.createChatMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         role: 'assistant',
         content: '收到，我来整理。',
+        userId: 'default',
+        sessionId: 'mobile-session-test',
+        deviceId: 'mobile-device-test',
+        source: 'mobile-home',
       }),
     );
 
@@ -234,11 +247,22 @@ describe('Hybrid Assistant first product loop', () => {
     ] as any);
 
     const history = await request(createApp())
-      .get('/api/assistant/history?limit=2')
+      .get('/api/assistant/history?limit=2&sessionId=mobile-session-test&deviceId=mobile-device-test')
       .expect(200);
 
+    expect(storageAdapter.getRecentChatContext).toHaveBeenCalledWith(2, {
+      userId: 'default',
+      sessionId: 'mobile-session-test',
+      deviceId: 'mobile-device-test',
+      source: undefined,
+    });
     expect(history.body).toMatchObject({
       success: true,
+      scope: {
+        userId: 'default',
+        sessionId: 'mobile-session-test',
+        deviceId: 'mobile-device-test',
+      },
       messages: [
         { id: 'chat-user', role: 'user', content: '帮我整理今天的三件事' },
         { id: 'chat-assistant', role: 'assistant', content: '收到，我来整理。' },

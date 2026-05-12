@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql, type SQL } from "drizzle-orm";
 import { getDatabase } from "../db";
 import { 
   avatarChatHistory, avatarUserPreferences,
@@ -9,6 +9,20 @@ import { BaseRepository } from "./base.repository";
 import { createServiceLogger } from '../lib/logger';
 
 const logger = createServiceLogger('ChatRepository');
+
+export interface AvatarChatHistoryScope {
+  userId?: string;
+  sessionId?: string;
+  deviceId?: string;
+}
+
+function buildScopeWhere(scope?: AvatarChatHistoryScope): SQL | undefined {
+  const filters: SQL[] = [];
+  if (scope?.userId) filters.push(eq(avatarChatHistory.userId, scope.userId));
+  if (scope?.sessionId) filters.push(eq(avatarChatHistory.sessionId, scope.sessionId));
+  if (scope?.deviceId) filters.push(eq(avatarChatHistory.deviceId, scope.deviceId));
+  return filters.length > 0 ? and(...filters) : undefined;
+}
 
 export class AvatarChatHistoryRepository extends BaseRepository<AvatarChatHistory, InsertAvatarChatHistory> {
   constructor() {
@@ -23,25 +37,27 @@ export class AvatarChatHistoryRepository extends BaseRepository<AvatarChatHistor
     return avatarChatHistory.id;
   }
 
-  async getHistory(limit: number = 100): Promise<AvatarChatHistory[]> {
+  async getHistory(limit: number = 100, scope?: AvatarChatHistoryScope): Promise<AvatarChatHistory[]> {
     try {
-      return await this.db.select().from(avatarChatHistory)
-        .orderBy(sql`created_at DESC`)
-        .limit(limit);
+      const where = buildScopeWhere(scope);
+      let query = this.db.select().from(avatarChatHistory).$dynamic();
+      if (where) query = query.where(where);
+      return await query.orderBy(sql`created_at DESC`).limit(limit);
     } catch (error) {
-      logger.error({ err: error, limit }, 'getHistory failed');
+      logger.error({ err: error, limit, scope }, 'getHistory failed');
       throw error;
     }
   }
 
-  async getRecentContext(limit: number = 10): Promise<AvatarChatHistory[]> {
+  async getRecentContext(limit: number = 10, scope?: AvatarChatHistoryScope): Promise<AvatarChatHistory[]> {
     try {
-      const messages = await this.db.select().from(avatarChatHistory)
-        .orderBy(sql`created_at DESC`)
-        .limit(limit);
+      const where = buildScopeWhere(scope);
+      let query = this.db.select().from(avatarChatHistory).$dynamic();
+      if (where) query = query.where(where);
+      const messages = await query.orderBy(sql`created_at DESC`).limit(limit);
       return messages.reverse();
     } catch (error) {
-      logger.error({ err: error, limit }, 'getRecentContext failed');
+      logger.error({ err: error, limit, scope }, 'getRecentContext failed');
       throw error;
     }
   }

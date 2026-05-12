@@ -244,8 +244,8 @@ export interface IStorage {
   updateIntegrationSyncJob(id: string, updates: Partial<InsertIntegrationSyncJob>): Promise<IntegrationSyncJob | undefined>;
 
   createChatMessage(message: InsertAvatarChatHistory): Promise<AvatarChatHistory>;
-  getChatHistory(limit?: number): Promise<AvatarChatHistory[]>;
-  getRecentChatContext(limit?: number): Promise<AvatarChatHistory[]>;
+  getChatHistory(limit?: number, scope?: { userId?: string; sessionId?: string; deviceId?: string }): Promise<AvatarChatHistory[]>;
+  getRecentChatContext(limit?: number, scope?: { userId?: string; sessionId?: string; deviceId?: string }): Promise<AvatarChatHistory[]>;
   updateChatFeedback(id: string, feedback: number, note?: string): Promise<AvatarChatHistory | undefined>;
   getMemorizedChats(): Promise<AvatarChatHistory[]>;
 

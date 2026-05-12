@@ -155,6 +155,17 @@ const ACTION_META: Record<string, { label: string; icon: typeof FolderKanban }> 
 
 const LOCAL_STATE_KEY = "navigator.mobile.conversation-home.local-state.v1";
 const LOCAL_STATE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const CONVERSATION_SESSION_KEY = "navigator.mobile.conversation-home.session-id.v1";
+const CONVERSATION_DEVICE_KEY = "navigator.mobile.conversation-home.device-id.v1";
+
+function getOrCreateConversationId(storageKey: string, prefix: string) {
+  if (typeof window === "undefined") return `${prefix}-server`;
+  const existing = window.localStorage.getItem(storageKey);
+  if (existing) return existing;
+  const created = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  window.localStorage.setItem(storageKey, created);
+  return created;
+}
 
 function normalizeAssistantName(name?: string | null) {
   const trimmed = name?.trim();
@@ -373,6 +384,12 @@ export default function ConversationHome() {
   } = useNativeVoice();
   const { role, serverNode, aiServices } = useZ1Store();
   const deviceHealth = useGlobalStore((s) => s.deviceHealth);
+  const conversationContext = useMemo(() => ({
+    userId: "default",
+    sessionId: getOrCreateConversationId(CONVERSATION_SESSION_KEY, "mobile-session"),
+    deviceId: getOrCreateConversationId(CONVERSATION_DEVICE_KEY, "mobile-device"),
+    source: "mobile-home",
+  }), []);
 
   const {
     data: hpStatus,
@@ -411,8 +428,8 @@ export default function ConversationHome() {
   });
 
   const { data: assistantHistory } = useQuery({
-    queryKey: ["assistant-history", 20],
-    queryFn: () => getAssistantHistory(20),
+    queryKey: ["assistant-history", conversationContext.sessionId, conversationContext.deviceId, 20],
+    queryFn: () => getAssistantHistory(20, conversationContext),
     staleTime: 15_000,
     retry: false,
   });
@@ -829,7 +846,7 @@ export default function ConversationHome() {
 
     try {
       useAvatarStore.getState().setProcessing(true);
-      const result = await sendAssistantMessage(message);
+      const result = await sendAssistantMessage(message, conversationContext);
       appendAssistantResponse(result.response, formatExecutionSummary(result.execution), result.execution);
       void queryClient.invalidateQueries({ queryKey: ["assistant-history"] });
     } catch (error) {
@@ -848,6 +865,7 @@ export default function ConversationHome() {
     addMessage,
     appendAssistantResponse,
     attachments,
+    conversationContext,
     failedSend,
     inputText,
     isBusy,
@@ -901,7 +919,7 @@ export default function ConversationHome() {
       setActiveAction("approve");
       setActionError(null);
       useAvatarStore.getState().setProcessing(true);
-      const result = await approveAssistantAction(pendingConfirmation.responseId);
+      const result = await approveAssistantAction(pendingConfirmation.responseId, conversationContext);
       const summary = formatExecutionSummary(result.execution);
       const shouldAppendSummary = summary && result.execution?.entityType !== "pc_task";
       addMessage({
@@ -932,7 +950,7 @@ export default function ConversationHome() {
     try {
       setActiveAction("deny");
       setActionError(null);
-      await denyAssistantAction(pendingConfirmation.responseId);
+      await denyAssistantAction(pendingConfirmation.responseId, conversationContext);
       addMessage({ role: "assistant", content: "好的，已取消这次执行。", timestamp: Date.now() });
       void queryClient.invalidateQueries({ queryKey: ["assistant-history"] });
       consumePendingItem(pendingConfirmation.responseId);
@@ -952,7 +970,7 @@ export default function ConversationHome() {
       setActiveAction("confirmDraft");
       setActionError(null);
       useAvatarStore.getState().setProcessing(true);
-      const result = await confirmAssistantDraft(pendingDraft.responseId);
+      const result = await confirmAssistantDraft(pendingDraft.responseId, conversationContext);
       const succeeded = result.executions.filter((execution) => execution.success).length;
       const failed = result.executions.length - succeeded;
       addMessage({

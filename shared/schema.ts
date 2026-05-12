@@ -1344,6 +1344,12 @@ export const avatarChatHistory = pgTable("avatar_chat_history", {
   role: text("role").notNull(), // user, assistant
   content: text("content").notNull(),
 
+  // 会话分区
+  userId: varchar("user_id"),
+  sessionId: varchar("session_id"),
+  deviceId: varchar("device_id"),
+  source: text("source"),
+
   // 对话元数据
   intent: text("intent"), // 用户意图分类
   emotion: text("emotion"), // 情绪标记
