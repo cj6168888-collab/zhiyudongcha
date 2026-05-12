@@ -283,7 +283,11 @@ test.describe('Mobile conversation home', () => {
   });
 
   test('sends final voice transcript through the current conversation', async ({ page }) => {
+    const voiceTranscript = '帮我整理今天最该推进的三件事';
+
     await page.addInitScript(() => {
+      const instances: FakeSpeechRecognition[] = [];
+
       class FakeSpeechRecognition {
         continuous = false;
         interimResults = false;
@@ -292,26 +296,41 @@ test.describe('Mobile conversation home', () => {
         onstart: (() => void) | null = null;
         onresult: ((event: unknown) => void) | null = null;
         onend: (() => void) | null = null;
+        started = false;
+
+        constructor() {
+          instances.push(this);
+        }
 
         start() {
-          setTimeout(() => {
-            this.onstart?.();
-            setTimeout(() => {
-              const finalResult = [{ transcript: '帮我整理今天最该推进的三件事', confidence: 0.96 }] as Array<unknown> & { isFinal: boolean };
-              finalResult.isFinal = true;
-              this.onresult?.({ results: [finalResult] });
-              this.onend?.();
-            }, 300);
-          }, 0);
+          this.started = true;
+          this.onstart?.();
         }
 
         stop() {
+          this.started = false;
+          this.onend?.();
+        }
+
+        emitFinalTranscript(text: string) {
+          const finalResult = [{ transcript: text, confidence: 0.96 }] as Array<unknown> & { isFinal: boolean };
+          finalResult.isFinal = true;
+          this.onresult?.({ results: [finalResult] });
           this.onend?.();
         }
       }
 
       (window as unknown as { SpeechRecognition: typeof FakeSpeechRecognition }).SpeechRecognition = FakeSpeechRecognition;
       (window as unknown as { webkitSpeechRecognition: typeof FakeSpeechRecognition }).webkitSpeechRecognition = FakeSpeechRecognition;
+      (window as unknown as { __fakeSpeechRecognitionReady: () => boolean }).__fakeSpeechRecognitionReady = () => {
+        const recognition = instances[instances.length - 1];
+        return Boolean(recognition?.started && recognition.onresult && recognition.onend);
+      };
+      (window as unknown as { __emitFinalVoiceTranscript: (text: string) => void }).__emitFinalVoiceTranscript = (text: string) => {
+        const recognition = instances[instances.length - 1];
+        if (!recognition) throw new Error('SpeechRecognition was not started');
+        recognition.emitFinalTranscript(text);
+      };
     });
     await mockConversationShell(page);
 
@@ -320,8 +339,15 @@ test.describe('Mobile conversation home', () => {
       (await page.getByTestId('conversation-voice-toggle').getAttribute('class')) ?? ''
     ).not.toContain('text-slate-600');
     await page.getByTestId('conversation-voice-toggle').click();
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as { __fakeSpeechRecognitionReady: () => boolean }).__fakeSpeechRecognitionReady()
+    )).toBe(true);
+    await page.evaluate((text) =>
+      (window as unknown as { __emitFinalVoiceTranscript: (value: string) => void }).__emitFinalVoiceTranscript(text),
+      voiceTranscript,
+    );
 
-    await expect(page.getByText('帮我整理今天最该推进的三件事')).toBeVisible();
+    await expect(page.getByText(voiceTranscript)).toBeVisible();
     await expect(page.getByText('received')).toBeVisible();
     await expect(page.getByTestId('conversation-input')).toHaveValue('');
     expect(await page.evaluate(() =>
