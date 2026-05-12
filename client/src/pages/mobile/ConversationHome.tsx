@@ -37,6 +37,7 @@ import {
   denyAssistantAction,
   discardAssistantPending,
   formatExecutionSummary,
+  getAssistantHistory,
   getAssistantPendingSummary,
   sendAssistantMessage,
   updateAssistantDraft,
@@ -359,7 +360,7 @@ export default function ConversationHome() {
   const queryClient = useQueryClient();
   const networkStatus = useNetworkStatus();
   const { avatarConfig } = useBirthStore();
-  const { messages, isProcessing, addMessage } = useAvatarStore();
+  const { messages, isProcessing, addMessage, setMessages } = useAvatarStore();
   const {
     isListening: voiceListening,
     transcript: voiceTranscript,
@@ -409,6 +410,13 @@ export default function ConversationHome() {
     refetchInterval: 15000,
   });
 
+  const { data: assistantHistory } = useQuery({
+    queryKey: ["assistant-history", 20],
+    queryFn: () => getAssistantHistory(20),
+    staleTime: 15_000,
+    retry: false,
+  });
+
   const {
     data: alertSummary,
     isLoading: alertsLoading,
@@ -439,6 +447,7 @@ export default function ConversationHome() {
   const streamEndRef = useRef<HTMLDivElement>(null);
   const lastVoiceTranscriptRef = useRef("");
   const retainedActiveDraftRef = useRef<LocalConversationHomeState["activeDraft"]>(null);
+  const serverHistoryHydratedRef = useRef(false);
 
   const activeService = useMemo(
     () => aiServices.find((service) => service.isActive && service.isConfigured) ?? null,
@@ -557,6 +566,19 @@ export default function ConversationHome() {
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, pendingConfirmation, pendingDraft, failedSend, actionError, isProcessing]);
+
+  useEffect(() => {
+    if (serverHistoryHydratedRef.current || isProcessing) return;
+    const historyMessages = assistantHistory?.messages ?? [];
+    if (historyMessages.length === 0) return;
+
+    serverHistoryHydratedRef.current = true;
+    setMessages(historyMessages.map((message) => ({
+      role: message.role,
+      content: message.content,
+      timestamp: Date.parse(message.timestamp) || Date.now(),
+    })));
+  }, [assistantHistory, isProcessing, setMessages]);
 
   useEffect(() => {
     useAvatarStore.getState().setListening(voiceListening);
@@ -809,6 +831,7 @@ export default function ConversationHome() {
       useAvatarStore.getState().setProcessing(true);
       const result = await sendAssistantMessage(message);
       appendAssistantResponse(result.response, formatExecutionSummary(result.execution), result.execution);
+      void queryClient.invalidateQueries({ queryKey: ["assistant-history"] });
     } catch (error) {
       setFailedSend((current) => ({
         message,
@@ -829,6 +852,7 @@ export default function ConversationHome() {
     inputText,
     isBusy,
     isOffline,
+    queryClient,
   ]);
 
   useEffect(() => {
@@ -887,6 +911,7 @@ export default function ConversationHome() {
       });
       const report = executionReportFromResult(result.execution);
       if (report) setLatestExecutionReport(report);
+      void queryClient.invalidateQueries({ queryKey: ["assistant-history"] });
       consumePendingItem(pendingConfirmation.responseId);
       setPendingConfirmation(null);
       void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
@@ -909,6 +934,7 @@ export default function ConversationHome() {
       setActionError(null);
       await denyAssistantAction(pendingConfirmation.responseId);
       addMessage({ role: "assistant", content: "好的，已取消这次执行。", timestamp: Date.now() });
+      void queryClient.invalidateQueries({ queryKey: ["assistant-history"] });
       consumePendingItem(pendingConfirmation.responseId);
       setPendingConfirmation(null);
       void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
@@ -936,6 +962,7 @@ export default function ConversationHome() {
       });
       const report = executionReportFromDraft(result.executions);
       if (report) setLatestExecutionReport(report);
+      void queryClient.invalidateQueries({ queryKey: ["assistant-history"] });
       consumePendingItem(pendingDraft.responseId);
       retainedActiveDraftRef.current = null;
       setPendingDraft(null);
@@ -961,6 +988,7 @@ export default function ConversationHome() {
       setActionError(null);
       await discardAssistantPending(pendingDraft.responseId);
       addMessage({ role: "assistant", content: "好的，已取消这份草案。", timestamp: Date.now() });
+      void queryClient.invalidateQueries({ queryKey: ["assistant-history"] });
       consumePendingItem(pendingDraft.responseId);
       retainedActiveDraftRef.current = null;
       setPendingDraft(null);

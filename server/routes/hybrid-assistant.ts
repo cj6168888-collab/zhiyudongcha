@@ -12,6 +12,7 @@ import { conversationExecutionEventRecorder } from '../services/assistant/Conver
 import { perceptionGateway } from '../services/perception/PerceptionGateway';
 import { conversationService } from '../services/conversation/ConversationService';
 import { conversationProcessor } from '../services/conversation/ConversationProcessor';
+import { avatarService } from '../services/AvatarService';
 import { createServiceLogger } from '../lib/logger';
 import { attachRole } from '../middleware/auth';
 import { getDatabase } from '../db';
@@ -22,6 +23,66 @@ const router = Router();
 const logger = createServiceLogger('HybridAssistantRoutes');
 
 router.use(attachRole);
+
+type AssistantHistoryRole = 'user' | 'assistant';
+
+interface AssistantHistoryItem {
+  id: string;
+  role: AssistantHistoryRole;
+  content: string;
+  createdAt: Date;
+}
+
+const fallbackAssistantHistory: AssistantHistoryItem[] = [];
+const FALLBACK_HISTORY_LIMIT = 100;
+
+function normalizeHistoryLimit(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 20;
+  return Math.max(1, Math.min(50, Math.floor(parsed)));
+}
+
+function pushFallbackHistory(role: AssistantHistoryRole, content: string) {
+  fallbackAssistantHistory.push({
+    id: `fallback-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    role,
+    content,
+    createdAt: new Date(),
+  });
+  if (fallbackAssistantHistory.length > FALLBACK_HISTORY_LIMIT) {
+    fallbackAssistantHistory.splice(0, fallbackAssistantHistory.length - FALLBACK_HISTORY_LIMIT);
+  }
+}
+
+async function recordAssistantHistory(role: AssistantHistoryRole, content: string, intent?: string) {
+  try {
+    await avatarService.createChatMessage({
+      role,
+      content,
+      intent,
+      feedback: 0,
+      isMemorized: 0,
+      memoryWeight: 0,
+    });
+  } catch (error) {
+    logger.warn({ err: error, role }, 'Avatar chat history unavailable; using in-memory fallback');
+    pushFallbackHistory(role, content);
+  }
+}
+
+async function loadAssistantHistory(limit: number): Promise<AssistantHistoryItem[]> {
+  try {
+    return (await avatarService.getRecentChatContext(limit)).map((item) => ({
+      id: item.id,
+      role: item.role as AssistantHistoryRole,
+      content: item.content,
+      createdAt: item.createdAt ?? new Date(),
+    }));
+  } catch (error) {
+    logger.warn({ err: error }, 'Avatar chat history unavailable; reading in-memory fallback');
+    return fallbackAssistantHistory.slice(-limit);
+  }
+}
 
 function formatAuthorizedExecutionMessage(execution: {
   success: boolean;
@@ -47,6 +108,34 @@ function formatAuthorizedExecutionMessage(execution: {
   const label = execution.entityType ? (entityLabel[execution.entityType] ?? execution.entityType) : '事项';
   return `好的，已完成：${label} 已创建`;
 }
+
+function assistantMessageWithExecutionSummary(message: string, execution?: {
+  success: boolean;
+  entityType?: string;
+  entityData?: Record<string, unknown>;
+  errorMessage?: string;
+} | null) {
+  if (!execution) return message;
+  if (!execution.success) return `${message}\n\n执行失败：${execution.errorMessage ?? '未知错误'}`;
+  if (execution.entityType === 'pc_task' && typeof execution.entityData?.message === 'string') {
+    return `${message}\n\n${execution.entityData.message}`;
+  }
+  return message;
+}
+
+router.get('/history', async (req: Request, res: Response) => {
+  const limit = normalizeHistoryLimit(req.query.limit);
+  const messages = await loadAssistantHistory(limit);
+  res.json({
+    success: true,
+    messages: messages.map((item) => ({
+      id: item.id,
+      role: item.role,
+      content: item.content,
+      timestamp: item.createdAt instanceof Date ? item.createdAt.toISOString() : new Date(item.createdAt).toISOString(),
+    })),
+  });
+});
 
 /**
  * GET /api/assistant/pending
@@ -214,6 +303,13 @@ router.post('/', async (req: Request, res: Response) => {
       type: response.type,
       action: response.action,
     }, 'Response generated');
+
+    await recordAssistantHistory('user', message, response.category);
+    await recordAssistantHistory(
+      'assistant',
+      assistantMessageWithExecutionSummary(response.message, executionResult),
+      response.category,
+    );
 
     // 异步记录 Conversation（不阻塞响应）
     const convMode = response.action ? 'task_request' : 'casual_chat';
@@ -457,6 +553,13 @@ router.post('/draft/confirm', async (req: Request, res: Response) => {
     }
 
     logger.info({ responseId, count: executions.length }, 'Draft confirmed and executed');
+    const failed = executions.filter((execution) => !execution.success).length;
+    await recordAssistantHistory(
+      'assistant',
+      failed > 0
+        ? `草案执行有失败项：已完成 ${executions.length - failed} 项，${failed} 项失败。`
+        : `草案执行完成：已完成全部 ${executions.length} 项。`,
+    );
     res.json({ success: true, executions });
   } catch (error) {
     logger.error({ err: error }, 'Draft confirm failed');
@@ -550,6 +653,8 @@ router.post('/authorize', async (req: Request, res: Response) => {
         source: 'assistant_authorize',
       });
     }
+
+    await recordAssistantHistory('assistant', assistantMessageWithExecutionSummary(message, executionResult));
 
     res.json({
       success: true,

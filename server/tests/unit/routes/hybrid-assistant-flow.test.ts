@@ -19,10 +19,12 @@ vi.mock('../../../services/pc-agent/PCAgent', () => ({
 
 vi.mock('../../../storage/adapter', () => ({
   storageAdapter: {
+    createChatMessage: vi.fn(),
     createProject: vi.fn(),
     createVaultItem: vi.fn(),
     searchVaultByIntent: vi.fn(),
     createPerson: vi.fn(),
+    getRecentChatContext: vi.fn(),
   },
 }));
 
@@ -126,6 +128,12 @@ describe('Hybrid Assistant first product loop', () => {
       approvalStatus: 'PENDING',
       accessLevel: 'ZONE_BLUE',
     } as any);
+    vi.mocked(storageAdapter.createChatMessage).mockImplementation(async (message: any) => ({
+      id: `chat-${Date.now()}-${Math.random()}`,
+      createdAt: new Date(),
+      ...message,
+    }));
+    vi.mocked(storageAdapter.getRecentChatContext).mockResolvedValue([]);
   });
 
   it('executes create_project returned by AI and includes execution result', async () => {
@@ -180,6 +188,61 @@ describe('Hybrid Assistant first product loop', () => {
       count: 0,
       pending: [],
       draft: [],
+    });
+  });
+
+  it('persists assistant chat history and exposes recent history', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-history',
+        type: 'greeting',
+        message: '收到，我来整理。',
+      }),
+    );
+
+    await request(createApp())
+      .post('/api/assistant')
+      .send({ message: '帮我整理今天的三件事' })
+      .expect(200);
+
+    expect(storageAdapter.createChatMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'user',
+        content: '帮我整理今天的三件事',
+      }),
+    );
+    expect(storageAdapter.createChatMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'assistant',
+        content: '收到，我来整理。',
+      }),
+    );
+
+    vi.mocked(storageAdapter.getRecentChatContext).mockResolvedValue([
+      {
+        id: 'chat-user',
+        role: 'user',
+        content: '帮我整理今天的三件事',
+        createdAt: new Date('2026-05-12T09:00:00.000Z'),
+      },
+      {
+        id: 'chat-assistant',
+        role: 'assistant',
+        content: '收到，我来整理。',
+        createdAt: new Date('2026-05-12T09:00:01.000Z'),
+      },
+    ] as any);
+
+    const history = await request(createApp())
+      .get('/api/assistant/history?limit=2')
+      .expect(200);
+
+    expect(history.body).toMatchObject({
+      success: true,
+      messages: [
+        { id: 'chat-user', role: 'user', content: '帮我整理今天的三件事' },
+        { id: 'chat-assistant', role: 'assistant', content: '收到，我来整理。' },
+      ],
     });
   });
 
