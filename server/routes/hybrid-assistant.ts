@@ -23,6 +23,31 @@ const logger = createServiceLogger('HybridAssistantRoutes');
 
 router.use(attachRole);
 
+function formatAuthorizedExecutionMessage(execution: {
+  success: boolean;
+  entityType?: string;
+  entityData?: Record<string, unknown>;
+  entityId?: string;
+  errorMessage?: string;
+}): string {
+  if (!execution.success) {
+    return `执行失败：${execution.errorMessage ?? '未知错误'}`;
+  }
+
+  if (execution.entityType === 'pc_task') {
+    const detail = execution.entityData?.message ? `：${String(execution.entityData.message)}` : '';
+    return `好的，PC 执行已完成${detail}`;
+  }
+
+  const entityLabel: Record<string, string> = {
+    project: '项目',
+    task: '任务',
+    memory: '记忆',
+  };
+  const label = execution.entityType ? (entityLabel[execution.entityType] ?? execution.entityType) : '事项';
+  return `好的，已完成：${label} 已创建`;
+}
+
 /**
  * GET /api/assistant/pending
  *
@@ -459,10 +484,8 @@ router.post('/authorize', async (req: Request, res: Response) => {
         // 取出暂存的 pending action 并执行
         if (responseId) {
           executionResult = await conversationActionExecutor.executeByResponseId(responseId, userId);
-          if (executionResult?.success) {
-            message = `好的，已完成：${executionResult.entityType} 已创建`;
-          } else if (executionResult && !executionResult.success) {
-            message = `执行失败：${executionResult.errorMessage ?? '未知错误'}`;
+          if (executionResult) {
+            message = formatAuthorizedExecutionMessage(executionResult);
           } else {
             message = '好的，正在处理...';
           }

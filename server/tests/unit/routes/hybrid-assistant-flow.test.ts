@@ -72,6 +72,7 @@ import { hybridAssistant } from '../../../services/assistant/HybridAssistant';
 import { conversationExecutionEventRecorder } from '../../../services/assistant/ConversationExecutionEventRecorder';
 import { storageAdapter } from '../../../storage/adapter';
 import { taskOrchestrator } from '../../../services/task-orchestrator';
+import { pcAgent } from '../../../services/pc-agent/PCAgent';
 
 function createApp(userId = 'default') {
   const app = express();
@@ -425,6 +426,7 @@ describe('Hybrid Assistant first product loop', () => {
     );
     expect(approvedResponse.body).toMatchObject({
       success: true,
+      message: '好的，已完成：项目 已创建',
       execution: {
         success: true,
         action: 'create_project',
@@ -438,6 +440,48 @@ describe('Hybrid Assistant first product loop', () => {
         execution: expect.objectContaining({ action: 'create_project', success: true }),
       }),
     );
+  });
+
+  it('returns a PC-specific completion message after approving pc_execute', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-confirm-pc',
+        type: 'confirm',
+        message: '需要确认 PC 执行',
+        action: 'pc_execute',
+        actionParams: {
+          type: 'system_optimize',
+          description: '执行一次连通性测试，并把结果回传到手机端',
+          params: {},
+        },
+      }),
+    );
+    vi.mocked(pcAgent.executeTask).mockResolvedValue({
+      success: true,
+      type: 'system_optimize',
+      message: 'PC 端连通性测试完成：127.0.0.1 可达，耗时约 24ms',
+    } as any);
+
+    const app = createApp();
+    await request(app)
+      .post('/api/assistant')
+      .send({ message: '让PC端执行一次连通性测试，并把结果回传到手机端' })
+      .expect(200);
+
+    const approvedResponse = await request(app)
+      .post('/api/assistant/authorize')
+      .send({ responseId: 'resp-confirm-pc', action: 'approve_once' })
+      .expect(200);
+
+    expect(approvedResponse.body).toMatchObject({
+      success: true,
+      message: '好的，PC 执行已完成：PC 端连通性测试完成：127.0.0.1 可达，耗时约 24ms',
+      execution: {
+        success: true,
+        action: 'pc_execute',
+        entityType: 'pc_task',
+      },
+    });
   });
 
   it('removes a pending action after deny authorization', async () => {

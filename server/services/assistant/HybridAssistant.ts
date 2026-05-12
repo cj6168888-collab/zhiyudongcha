@@ -1197,7 +1197,7 @@ class HybridAssistant {
     if (/(文档|报告|合同|申报书|总结|计划)/u.test(text)) return 'document_generate';
     if (/(整理|归档|文件|桌面)/u.test(text)) return 'file_organize';
     if (/(代码|项目|程序|终端|仓库)/u.test(text)) return 'code_create';
-    if (/(清理|优化|缓存|临时文件|系统)/u.test(text)) return 'system_optimize';
+    if (/(清理|优化|缓存|临时文件|系统|网络|连接|连通|连通性|诊断|ping)/iu.test(text)) return 'system_optimize';
     return 'custom';
   }
 
