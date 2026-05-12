@@ -62,7 +62,7 @@ services:
       REDIS_DB: ${REDIS_DB:-0}
       REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-sheng_yu_dev:}
       REDIS_TTL: ${REDIS_TTL:-3600}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:5001}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:5001,http://127.0.0.1:5001}
       CORS_CREDENTIALS: ${CORS_CREDENTIALS:-true}
       SESSION_SECRET: ${SESSION_SECRET:-local-session-secret-that-is-long-enough-for-dev}
       AVATAR_MASTER_SECRET: ${AVATAR_MASTER_SECRET:-local-avatar-master-secret-that-is-at-least-sixty-four-characters-long}
@@ -124,7 +124,7 @@ services:
       REDIS_DB: ${REDIS_DB:-0}
       REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-sheng_yu_dev:}
       REDIS_TTL: ${REDIS_TTL:-3600}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:5001}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:5001,http://127.0.0.1:5001}
       CORS_CREDENTIALS: ${CORS_CREDENTIALS:-true}
       SESSION_SECRET: ${SESSION_SECRET:-local-session-secret-that-is-long-enough-for-dev}
       AVATAR_MASTER_SECRET: ${AVATAR_MASTER_SECRET:-local-avatar-master-secret-that-is-at-least-sixty-four-characters-long}

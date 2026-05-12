@@ -40,6 +40,35 @@ export function shouldSkipRateLimit(method: string, requestPath?: string): boole
   return passivePollingPaths.some(skipPath => path === skipPath || path.startsWith(`${skipPath}/`))
 }
 
+export function getAllowedCorsOrigins(): string[] {
+  const configuredOrigins = [
+    ...(process.env.ALLOWED_ORIGINS?.split(',') || []),
+    ...(process.env.CORS_ORIGIN?.split(',') || []),
+  ].map(value => value.trim()).filter(Boolean)
+
+  const port = process.env.PORT || '3000'
+  const serverOrigins = [
+    `http://localhost:${port}`,
+    `http://127.0.0.1:${port}`,
+  ]
+
+  const devClientOrigins =
+    process.env.NODE_ENV === 'production' && configuredOrigins.length > 0
+      ? []
+      : [
+          'http://localhost:3001',
+          'http://127.0.0.1:3001',
+          'http://localhost:5001',
+          'http://127.0.0.1:5001',
+        ]
+
+  return Array.from(new Set([
+    ...configuredOrigins,
+    ...serverOrigins,
+    ...devClientOrigins,
+  ]))
+}
+
 /**
  * 安全中间件配置
  */
@@ -109,12 +138,7 @@ export class SecurityMiddleware {
         }
 
         // 生产环境严格检查
-        const allowedOrigins = [
-          ...(process.env.ALLOWED_ORIGINS?.split(',') || []),
-          ...(process.env.CORS_ORIGIN?.split(',') || []),
-          `http://localhost:${process.env.PORT || '3000'}`,
-          `http://127.0.0.1:${process.env.PORT || '3000'}`,
-        ].map(value => value.trim()).filter(Boolean)
+        const allowedOrigins = getAllowedCorsOrigins()
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true)
         } else {
@@ -130,7 +154,10 @@ export class SecurityMiddleware {
         'Accept',
         'Authorization',
         'X-Request-ID',
-        'X-API-Version'
+        'X-API-Version',
+        'X-Avatar-Role',
+        'X-Avatar-Secret',
+        'x-csrf-token'
       ],
       exposedHeaders: [
         'X-Total-Count',
