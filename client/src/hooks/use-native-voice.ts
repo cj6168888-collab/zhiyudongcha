@@ -25,20 +25,13 @@ export function useNativeVoice(): UseNativeVoiceResult {
 
   const listenersRef = useRef<PluginListenerHandle[]>([]);
   const listenerRegistrationRef = useRef<Promise<void> | null>(null);
-  const log = createServiceLogger('useNativeVoice');
+  const logRef = useRef(createServiceLogger('useNativeVoice'));
 
-  // Check availability once on mount
-  useEffect(() => {
-    VoicePlugin.isAvailable()
-      .then(({ available }) => setIsSupported(available))
-      .catch(() => setIsSupported(false));
-  }, []);
+  const ensureListenerRegistration = useCallback(() => {
+    if (listenerRegistrationRef.current) return listenerRegistrationRef.current;
 
-  // Register Capacitor event listeners (unified event schema for web + native)
-  useEffect(() => {
     const handles: PluginListenerHandle[] = [];
-
-    const register = async () => {
+    const registration = (async () => {
       handles.push(
         await VoicePlugin.addListener('speechResult', (ev: SpeechResultEvent) => {
           if (ev.isFinal) {
@@ -64,28 +57,43 @@ export function useNativeVoice(): UseNativeVoiceResult {
         await VoicePlugin.addListener('speechError', (ev: SpeechErrorEvent) => {
           setIsListening(false);
           setError(ev.message);
-          log.warn('STT error', ev);
+          logRef.current.warn('STT error', ev);
         }),
       );
 
       listenersRef.current = handles;
-    };
+    })();
 
-    const registration = register();
     listenerRegistrationRef.current = registration;
-    registration.catch((err) => log.error('Failed to register voice listeners', err));
+    registration.catch((err) => {
+      listenerRegistrationRef.current = null;
+      logRef.current.error('Failed to register voice listeners', err);
+    });
+    return registration;
+  }, []);
+
+  // Check availability once on mount
+  useEffect(() => {
+    VoicePlugin.isAvailable()
+      .then(({ available }) => setIsSupported(available))
+      .catch(() => setIsSupported(false));
+  }, []);
+
+  // Register Capacitor event listeners (unified event schema for web + native)
+  useEffect(() => {
+    ensureListenerRegistration();
 
     return () => {
       listenersRef.current.forEach((h) => h.remove());
       listenersRef.current = [];
       listenerRegistrationRef.current = null;
     };
-  }, []);
+  }, [ensureListenerRegistration]);
 
   const startListening = useCallback(async () => {
     if (!isSupported) return;
     try {
-      await listenerRegistrationRef.current;
+      await ensureListenerRegistration();
       setError(null);
       setTranscript('');
       setPartialTranscript('');
@@ -93,16 +101,16 @@ export function useNativeVoice(): UseNativeVoiceResult {
     } catch (err) {
       const msg = (err as Error).message;
       setError(msg);
-      log.error('Failed to start listening', err);
+      logRef.current.error('Failed to start listening', err);
     }
-  }, [isSupported]);
+  }, [ensureListenerRegistration, isSupported]);
 
   const stopListening = useCallback(async () => {
     try {
       await VoicePlugin.stopListening();
       setIsListening(false);
     } catch (err) {
-      log.error('Failed to stop listening', err);
+      logRef.current.error('Failed to stop listening', err);
     }
   }, []);
 

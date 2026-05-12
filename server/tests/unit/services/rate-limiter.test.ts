@@ -1,12 +1,25 @@
 ﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Request, Response, NextFunction } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
-import { shouldSkipRateLimit } from '../../../middleware/security-middleware';
+import { getAllowedCorsOrigins, shouldSkipRateLimit } from '../../../middleware/security-middleware';
 
 describe('Rate Limiter Middleware', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
   let nextFunction: NextFunction;
+  const originalEnv = {
+    ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
+    CORS_ORIGIN: process.env.CORS_ORIGIN,
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
+  };
+  const restoreEnv = (name: string, value: string | undefined) => {
+    if (value === undefined) {
+      delete process.env[name];
+      return;
+    }
+    process.env[name] = value;
+  };
 
   beforeEach(() => {
     mockRequest = {
@@ -22,6 +35,13 @@ describe('Rate Limiter Middleware', () => {
     };
 
     nextFunction = vi.fn();
+  });
+
+  afterEach(() => {
+    restoreEnv('ALLOWED_ORIGINS', originalEnv.ALLOWED_ORIGINS);
+    restoreEnv('CORS_ORIGIN', originalEnv.CORS_ORIGIN);
+    restoreEnv('NODE_ENV', originalEnv.NODE_ENV);
+    restoreEnv('PORT', originalEnv.PORT);
   });
 
   describe('RateLimitConfig', () => {
@@ -157,6 +177,30 @@ describe('Rate Limiter Middleware', () => {
           max: 1
         });
       }).not.toThrow();
+    });
+  });
+
+  describe('CORS origin defaults', () => {
+    it('should allow the Vite mobile development origin on 127.0.0.1', () => {
+      delete process.env.ALLOWED_ORIGINS;
+      delete process.env.CORS_ORIGIN;
+      process.env.NODE_ENV = 'production';
+      process.env.PORT = '3000';
+
+      expect(getAllowedCorsOrigins()).toContain('http://127.0.0.1:5001');
+    });
+
+    it('should not add dev client origins in production when origins are explicitly configured', () => {
+      process.env.ALLOWED_ORIGINS = 'https://example.com';
+      delete process.env.CORS_ORIGIN;
+      process.env.NODE_ENV = 'production';
+      process.env.PORT = '3000';
+
+      const origins = getAllowedCorsOrigins();
+
+      expect(origins).toContain('https://example.com');
+      expect(origins).toContain('http://127.0.0.1:3000');
+      expect(origins).not.toContain('http://127.0.0.1:5001');
     });
   });
 });
