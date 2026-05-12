@@ -167,6 +167,18 @@ function getOrCreateConversationId(storageKey: string, prefix: string) {
   return created;
 }
 
+function formatAiSource(ai?: AssistantResponse["ai"]): string | null {
+  if (!ai?.provider || !ai.model) return null;
+  const providerLabel: Record<string, string> = {
+    dashscope: "通义",
+    deepseek: "DeepSeek",
+    doubao: "豆包",
+  };
+  const label = providerLabel[ai.provider] ?? ai.provider;
+  const latency = Number.isFinite(ai.latencyMs) ? ` · ${(ai.latencyMs / 1000).toFixed(1)}s` : "";
+  return `${label} ${ai.model}${latency}`;
+}
+
 function normalizeAssistantName(name?: string | null) {
   const trimmed = name?.trim();
   if (!trimmed || trimmed === "小星") return "小智";
@@ -594,6 +606,13 @@ export default function ConversationHome() {
       role: message.role,
       content: message.content,
       timestamp: Date.parse(message.timestamp) || Date.now(),
+      ai: message.ai
+        ? {
+            provider: message.ai.provider,
+            model: message.ai.model,
+            latencyMs: message.ai.latencyMs,
+          }
+        : undefined,
     })));
   }, [assistantHistory, isProcessing, setMessages]);
 
@@ -739,7 +758,18 @@ export default function ConversationHome() {
     execution?: AssistantExecution | null,
   ) => {
     const content = executionSummary ? `${response.message}\n\n${executionSummary}` : response.message;
-    addMessage({ role: "assistant", content, timestamp: Date.now() });
+    addMessage({
+      role: "assistant",
+      content,
+      timestamp: Date.now(),
+      ai: response.ai
+        ? {
+            provider: response.ai.provider,
+            model: response.ai.model,
+            latencyMs: response.ai.latencyMs,
+          }
+        : undefined,
+    });
     const report = executionReportFromResult(execution);
     if (report) setLatestExecutionReport(report);
     setFailedSend(null);
@@ -1136,15 +1166,22 @@ export default function ConversationHome() {
         <section className="mt-4 space-y-3">
           {messages.map((msg, index) => (
             <div key={`${msg.timestamp}-${index}`} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
-              <div
-                className={cn(
-                  "max-w-[86%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",
-                  msg.role === "user"
-                    ? "rounded-tr-md bg-violet-500 text-white"
-                    : "rounded-tl-md border border-white/10 bg-white/[0.06] text-slate-100"
+              <div className="max-w-[86%]">
+                <div
+                  className={cn(
+                    "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",
+                    msg.role === "user"
+                      ? "rounded-tr-md bg-violet-500 text-white"
+                      : "rounded-tl-md border border-white/10 bg-white/[0.06] text-slate-100"
+                  )}
+                >
+                  {msg.content}
+                </div>
+                {msg.role === "assistant" && formatAiSource(msg.ai) && (
+                  <div data-testid="assistant-ai-source" className="mt-1 px-1 text-[10px] font-semibold leading-none text-slate-500">
+                    {formatAiSource(msg.ai)}
+                  </div>
                 )}
-              >
-                {msg.content}
               </div>
             </div>
           ))}

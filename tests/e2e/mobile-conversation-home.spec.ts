@@ -33,7 +33,7 @@ async function mockConversationShell(page: Page, options?: {
     (window as unknown as { __assistantHistoryCalls?: number }).__assistantHistoryCalls = 0;
     let assistantCallCount = 0;
 
-    const readHistory = (): Array<{ id: string; role: string; content: string; timestamp: string }> => {
+    const readHistory = (): Array<{ id: string; role: string; content: string; timestamp: string; ai?: unknown }> => {
       try {
         return JSON.parse(window.localStorage.getItem(historyKey) || '[]');
       } catch {
@@ -41,17 +41,18 @@ async function mockConversationShell(page: Page, options?: {
       }
     };
 
-    const writeHistory = (messages: Array<{ id: string; role: string; content: string; timestamp: string }>) => {
+    const writeHistory = (messages: Array<{ id: string; role: string; content: string; timestamp: string; ai?: unknown }>) => {
       window.localStorage.setItem(historyKey, JSON.stringify(messages.slice(-20)));
     };
 
-    const appendHistory = (role: 'user' | 'assistant', content: string) => {
+    const appendHistory = (role: 'user' | 'assistant', content: string, ai?: unknown) => {
       const history = readHistory();
       history.push({
         id: `mock-history-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         role,
         content,
         timestamp: new Date().toISOString(),
+        ...(ai ? { ai } : {}),
       });
       writeHistory(history);
     };
@@ -193,7 +194,11 @@ async function mockConversationShell(page: Page, options?: {
         };
         (window as unknown as { __assistantPayload?: unknown }).__assistantPayload = payload;
         appendHistory('user', String(payload.message ?? ''));
-        appendHistory('assistant', String((responseBody as any).response?.message ?? 'received'));
+        appendHistory(
+          'assistant',
+          String((responseBody as any).response?.message ?? 'received'),
+          (responseBody as any).response?.ai,
+        );
         return jsonResponse(responseBody);
       }
 
@@ -250,6 +255,31 @@ test.describe('Mobile conversation home', () => {
     await expect(page.getByText('材料已加入本次对话')).toBeVisible();
     await expect(page.getByTestId('conversation-send')).toBeEnabled();
     expect(page.url()).toBe(appUrl);
+  });
+
+  test('shows model source on AI assistant replies', async ({ page }) => {
+    await mockConversationShell(page, {
+      assistantResult: {
+        success: true,
+        response: {
+          id: 'ai-source-ok',
+          handler: 'ai',
+          type: 'chat',
+          message: 'received',
+          ai: {
+            provider: 'dashscope',
+            model: 'qwen-plus',
+            latencyMs: 3100,
+          },
+        },
+      },
+    });
+
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await sendConversationMessage(page, 'show model source');
+
+    await expect(page.getByText('received')).toBeVisible();
+    await expect(page.getByTestId('assistant-ai-source')).toContainText('通义 qwen-plus');
   });
 
   test('sends final voice transcript through the current conversation', async ({ page }) => {
