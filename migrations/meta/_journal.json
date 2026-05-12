@@ -29,6 +29,13 @@
       "when": 1778412600000,
       "tag": "006_mobile_conversation_runtime",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778586000000,
+      "tag": "007_avatar_chat_history_scope",
+      "breakpoints": true
     }
   ]
 }
