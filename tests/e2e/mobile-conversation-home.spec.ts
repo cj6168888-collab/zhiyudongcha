@@ -160,7 +160,8 @@ test.describe('Mobile conversation home', () => {
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
 
     await expect(page.locator('header')).toBeVisible();
-    await expect(page.getByTestId('conversation-empty-state')).toContainText('沟通历史');
+    await expect(page.getByTestId('conversation-empty-state')).toContainText('和小智说话');
+    await expect(page.getByTestId('conversation-empty-state')).toContainText('暂无历史会话');
     await expect(page.getByTestId('now-strip')).toHaveCount(0);
     await expect(page.getByText('PC 执行')).toHaveCount(0);
     await expect(page.getByTestId('conversation-input')).toBeVisible();
