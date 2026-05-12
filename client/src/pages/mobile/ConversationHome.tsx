@@ -1062,34 +1062,13 @@ export default function ConversationHome() {
           }}
         />
 
-        {latestExecutionReport && (
-          <section data-testid="execution-result-jump" className="mb-3">
-            <button
-              onClick={() => setLocation(latestExecutionReport.route)}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left active:bg-white/10",
-                latestExecutionReport.success
-                  ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-50"
-                  : "border-red-300/25 bg-red-300/10 text-red-50",
-              )}
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-black">{latestExecutionReport.title}</p>
-                <p className="mt-0.5 truncate text-[10px] opacity-80">{latestExecutionReport.detail}</p>
-              </div>
-              <span className="shrink-0 text-[10px] font-bold opacity-75">查看</span>
-            </button>
-          </section>
-        )}
-
-        {messages.length === 0 && (
-          <ConversationLiveSurface
-            voiceActive={voiceListening}
-            voiceSupported={voiceSupported}
-            voiceInterimText={voicePartialTranscript}
-            voiceAudioLevel={voiceAudioLevel}
-          />
-        )}
+        <ConversationLiveSurface
+          hasHistory={messages.length > 0}
+          voiceActive={voiceListening}
+          voiceSupported={voiceSupported}
+          voiceInterimText={voicePartialTranscript}
+          voiceAudioLevel={voiceAudioLevel}
+        />
 
         <section className="mt-4 space-y-3">
           {messages.map((msg, index) => (
@@ -1320,6 +1299,26 @@ export default function ConversationHome() {
           <div ref={streamEndRef} />
         </section>
       </main>
+
+      {latestExecutionReport && (
+        <section data-testid="execution-result-jump" className="flex-shrink-0 bg-[#050817]/95 px-3 pb-2">
+          <button
+            onClick={() => setLocation(latestExecutionReport.route)}
+            className={cn(
+              "mx-auto flex w-full max-w-lg items-center gap-2 rounded-lg border px-3 py-2 text-left active:bg-white/10",
+              latestExecutionReport.success
+                ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-50"
+                : "border-red-300/25 bg-red-300/10 text-red-50",
+            )}
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-black">{latestExecutionReport.title}</p>
+              <p className="mt-0.5 truncate text-[10px] opacity-80">{latestExecutionReport.detail}</p>
+            </div>
+            <span className="shrink-0 text-[10px] font-bold opacity-75">查看</span>
+          </button>
+        </section>
+      )}
 
       <CommandComposer
         inputText={inputText}
