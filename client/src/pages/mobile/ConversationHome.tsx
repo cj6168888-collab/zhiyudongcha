@@ -1189,11 +1189,22 @@ export default function ConversationHome() {
           onToggleVoice={() => void handleToggleVoice()}
         />
 
-        <section className="mt-4 space-y-3" aria-label="历史对话">
+        <section className="mt-4 space-y-3" aria-label="本次会话">
           {messages.length > 0 && (
-            <div data-testid="conversation-history-heading" className="flex items-center justify-between px-0.5">
-              <p className="text-[11px] font-black text-slate-500">历史对话</p>
-              <p className="text-[10px] font-bold text-slate-600">{messages.length} 条</p>
+            <div data-testid="conversation-history-heading" className="flex items-center justify-between gap-3 px-0.5">
+              <div className="min-w-0">
+                <p className="text-[11px] font-black text-slate-500">本次会话</p>
+                <p className="mt-0.5 truncate text-[10px] font-bold text-slate-600">语音和文字会连续保留在这里</p>
+              </div>
+              <button
+                type="button"
+                data-testid="conversation-inbox-link"
+                className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-black text-slate-200 active:bg-white/10"
+                onClick={() => setLocation("/inbox")}
+              >
+                全部会话
+                <span className="ml-1 text-slate-500">{messages.length}</span>
+              </button>
             </div>
           )}
 

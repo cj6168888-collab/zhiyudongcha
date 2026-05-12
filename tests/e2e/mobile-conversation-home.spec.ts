@@ -139,6 +139,20 @@ async function mockConversationShell(page: Page, options?: {
         });
       }
 
+      if (path === '/api/conversation-inbox' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          conversations: [],
+        });
+      }
+
+      if (path === '/api/conversation-inbox/counts' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          counts: { total: 0, task: 0, memory: 0, event: 0 },
+        });
+      }
+
       if (path === '/api/assistant/draft/update' && method === 'POST') {
         const payload = init?.body ? JSON.parse(String(init.body)) : {};
         (window as unknown as { __draftUpdatePayload?: unknown }).__draftUpdatePayload = payload;
@@ -281,8 +295,13 @@ test.describe('Mobile conversation home', () => {
     await sendConversationMessage(page, 'show model source');
 
     await expect(page.getByText('received')).toBeVisible();
-    await expect(page.getByTestId('conversation-history-heading')).toContainText('历史对话');
+    await expect(page.getByTestId('conversation-history-heading')).toContainText('本次会话');
+    await expect(page.getByTestId('conversation-history-heading')).toContainText('语音和文字会连续保留在这里');
+    await expect(page.getByTestId('conversation-inbox-link')).toContainText('全部会话');
     await expect(page.getByTestId('assistant-ai-source')).toContainText('通义 qwen-plus');
+
+    await page.getByTestId('conversation-inbox-link').click();
+    await expect(page).toHaveURL(/\/inbox$/);
   });
 
   test('sends final voice transcript through the current conversation', async ({ page }) => {
