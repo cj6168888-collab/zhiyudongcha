@@ -748,6 +748,18 @@ export interface AssistantResponse {
   /** 消息内容 */
   message: string;
 
+  /** AI 调用信息（handler=ai 时用于验收和诊断） */
+  ai?: {
+    provider: string;
+    model: string;
+    latencyMs: number;
+    usage?: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+  };
+
   /** 结构化草案条目（type=draft 时使用） */
   draftItems?: DraftItem[];
 
@@ -1503,10 +1515,17 @@ class HybridAssistant {
   "confirmReason": "（需要确认时说明原因）"
 }`;
 
-    const response = await this.aiProvider.chat(message.content, systemPrompt, {
+    const aiResult = await this.aiProvider.chatWithMetadata(message.content, systemPrompt, {
       temperature: 0.5,
       maxTokens: 800,
     });
+    const response = aiResult.content;
+    const ai = {
+      provider: aiResult.provider,
+      model: aiResult.model,
+      latencyMs: aiResult.latencyMs,
+      usage: aiResult.usage,
+    };
 
     try {
       const jsonMatch = response.match(/```json\n?([\s\S]*?)\n?```|(\{[\s\S]*\})/);
@@ -1519,6 +1538,7 @@ class HybridAssistant {
             handler: 'ai',
             type: 'confirm',
             message: parsed.message || response,
+            ai,
             authorization: {
               required: true,
               reason: parsed.confirmReason || '需要您确认',
@@ -1537,6 +1557,7 @@ class HybridAssistant {
           handler: 'ai',
           type: parsed.type || 'execute',
           message: parsed.message || response,
+          ai,
           category: parsed.category,
           action: parsed.action && parsed.action !== 'null' ? parsed.action : undefined,
           actionParams: parsed.params && typeof parsed.params === 'object' ? parsed.params : undefined,
@@ -1551,6 +1572,7 @@ class HybridAssistant {
       handler: 'ai',
       type: 'report',
       message: response,
+      ai,
     };
   }
 

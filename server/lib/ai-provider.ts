@@ -264,6 +264,15 @@ export class AIProviderChain {
     systemPrompt?: string,
     options?: Partial<AICompletionOptions>
   ): Promise<string> {
+    const result = await this.chatWithMetadata(message, systemPrompt, options);
+    return result.content;
+  }
+
+  async chatWithMetadata(
+    message: string,
+    systemPrompt?: string,
+    options?: Partial<AICompletionOptions>
+  ): Promise<AICompletionResult> {
     const messages: AIMessage[] = [];
     
     if (systemPrompt) {
@@ -272,8 +281,7 @@ export class AIProviderChain {
     
     messages.push({ role: 'user', content: message });
 
-    const result = await this.complete({ messages, ...options });
-    return result.content;
+    return this.complete({ messages, ...options });
   }
 
   getAvailableProviders(): AIProviderName[] {
