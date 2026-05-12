@@ -33,6 +33,11 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+  ai?: {
+    provider: string;
+    model: string;
+    latencyMs: number;
+  };
   command?: {
     action: string;
     entity: string;

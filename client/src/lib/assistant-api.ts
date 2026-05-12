@@ -26,6 +26,16 @@ export interface AssistantResponse {
   category?: string;
   type: "execute" | "confirm" | "draft" | "discuss" | "question" | "report" | "greeting";
   message: string;
+  ai?: {
+    provider: string;
+    model: string;
+    latencyMs: number;
+    usage?: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+  };
   draftItems?: DraftItem[];
   action?: string;
   actionParams?: Record<string, unknown>;
@@ -98,6 +108,7 @@ export interface AssistantHistoryMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: string;
+  ai?: AssistantResponse["ai"];
 }
 
 export interface AssistantHistoryResult {
