@@ -171,6 +171,7 @@ interface CommandComposerProps {
   voiceAudioLevel: number;
   isProcessing: boolean;
   attachments: ConversationAttachment[];
+  showVoiceButton: boolean;
   onInputChange: (value: string) => void;
   onToggleVoice: () => void;
   onAttachFiles: (files: File[]) => void;
@@ -184,6 +185,7 @@ interface ConversationLiveSurfaceProps {
   voiceSupported: boolean;
   voiceInterimText: string;
   voiceAudioLevel: number;
+  onToggleVoice: () => void;
 }
 
 export function ConversationLiveSurface({
@@ -192,6 +194,7 @@ export function ConversationLiveSurface({
   voiceSupported,
   voiceInterimText,
   voiceAudioLevel,
+  onToggleVoice,
 }: ConversationLiveSurfaceProps) {
   const voiceLevelWidth = `${Math.max(8, Math.min(100, Math.round(voiceAudioLevel * 100)))}%`;
   const statusText = voiceActive
@@ -204,24 +207,40 @@ export function ConversationLiveSurface({
     <section
       data-testid="conversation-live-surface"
       className={cn(
-        "rounded-xl border border-white/10 bg-white/[0.035]",
+        "rounded-xl border border-white/10 bg-white/[0.035] transition-colors",
         hasHistory
           ? "mb-3 flex items-center gap-3 px-3 py-3 text-left"
           : "flex min-h-[38vh] flex-col items-center justify-center px-4 py-8 text-center"
       )}
     >
-      <div
-        className={cn(
-          "flex shrink-0 items-center justify-center rounded-full border text-white shadow-[0_0_34px_rgba(139,92,246,0.22)]",
-          hasHistory ? "h-12 w-12" : "h-24 w-24",
-          voiceActive
-            ? "border-red-200/50 bg-red-400/20"
-            : "border-violet-200/25 bg-violet-400/15"
-        )}
-        aria-hidden="true"
-      >
-        <Mic className={hasHistory ? "h-5 w-5" : "h-10 w-10"} />
-      </div>
+      {hasHistory ? (
+        <div
+          className={cn(
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-white shadow-[0_0_34px_rgba(139,92,246,0.22)]",
+            voiceActive
+              ? "border-red-200/50 bg-red-400/20"
+              : "border-violet-200/25 bg-violet-400/15"
+          )}
+          aria-hidden="true"
+        >
+          <Mic className="h-5 w-5" />
+        </div>
+      ) : (
+        <button
+          data-testid="conversation-voice-toggle"
+          onClick={onToggleVoice}
+          disabled={!voiceSupported}
+          className={cn(
+            "flex h-28 w-28 shrink-0 items-center justify-center rounded-full border text-white shadow-[0_0_42px_rgba(139,92,246,0.25)] transition active:scale-95 disabled:text-slate-600",
+            voiceActive
+              ? "border-red-200/50 bg-red-400/20"
+              : "border-violet-200/25 bg-violet-400/15"
+          )}
+          aria-label={voiceActive ? "停止语音输入" : "语音输入"}
+        >
+          <Mic className="h-12 w-12" />
+        </button>
+      )}
 
       <div className={cn("min-w-0", hasHistory ? "flex-1" : "mt-5 w-full max-w-[18rem]")}>
         <p className={cn("font-black text-slate-100", hasHistory ? "truncate text-sm" : "text-base")}>
@@ -236,7 +255,7 @@ export function ConversationLiveSurface({
         {!hasHistory && (
           <div className="mt-8 rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.06] px-4 py-3 text-left">
             <p className="text-sm font-bold leading-relaxed text-slate-100">
-              我在，直接说你要我做什么。可以语音，也可以打字；需要材料就先加到这次对话里。
+              点按麦克风直接说，也可以在下面打字；需要材料就先加到这次对话里。
             </p>
           </div>
         )}
@@ -254,6 +273,7 @@ export function CommandComposer({
   voiceAudioLevel,
   isProcessing,
   attachments,
+  showVoiceButton,
   onInputChange,
   onToggleVoice,
   onAttachFiles,
@@ -309,19 +329,28 @@ export function CommandComposer({
           )}
         </div>
       )}
-      <div className="mx-auto grid max-w-lg grid-cols-[3.25rem_3.25rem_minmax(0,1fr)_3.25rem] items-center gap-2">
-        <button
-          data-testid="conversation-voice-toggle"
-          onClick={onToggleVoice}
-          className={cn(
-            "inline-flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-200",
-            voiceActive && "border-red-300/50 bg-red-400/15 text-red-100",
-            !voiceSupported && "text-slate-600"
-          )}
-          aria-label={voiceActive ? "停止语音输入" : "语音输入"}
-        >
-          <Mic className="h-5 w-5" />
-        </button>
+      <div
+        className={cn(
+          "mx-auto grid max-w-lg items-center gap-2",
+          showVoiceButton
+            ? "grid-cols-[3.25rem_3.25rem_minmax(0,1fr)_3.25rem]"
+            : "grid-cols-[3.25rem_minmax(0,1fr)_3.25rem]"
+        )}
+      >
+        {showVoiceButton && (
+          <button
+            data-testid="conversation-voice-toggle"
+            onClick={onToggleVoice}
+            className={cn(
+              "inline-flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-200",
+              voiceActive && "border-red-300/50 bg-red-400/15 text-red-100",
+              !voiceSupported && "text-slate-600"
+            )}
+            aria-label={voiceActive ? "停止语音输入" : "语音输入"}
+          >
+            <Mic className="h-5 w-5" />
+          </button>
+        )}
         <label className="inline-flex h-[52px] min-h-[52px] w-full shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] p-0 text-slate-300 active:bg-white/10" aria-label="添加材料">
           <Paperclip className="h-5 w-5" />
           <input

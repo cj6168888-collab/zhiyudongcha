@@ -72,18 +72,27 @@ export function useNativeVoice(): UseNativeVoiceResult {
     return registration;
   }, []);
 
-  // Check availability once on mount
+  // Check availability and register listeners through one plugin initialization path.
   useEffect(() => {
-    VoicePlugin.isAvailable()
-      .then(({ available }) => setIsSupported(available))
-      .catch(() => setIsSupported(false));
-  }, []);
+    let disposed = false;
 
-  // Register Capacitor event listeners (unified event schema for web + native)
-  useEffect(() => {
-    ensureListenerRegistration();
+    const setupVoicePlugin = async () => {
+      try {
+        const { available } = await VoicePlugin.isAvailable();
+        if (disposed) return;
+        setIsSupported(available);
+        if (available) await ensureListenerRegistration();
+      } catch (err) {
+        if (disposed) return;
+        setIsSupported(false);
+        logRef.current.error('Failed to initialize voice plugin', err);
+      }
+    };
+
+    void setupVoicePlugin();
 
     return () => {
+      disposed = true;
       listenersRef.current.forEach((h) => h.remove());
       listenersRef.current = [];
       listenerRegistrationRef.current = null;

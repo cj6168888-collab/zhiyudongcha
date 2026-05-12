@@ -1161,9 +1161,17 @@ export default function ConversationHome() {
           voiceSupported={voiceSupported}
           voiceInterimText={voicePartialTranscript}
           voiceAudioLevel={voiceAudioLevel}
+          onToggleVoice={() => void handleToggleVoice()}
         />
 
-        <section className="mt-4 space-y-3">
+        <section className="mt-4 space-y-3" aria-label="历史对话">
+          {messages.length > 0 && (
+            <div data-testid="conversation-history-heading" className="flex items-center justify-between px-0.5">
+              <p className="text-[11px] font-black text-slate-500">历史对话</p>
+              <p className="text-[10px] font-bold text-slate-600">{messages.length} 条</p>
+            </div>
+          )}
+
           {messages.map((msg, index) => (
             <div key={`${msg.timestamp}-${index}`} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
               <div className="max-w-[86%]">
@@ -1429,6 +1437,7 @@ export default function ConversationHome() {
         voiceAudioLevel={voiceAudioLevel}
         isProcessing={isBusy}
         attachments={attachments}
+        showVoiceButton={messages.length > 0}
         onInputChange={setInputText}
         onToggleVoice={() => void handleToggleVoice()}
         onAttachFiles={handleAttachFiles}

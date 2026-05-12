@@ -230,8 +230,10 @@ test.describe('Mobile conversation home', () => {
 
     await expect(page.locator('header')).toBeVisible();
     await expect(page.getByTestId('conversation-live-surface')).toContainText('和小智说话');
-    await expect(page.getByTestId('conversation-live-surface')).toContainText('我在，直接说你要我做什么');
+    await expect(page.getByTestId('conversation-live-surface')).toContainText('点按麦克风直接说');
     await expect(page.getByTestId('conversation-voice-toggle')).toBeVisible();
+    await expect(page.getByTestId('conversation-voice-toggle')).toHaveCount(1);
+    await expect(page.getByTestId('conversation-history-heading')).toHaveCount(0);
     await expect(page.getByTestId('now-strip')).toHaveCount(0);
     await expect(page.getByText('PC 执行')).toHaveCount(0);
     await expect(page.getByTestId('conversation-input')).toBeVisible();
@@ -279,6 +281,7 @@ test.describe('Mobile conversation home', () => {
     await sendConversationMessage(page, 'show model source');
 
     await expect(page.getByText('received')).toBeVisible();
+    await expect(page.getByTestId('conversation-history-heading')).toContainText('历史对话');
     await expect(page.getByTestId('assistant-ai-source')).toContainText('通义 qwen-plus');
   });
 
@@ -329,15 +332,13 @@ test.describe('Mobile conversation home', () => {
       (window as unknown as { __emitFinalVoiceTranscript: (text: string) => void }).__emitFinalVoiceTranscript = (text: string) => {
         const recognition = instances[instances.length - 1];
         if (!recognition) throw new Error('SpeechRecognition was not started');
-        recognition.emitFinalTranscript(text);
+        window.setTimeout(() => recognition.emitFinalTranscript(text), 0);
       };
     });
     await mockConversationShell(page);
 
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
-    await expect.poll(async () =>
-      (await page.getByTestId('conversation-voice-toggle').getAttribute('class')) ?? ''
-    ).not.toContain('text-slate-600');
+    await expect(page.getByTestId('conversation-voice-toggle')).toBeEnabled();
     await page.getByTestId('conversation-voice-toggle').click();
     await expect.poll(() => page.evaluate(() =>
       (window as unknown as { __fakeSpeechRecognitionReady: () => boolean }).__fakeSpeechRecognitionReady()
@@ -347,6 +348,7 @@ test.describe('Mobile conversation home', () => {
       voiceTranscript,
     );
 
+    await expect.poll(() => page.evaluate(() => document.body.innerText)).toContain(voiceTranscript);
     await expect(page.getByText(voiceTranscript)).toBeVisible();
     await expect(page.getByText('received')).toBeVisible();
     await expect(page.getByTestId('conversation-input')).toHaveValue('');
