@@ -7,10 +7,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // AI Provider 必须在 HybridAssistant 导入前 mock
 const mockChat = vi.hoisted(() => vi.fn());
+const mockChatWithMetadata = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../lib/ai-provider', () => ({
-  AIProviderChain: function (this: { chat: typeof mockChat }) {
+  AIProviderChain: function (this: { chat: typeof mockChat; chatWithMetadata: typeof mockChatWithMetadata }) {
     this.chat = mockChat;
+    this.chatWithMetadata = mockChatWithMetadata;
   },
 }));
 
@@ -31,6 +33,16 @@ function aiJson(type: string, category: string, msg: string, action: string | nu
   return JSON.stringify({ type, category, message: msg, action });
 }
 
+function mockAiResponse(content: string) {
+  mockChat.mockResolvedValue(content);
+  mockChatWithMetadata.mockResolvedValue({
+    content,
+    provider: 'deepseek',
+    model: 'deepseek-chat',
+    latencyMs: 12,
+  });
+}
+
 // ============================================================
 // 一、多轮对话路径 (Multi-turn)
 // ============================================================
@@ -39,15 +51,16 @@ describe('多轮对话路径', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('模糊短句"再加一个"不触发持久化动作', async () => {
-    mockChat.mockResolvedValue(aiJson('question', '任务', '您想在哪个项目下再加什么？'));
+    mockAiResponse(aiJson('question', '任务', '您想在哪个项目下再加什么？'));
 
     const response = await hybridAssistant.processMessage(message('再加一个'));
 
     expect(response.action).toBeUndefined();
+    expect(response.ai).toMatchObject({ provider: 'deepseek', model: 'deepseek-chat' });
   });
 
   it('"改成后天"不触发任务/项目创建', async () => {
-    mockChat.mockResolvedValue(aiJson('question', '日程', '您想把什么改到后天？'));
+    mockAiResponse(aiJson('question', '日程', '您想把什么改到后天？'));
 
     const response = await hybridAssistant.processMessage(message('改成后天'));
 
@@ -56,7 +69,7 @@ describe('多轮对话路径', () => {
   });
 
   it('"那个怎么了"不被识别为任何持久化 action', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '闲聊', '请问您指的是哪个？'));
+    mockAiResponse(aiJson('chat', '闲聊', '请问您指的是哪个？'));
 
     const response = await hybridAssistant.processMessage(message('那个怎么了'));
 
@@ -64,7 +77,7 @@ describe('多轮对话路径', () => {
   });
 
   it('"好的，我明白了"不触发创建操作', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '闲聊', '好的，如果有需要随时告诉我。'));
+    mockAiResponse(aiJson('chat', '闲聊', '好的，如果有需要随时告诉我。'));
 
     const response = await hybridAssistant.processMessage(message('好的，我明白了'));
 
@@ -72,7 +85,7 @@ describe('多轮对话路径', () => {
   });
 
   it('"继续"不被识别为任务创建', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '闲聊', '好的，我们继续。'));
+    mockAiResponse(aiJson('chat', '闲聊', '好的，我们继续。'));
 
     const response = await hybridAssistant.processMessage(message('继续'));
 
@@ -80,7 +93,7 @@ describe('多轮对话路径', () => {
   });
 
   it('纯问候语不触发任何创建动作', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '闲聊', '你好！有什么我可以帮你的？'));
+    mockAiResponse(aiJson('chat', '闲聊', '你好！有什么我可以帮你的？'));
 
     const response = await hybridAssistant.processMessage(message('你好，最近忙不忙'));
 
@@ -123,7 +136,7 @@ describe('危机场景 — RiskGuard', () => {
   });
 
   it('系统危机类文本（宕机）不被风险守卫以安全守护名义拦截', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '运维', '我来帮您分析宕机原因。'));
+    mockAiResponse(aiJson('chat', '运维', '我来帮您分析宕机原因。'));
 
     const response = await hybridAssistant.processMessage(message('服务器已经宕机了，紧急'));
 
@@ -133,7 +146,7 @@ describe('危机场景 — RiskGuard', () => {
   });
 
   it('资金危机描述不被识别为支付操作，也不触发安全守护', async () => {
-    mockChat.mockResolvedValue(aiJson('question', '财务', '请描述一下资金缺口的规模。'));
+    mockAiResponse(aiJson('question', '财务', '请描述一下资金缺口的规模。'));
 
     const response = await hybridAssistant.processMessage(
       message('公司资金链快断了，下个月发不出工资'),
@@ -145,7 +158,7 @@ describe('危机场景 — RiskGuard', () => {
   });
 
   it('情感危机（我太难了）不触发任何创建动作', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '情感', '我理解你，先说说发生什么了？'));
+    mockAiResponse(aiJson('chat', '情感', '我理解你，先说说发生什么了？'));
 
     const response = await hybridAssistant.processMessage(
       message('我最近真的太难了，工作压力和家里问题叠在一起，感觉快撑不住了'),
@@ -163,7 +176,7 @@ describe('专业建议路径 — 不触发创建 action', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('合同法律风险分析不触发任何创建 action', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '法律', '以下是合同的主要法律风险……'));
+    mockAiResponse(aiJson('chat', '法律', '以下是合同的主要法律风险……'));
 
     const response = await hybridAssistant.processMessage(
       message('帮我分析一下这份合同的法律风险，特别是违约条款'),
@@ -175,7 +188,7 @@ describe('专业建议路径 — 不触发创建 action', () => {
   });
 
   it('融资计划分析不触发项目创建', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '财务', '关于 A 轮融资，建议如下……'));
+    mockAiResponse(aiJson('chat', '财务', '关于 A 轮融资，建议如下……'));
 
     const response = await hybridAssistant.processMessage(
       message('帮我分析一下明年 A 轮融资的时机和节奏'),
@@ -186,7 +199,7 @@ describe('专业建议路径 — 不触发创建 action', () => {
   });
 
   it('竞品分析建议不触发任何创建 action', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '战略', '竞品分析如下……'));
+    mockAiResponse(aiJson('chat', '战略', '竞品分析如下……'));
 
     const response = await hybridAssistant.processMessage(
       message('分析一下我们和竞品之间的核心差距，给出策略建议'),
@@ -198,7 +211,7 @@ describe('专业建议路径 — 不触发创建 action', () => {
   });
 
   it('情感咨询不触发任何持久化 action', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '情感', '我理解你的感受……'));
+    mockAiResponse(aiJson('chat', '情感', '我理解你的感受……'));
 
     const response = await hybridAssistant.processMessage(
       message('我最近工作压力很大，不知道怎么办'),
@@ -209,7 +222,7 @@ describe('专业建议路径 — 不触发创建 action', () => {
   });
 
   it('学习类问题不被识别为任务或项目创建', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '知识', '关于这个问题……'));
+    mockAiResponse(aiJson('chat', '知识', '关于这个问题……'));
 
     const response = await hybridAssistant.processMessage(
       message('帮我解释一下什么是 MCTS 算法'),
@@ -228,7 +241,7 @@ describe('蜂群指令路径', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('"广播任务给所有节点"不被误识别为 create_task', async () => {
-    mockChat.mockResolvedValue(aiJson('execute', '蜂群', '好的，即将广播。'));
+    mockAiResponse(aiJson('execute', '蜂群', '好的，即将广播。'));
 
     const response = await hybridAssistant.processMessage(
       message('广播任务给所有节点，让他们执行数据备份'),
@@ -239,7 +252,7 @@ describe('蜂群指令路径', () => {
   });
 
   it('"查看蜂群状态"不触发保险库搜索', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '蜂群', '当前所有节点状态如下……'));
+    mockAiResponse(aiJson('chat', '蜂群', '当前所有节点状态如下……'));
 
     const response = await hybridAssistant.processMessage(
       message('查看一下当前蜂群各节点状态'),
@@ -249,7 +262,7 @@ describe('蜂群指令路径', () => {
   });
 
   it('"蜂群召回所有节点"不触发任何创建动作', async () => {
-    mockChat.mockResolvedValue(aiJson('execute', '蜂群', '正在执行召回……'));
+    mockAiResponse(aiJson('execute', '蜂群', '正在执行召回……'));
 
     const response = await hybridAssistant.processMessage(
       message('蜂群召回所有节点，立即停止当前任务'),
@@ -269,7 +282,7 @@ describe('蜂群指令路径', () => {
   });
 
   it('"节点上报战报"不被识别为 save_memory', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '蜂群', '已记录节点战报。'));
+    mockAiResponse(aiJson('chat', '蜂群', '已记录节点战报。'));
 
     const response = await hybridAssistant.processMessage(
       message('节点01已完成任务，上报战报'),
@@ -280,7 +293,7 @@ describe('蜂群指令路径', () => {
   });
 
   it('"蜂群节点列表"不触发任何持久化 action', async () => {
-    mockChat.mockResolvedValue(aiJson('chat', '蜂群', '当前蜂群节点如下……'));
+    mockAiResponse(aiJson('chat', '蜂群', '当前蜂群节点如下……'));
 
     const response = await hybridAssistant.processMessage(
       message('给我看一下当前蜂群的节点列表'),

@@ -2,10 +2,12 @@
 
 // AI Provider must be mocked before importing HybridAssistant
 const mockChat = vi.hoisted(() => vi.fn());
+const mockChatWithMetadata = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../lib/ai-provider', () => ({
   AIProviderChain: function (this: any) {
     this.chat = mockChat;
+    this.chatWithMetadata = mockChatWithMetadata;
   },
 }));
 
@@ -23,6 +25,15 @@ function message(content: string): UserMessage {
 
 function draftJson(items: Array<{ action: string; label: string; params: Record<string, unknown> }>) {
   return JSON.stringify(items);
+}
+
+function mockFallbackAiResponse(content: string) {
+  mockChatWithMetadata.mockResolvedValue({
+    content,
+    provider: 'deepseek',
+    model: 'deepseek-chat',
+    latencyMs: 10,
+  });
 }
 
 describe('HybridAssistant structured draft (阶段一)', () => {
@@ -136,6 +147,7 @@ describe('HybridAssistant structured draft (阶段一)', () => {
 
   it('falls back to AI text response when extraction returns empty array', async () => {
     mockChat.mockResolvedValue('[]');
+    mockFallbackAiResponse('[]');
 
     const response = await hybridAssistant.processMessage(
       message('新建项目X，同时创建任务Y'),
@@ -148,6 +160,7 @@ describe('HybridAssistant structured draft (阶段一)', () => {
 
   it('falls back gracefully when AI returns invalid JSON', async () => {
     mockChat.mockResolvedValue('这不是JSON');
+    mockFallbackAiResponse('这不是JSON');
 
     const response = await hybridAssistant.processMessage(
       message('新建项目A，并添加任务B'),
