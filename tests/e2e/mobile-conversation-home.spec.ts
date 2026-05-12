@@ -1,4 +1,4 @@
-import { expect, type Page, test } from 'playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 const mobileViewport = { width: 390, height: 844 };
 const appUrl = 'http://localhost:5173/';
