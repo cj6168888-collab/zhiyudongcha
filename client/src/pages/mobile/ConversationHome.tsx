@@ -131,6 +131,9 @@ interface ExecutionReport {
   title: string;
   detail: string;
   route: string;
+  routeLabel: string;
+  actionLabel: string;
+  completedAt: number;
   success: boolean;
 }
 
@@ -256,6 +259,22 @@ function executionRoute(execution: AssistantExecution) {
   return "/tasks";
 }
 
+function executionRouteLabel(execution: AssistantExecution) {
+  if (execution.entityType === "project" && execution.entityId) return "查看项目";
+  if (execution.entityType === "task") return "查看任务";
+  if (execution.entityType === "memory") return "查看智库";
+  if (execution.entityType === "pc_task") return "查看设备";
+  return "查看结果";
+}
+
+function executionActionLabel(execution: AssistantExecution) {
+  if (execution.entityType === "pc_task") return "PC 执行";
+  if (execution.entityType === "project") return "项目";
+  if (execution.entityType === "task") return "任务";
+  if (execution.entityType === "memory") return "智库";
+  return actionLabel(execution.action);
+}
+
 function executionReportFromResult(execution?: AssistantExecution | null): ExecutionReport | null {
   if (!execution) return null;
   const summary = formatExecutionSummary(execution);
@@ -265,6 +284,9 @@ function executionReportFromResult(execution?: AssistantExecution | null): Execu
     title: execution.success ? "执行结果已回传" : "执行失败",
     detail: message ?? summary ?? (execution.success ? "操作已完成" : execution.errorMessage ?? "未知错误"),
     route: executionRoute(execution),
+    routeLabel: executionRouteLabel(execution),
+    actionLabel: executionActionLabel(execution),
+    completedAt: Date.now(),
     success: execution.success,
   };
 }
@@ -278,6 +300,9 @@ function executionReportFromDraft(executions: AssistantExecution[]): ExecutionRe
     title: failed > 0 ? "草案执行有失败项" : "草案执行完成",
     detail: failed > 0 ? `已完成 ${executions.length - failed} 项，${failed} 项失败` : `已完成全部 ${executions.length} 项`,
     route: executionRoute(first),
+    routeLabel: executionRouteLabel(first),
+    actionLabel: `批量执行 · ${executions.length} 项`,
+    completedAt: Date.now(),
     success: failed === 0,
   };
 }
@@ -1413,17 +1438,39 @@ export default function ConversationHome() {
           <button
             onClick={() => setLocation(latestExecutionReport.route)}
             className={cn(
-              "mx-auto flex w-full max-w-lg items-center gap-2 rounded-lg border px-3 py-2 text-left active:bg-white/10",
+              "mx-auto flex w-full max-w-lg items-center gap-3 rounded-lg border px-3 py-2.5 text-left active:bg-white/10",
               latestExecutionReport.success
                 ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-50"
                 : "border-red-300/25 bg-red-300/10 text-red-50",
             )}
           >
+            <span
+              className={cn(
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border",
+                latestExecutionReport.success
+                  ? "border-emerald-200/25 bg-emerald-200/10"
+                  : "border-red-200/25 bg-red-200/10",
+              )}
+              aria-hidden="true"
+            >
+              {latestExecutionReport.success ? <Check className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-black">{latestExecutionReport.title}</p>
-              <p className="mt-0.5 truncate text-[10px] opacity-80">{latestExecutionReport.detail}</p>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <p className="truncate text-xs font-black">{latestExecutionReport.title}</p>
+                <span
+                  data-testid="execution-result-target"
+                  className="shrink-0 rounded-full border border-current/15 px-1.5 py-0.5 text-[9px] font-bold opacity-80"
+                >
+                  {latestExecutionReport.actionLabel}
+                </span>
+              </div>
+              <p className="mt-0.5 line-clamp-2 text-[10px] leading-4 opacity-85">{latestExecutionReport.detail}</p>
+              <p data-testid="execution-result-time" className="mt-1 text-[9px] font-bold opacity-55">
+                {new Date(latestExecutionReport.completedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </p>
             </div>
-            <span className="shrink-0 text-[10px] font-bold opacity-75">查看</span>
+            <span className="shrink-0 text-[10px] font-bold opacity-75">{latestExecutionReport.routeLabel}</span>
           </button>
         </section>
       )}
