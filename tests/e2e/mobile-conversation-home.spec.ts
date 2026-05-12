@@ -160,20 +160,29 @@ test.describe('Mobile conversation home', () => {
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
 
     await expect(page.locator('header')).toBeVisible();
-    await expect(page.getByTestId('now-strip')).toBeVisible();
-    await expect(page.getByTestId('now-strip')).toHaveAttribute('aria-label', /.+/);
-    await expect(page.getByTestId('now-context')).toBeVisible();
-    await expect(page.getByTestId('now-context')).toHaveAttribute('aria-label', /.+/);
-    await expect(page.getByTestId('now-pending')).toBeVisible();
-    await expect(page.getByTestId('now-pending')).toHaveAttribute('aria-label', /.+/);
-    await expect(page.getByTestId('now-automations')).toBeVisible();
-    await expect(page.getByTestId('now-automations')).toHaveAttribute('aria-label', /.+/);
-    await expect(page.getByTestId('now-next-reminder')).toBeVisible();
-    await expect(page.getByTestId('now-next-reminder')).toHaveAttribute('aria-label', /.+/);
+    await expect(page.getByTestId('conversation-empty-state')).toContainText('沟通历史');
+    await expect(page.getByTestId('now-strip')).toHaveCount(0);
+    await expect(page.getByText('PC 执行')).toHaveCount(0);
     await expect(page.getByTestId('conversation-input')).toBeVisible();
     await expect(page.getByTestId('conversation-send')).toBeDisabled();
     await expect(page.getByTestId('bottom-nav')).toHaveAttribute('aria-label', /.+/);
     await expect(page.getByTestId('nav-item-conversation')).toHaveAttribute('aria-current', 'page');
+  });
+
+  test('keeps attached files in the current conversation composer', async ({ page }) => {
+    await mockConversationShell(page);
+
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+
+    await page.getByTestId('conversation-file-input').setInputFiles({
+      name: 'contract-notes.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('contract context'),
+    });
+
+    await expect(page.getByTestId('conversation-attachment')).toContainText('contract-notes.txt');
+    await expect(page.getByTestId('conversation-send')).toBeEnabled();
+    expect(page.url()).toBe(appUrl);
   });
 
   test('restores unsent composer text after reload', async ({ page }) => {
@@ -195,13 +204,14 @@ test.describe('Mobile conversation home', () => {
     await expect(page.getByTestId('conversation-send')).toBeEnabled();
   });
 
-  test('shows device setup guidance when no bound device is available', async ({ page }) => {
+  test('keeps device setup out of the home surface', async ({ page }) => {
     await mockConversationShell(page);
 
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
 
-    await expect(page.getByTestId('device-setup-card')).toBeVisible();
-    await expect(page.getByTestId('device-setup-action')).toBeVisible();
+    await expect(page.getByTestId('device-setup-card')).toHaveCount(0);
+    await expect(page.getByText('设备 未绑定')).toBeVisible();
+    await expect(page.getByText('PC 执行')).toHaveCount(0);
   });
 
   test('shows offline guidance and retains a send without calling the assistant', async ({ page }) => {
@@ -214,8 +224,7 @@ test.describe('Mobile conversation home', () => {
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
     await page.evaluate((key) => window.localStorage.removeItem(key), localStateKey);
 
-    await expect(page.getByTestId('backend-degraded-card')).toBeVisible();
-    await expect(page.getByTestId('backend-degraded-title')).toContainText('离线');
+    await expect(page.getByTestId('home-notice')).toContainText('当前离线');
     await sendConversationMessage(page, message);
 
     await expect(page.getByTestId('failed-send-card')).toContainText(message);

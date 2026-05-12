@@ -8,33 +8,26 @@ import {
   FileText,
   FolderKanban,
   Loader2,
-  Monitor,
   Pencil,
   RefreshCw,
   Save,
-  ScanLine,
-  ShieldCheck,
   UserRound,
-  Users2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CapabilityRail,
   CommandComposer,
   NowStrip,
-  StarterPromptList,
-  XiaozhiBrief,
+  type ConversationAttachment,
   XiaozhiStatusHeader,
-  type CapabilityItem,
 } from "@/components/mobile/conversation/ConversationHomeSections";
 import { useAvatarStore } from "@/lib/avatar/avatar-store";
 import { useBirthStore } from "@/lib/birth-state-store";
 import { useNetworkStatus } from "@/hooks/use-device-info";
 import { apiRequest } from "@/lib/queryClient";
-import { MAX_HP, useZ1Store } from "@/lib/z1/god-protocol";
+import { useZ1Store } from "@/lib/z1/god-protocol";
 import { useGlobalStore } from "@/store/globalStore";
 import { useNativeVoice } from "@/hooks/use-native-voice";
 import {
@@ -82,24 +75,6 @@ interface DeviceBinding {
 interface DeviceBindingsResponse {
   success: boolean;
   devices: DeviceBinding[];
-}
-
-interface TaskDefinitionSummary {
-  id: string;
-  name: string;
-  enabled: boolean;
-  trigger?: {
-    type?: "CRON" | "HEARTBEAT" | "MANUAL" | "WEBHOOK";
-    config?: Record<string, unknown>;
-  };
-  nextRunAt?: number;
-  updatedAt?: number;
-}
-
-interface TaskSummaryResponse {
-  success: boolean;
-  count: number;
-  data: TaskDefinitionSummary[];
 }
 
 interface PendingAlert {
@@ -170,32 +145,10 @@ const ACTION_META: Record<string, { label: string; icon: typeof FolderKanban }> 
 const LOCAL_STATE_KEY = "navigator.mobile.conversation-home.local-state.v1";
 const LOCAL_STATE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
-const starterPrompts = [
-  "帮我整理今天最该推进的三件事",
-  "把这段想法拆成项目和任务",
-  "搜索智库里和合同风险有关的资料",
-];
-
-const capabilities: CapabilityItem[] = [
-  { label: "项目", desc: "推进目标", path: "/projects", icon: FolderKanban, status: "可用" },
-  { label: "人脉", desc: "关系档案", path: "/contacts", icon: Users2, status: "可用" },
-  { label: "专家", desc: "多角度判断", path: "/experts", icon: Brain, status: "可用" },
-  { label: "扫描", desc: "采集材料", path: "/scanner", icon: ScanLine, status: "实验" },
-  { label: "远程", desc: "控制 PC", path: "/remote-pc", icon: Monitor, status: "需设备" },
-  { label: "安全", desc: "权限与审计", path: "/security", icon: ShieldCheck, status: "可用" },
-];
-
 function normalizeAssistantName(name?: string | null) {
   const trimmed = name?.trim();
   if (!trimmed || trimmed === "小星") return "小智";
   return trimmed;
-}
-
-function hpTone(hpBalance: number) {
-  const percent = hpBalance / MAX_HP;
-  if (percent >= 0.6) return "text-emerald-300";
-  if (percent >= 0.25) return "text-amber-300";
-  return "text-red-300";
 }
 
 function asText(value: unknown) {
@@ -261,13 +214,6 @@ function draftQueueLabel(items?: DraftItem[]) {
   return firstItem.label || describePendingAction(firstItem.action, firstItem.actionParams);
 }
 
-const TRIGGER_LABELS: Record<string, string> = {
-  CRON: "定时任务",
-  HEARTBEAT: "心跳任务",
-  MANUAL: "手动任务",
-  WEBHOOK: "Webhook",
-};
-
 const ALERT_SEVERITY_PRIORITY: Record<PendingAlert["severity"], number> = {
   CRITICAL: 0,
   HIGH: 1,
@@ -290,45 +236,6 @@ function sortAlertsByPriority(alerts: PendingAlert[]) {
     const leftTime = Number(left.timestamp ?? left.createdAt ?? 0);
     const rightTime = Number(right.timestamp ?? right.createdAt ?? 0);
     return rightTime - leftTime;
-  });
-}
-
-function formatTriggerLabel(triggerType?: string) {
-  if (!triggerType) return "等待配置";
-  return TRIGGER_LABELS[triggerType] ?? triggerType;
-}
-
-function describeCronExpression(expression?: unknown) {
-  if (typeof expression !== "string" || !expression.trim()) return "未配置时间";
-  const parts = expression.trim().split(/\s+/);
-  if (parts.length !== 5) return expression;
-
-  const [minute, hour, , , weekday] = parts;
-  if (minute === "0" && hour === "*") return "每小时";
-  if (minute === "0" && hour === "0") return "每天午夜";
-  if (minute === "0" && hour === "9" && weekday === "1") return "每周一 09:00";
-  if (minute === "0" && hour !== "*") return `每天 ${hour.padStart(2, "0")}:00`;
-  return expression;
-}
-
-function formatNextReminderTime(timestamp?: number) {
-  if (!timestamp) return "暂无安排";
-
-  const delta = timestamp - Date.now();
-  if (delta <= 0) return "即将触发";
-
-  const minutes = Math.round(delta / 60_000);
-  if (minutes < 60) return `${minutes} 分钟后`;
-
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} 小时后`;
-
-  const date = new Date(timestamp);
-  return date.toLocaleDateString("zh-CN", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 }
 
@@ -419,8 +326,7 @@ export default function ConversationHome() {
     startListening,
     stopListening,
   } = useNativeVoice();
-  const { hpBalance, role, serverNode, aiServices } = useZ1Store();
-  const currentProject = useGlobalStore((s) => s.currentProject);
+  const { role, serverNode, aiServices } = useZ1Store();
   const deviceHealth = useGlobalStore((s) => s.deviceHealth);
 
   const {
@@ -460,19 +366,6 @@ export default function ConversationHome() {
   });
 
   const {
-    data: taskSummary,
-    isLoading: tasksLoading,
-    isError: tasksError,
-  } = useQuery<TaskSummaryResponse>({
-    queryKey: ["conversation-home-tasks"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/tasks");
-      return await response.json();
-    },
-    refetchInterval: 30000,
-  });
-
-  const {
     data: alertSummary,
     isLoading: alertsLoading,
     isError: alertsError,
@@ -496,6 +389,7 @@ export default function ConversationHome() {
   const [draftEdits, setDraftEdits] = useState<DraftItem[]>([]);
   const [selectedPendingId, setSelectedPendingId] = useState<string | null>(null);
   const [consumedPendingIds, setConsumedPendingIds] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<ConversationAttachment[]>([]);
   const [localStateHydrated, setLocalStateHydrated] = useState(false);
   const streamEndRef = useRef<HTMLDivElement>(null);
   const lastVoiceTranscriptRef = useRef("");
@@ -505,18 +399,8 @@ export default function ConversationHome() {
     () => aiServices.find((service) => service.isActive && service.isConfigured) ?? null,
     [aiServices]
   );
-  const hpCurrent = hpStatus?.data?.current ?? hpBalance;
-  const hpMax = hpStatus?.data?.maximum ?? MAX_HP;
-  const hpPercent = Math.max(0, Math.min(100, Math.round((hpCurrent / hpMax) * 100)));
   const isOffline = networkStatus === "offline";
   const boundDevices = deviceBindings?.devices ?? [];
-  const tasks = taskSummary?.data ?? [];
-  const enabledTasks = tasks.filter((task) => task.enabled);
-  const nextAutomation = enabledTasks[0] ?? null;
-  const nextReminderTask = enabledTasks
-    .filter((task) => typeof task.nextRunAt === "number" && task.nextRunAt > Date.now())
-    .sort((left, right) => (left.nextRunAt ?? 0) - (right.nextRunAt ?? 0))[0] ?? null;
-  const fallbackScheduledTask = enabledTasks.find((task) => task.trigger?.type === "CRON") ?? nextAutomation;
   const pendingAlerts = sortAlertsByPriority(alertSummary?.data ?? []);
   const highestPendingAlert = pendingAlerts[0] ?? null;
   const onlineBoundDevices = boundDevices.filter((device) => {
@@ -534,37 +418,8 @@ export default function ConversationHome() {
         : "未绑定";
   const deviceHealthy = onlineBoundDevices.length > 0 || hasNativeDeviceSignal;
   const headerLoading = !hpStatus && !modelStatus && !deviceBindings && (hpLoading || modelLoading || deviceBindingsLoading);
-  const summaryLoading = (tasksLoading && !taskSummary) || (alertsLoading && !alertSummary);
-  const backendDegraded = isOffline || hpError || modelError || deviceBindingsError || assistantPendingError || tasksError || alertsError;
-  const deviceSetupNeeded = !deviceHealthy && !deviceBindingsLoading;
-  const automationLabel = enabledTasks.length > 0
-    ? nextAutomation
-      ? `${formatTriggerLabel(nextAutomation.trigger?.type)} · ${nextAutomation.name}`
-      : "已启用"
-    : "去查看";
-  const nextReminderLabel = nextReminderTask
-    ? formatNextReminderTime(nextReminderTask.nextRunAt)
-    : fallbackScheduledTask?.trigger?.type === "CRON"
-      ? describeCronExpression(fallbackScheduledTask.trigger.config?.expression)
-      : "暂无安排";
-  const nextReminderDetail = nextReminderTask
-    ? nextReminderTask.name
-    : fallbackScheduledTask
-      ? `${formatTriggerLabel(fallbackScheduledTask.trigger?.type)} · ${fallbackScheduledTask.name}`
-      : "去任务中心创建提醒";
-  const noticeTitle = highestPendingAlert
-    ? `${ALERT_SEVERITY_LABEL[highestPendingAlert.severity]} · ${highestPendingAlert.title}`
-    : enabledTasks.length > 0
-      ? `已启用 ${enabledTasks.length} 个自动化任务`
-      : null;
-  const noticeDetail = highestPendingAlert
-    ? highestPendingAlert.message
-    : nextAutomation
-      ? `${formatTriggerLabel(nextAutomation.trigger?.type)} 已待命，可前往任务中心查看执行细节。`
-      : null;
-  const noticeTone = highestPendingAlert
-    ? (highestPendingAlert.severity === "CRITICAL" || highestPendingAlert.severity === "HIGH" ? "danger" : "warning")
-    : "info";
+  const summaryLoading = alertsLoading && !alertSummary;
+  const backendDegraded = isOffline || hpError || modelError || deviceBindingsError || assistantPendingError || alertsError;
   const rawPendingQueue = useMemo<PendingQueueItem[]>(() => {
     const pending = (assistantPending?.pending ?? []).map((item) => ({
       id: item.id,
@@ -593,6 +448,30 @@ export default function ConversationHome() {
   const localPendingCount = (pendingConfirmation ? 1 : 0) + (pendingDraft ? 1 : 0);
   const pendingCount = Math.max(pendingQueue.length, localPendingCount);
   const isBusy = isProcessing || activeAction !== null;
+  const homeNoticeTitle = backendDegraded
+    ? isOffline
+      ? "当前离线"
+      : "服务同步异常"
+    : highestPendingAlert
+      ? `${ALERT_SEVERITY_LABEL[highestPendingAlert.severity]} · ${highestPendingAlert.title}`
+      : pendingCount > 0
+        ? `有 ${pendingCount} 项待确认`
+        : null;
+  const homeNoticeDetail = backendDegraded
+    ? isOffline
+      ? "你的输入会保留，恢复连接后可继续发送。"
+      : "部分状态暂未同步，不影响继续对话。"
+    : highestPendingAlert
+      ? highestPendingAlert.message
+      : pendingCount > 0
+        ? "需要你确认后，小智才会继续执行。"
+        : null;
+  const homeNoticeTone = backendDegraded
+    ? "warning"
+    : highestPendingAlert
+      ? (highestPendingAlert.severity === "CRITICAL" || highestPendingAlert.severity === "HIGH" ? "danger" : "warning")
+      : "info";
+  const homeNoticeActionLabel = backendDegraded ? "检查" : "处理";
   const brainLabel = modelStatus?.cloud?.ready
     ? `云端就绪 · ${modelStatus.cloud.availableProviders.length} 源`
     : modelStatus?.syncing
@@ -836,8 +715,31 @@ export default function ConversationHome() {
     return false;
   };
 
+  const handleAttachFiles = (files: File[]) => {
+    if (!files.length) return;
+    setAttachments((current) => [
+      ...current,
+      ...files.map((file) => ({
+        id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+        name: file.name,
+        size: file.size,
+        type: file.type || "application/octet-stream",
+      })),
+    ]);
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setAttachments((current) => current.filter((file) => file.id !== id));
+  };
+
   const handleSend = async (overrideText?: string, options?: { appendUser?: boolean }) => {
-    const message = (overrideText ?? inputText).trim();
+    const baseMessage = (overrideText ?? inputText).trim();
+    const attachedFileSummary = attachments.length > 0
+      ? `附加材料：${attachments.map((file) => file.name).join("、")}`
+      : "";
+    const message = baseMessage || attachedFileSummary
+      ? [baseMessage, attachedFileSummary].filter(Boolean).join("\n\n")
+      : "";
     if (!message || isBusy) return;
     const retainedFailure = options?.appendUser === false && failedSend?.message === message ? failedSend : null;
     const nextAttempt = retainedFailure ? retainedFailure.attempts + 1 : 1;
@@ -847,6 +749,7 @@ export default function ConversationHome() {
       addMessage({ role: "user", content: message, timestamp: Date.now() });
     }
     setInputText("");
+    if (options?.appendUser ?? true) setAttachments([]);
     setPendingConfirmation(null);
     setPendingDraft(null);
     setSelectedPendingId(null);
@@ -1077,8 +980,6 @@ export default function ConversationHome() {
         brainLabel={brainLabel}
         role={role}
         isProcessing={isProcessing}
-        hpPercent={hpPercent}
-        hpToneClass={hpTone(hpCurrent)}
         deviceLabel={deviceLabel}
         deviceHealthy={deviceHealthy}
         loading={headerLoading}
@@ -1087,79 +988,31 @@ export default function ConversationHome() {
 
       <main className="flex-1 overflow-y-auto px-4 py-3">
         <NowStrip
-          currentProjectTitle={currentProject?.title ?? null}
-          pendingCount={pendingCount}
-          automationCount={enabledTasks.length}
-          automationLabel={automationLabel}
-          nextReminderLabel={nextReminderLabel}
-          nextReminderDetail={nextReminderDetail}
-          noticeTitle={noticeTitle}
-          noticeDetail={noticeDetail}
-          noticeTone={noticeTone}
+          noticeTitle={homeNoticeTitle}
+          noticeDetail={homeNoticeDetail}
+          noticeTone={homeNoticeTone}
+          actionLabel={homeNoticeActionLabel}
           loading={summaryLoading}
-          onOpenContext={() => currentProject && setLocation("/projects")}
-          onOpenPending={() => pendingCount > 0 && streamEndRef.current?.scrollIntoView({ behavior: "smooth" })}
-          onOpenTasks={() => setLocation("/tasks")}
+          onOpenNotice={() => {
+            if (backendDegraded) {
+              setLocation("/navigator-settings");
+              return;
+            }
+            if (pendingCount > 0) {
+              streamEndRef.current?.scrollIntoView({ behavior: "smooth" });
+              return;
+            }
+            setLocation("/tasks");
+          }}
         />
 
-        {backendDegraded && (
-          <section data-testid="backend-degraded-card" className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/10 p-3">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-200" />
-              <div className="min-w-0 flex-1">
-                <p data-testid="backend-degraded-title" className="text-xs font-black text-amber-100">
-                  {isOffline ? "当前离线，执行确认暂不可用" : "服务状态同步异常"}
-                </p>
-                <p data-testid="backend-degraded-detail" className="mt-1 text-[11px] leading-relaxed text-amber-50/80">
-                  {isOffline
-                    ? "我会保留你的输入，等连接恢复后可以直接重试发送、确认或保存草稿。"
-                    : "首页部分状态暂时没有同步成功，你仍可继续浏览，稍后再尝试执行需要服务器确认的操作。"}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    data-testid="backend-degraded-action"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 border-white/10 bg-white/5 text-xs"
-                    onClick={() => setLocation("/navigator-settings")}
-                  >
-                    检查连接
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {deviceSetupNeeded && (
-          <section data-testid="device-setup-card" className="mt-3 rounded-lg border border-sky-300/20 bg-sky-300/10 p-3">
-            <div className="flex items-start gap-2">
-              <Monitor className="mt-0.5 h-4 w-4 shrink-0 text-sky-200" />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-black text-sky-100">设备协同尚未完成配置</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-sky-50/80">
-                  现在可以继续聊天和整理草稿，但远程控制、设备联动和更可靠的执行回流还需要先绑定设备。
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    data-testid="device-setup-action"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 border-white/10 bg-white/5 text-xs"
-                    onClick={() => setLocation("/devices")}
-                  >
-                    去绑定设备
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        <XiaozhiBrief />
-
         {messages.length === 0 && (
-          <StarterPromptList prompts={starterPrompts} onSelect={setInputText} />
+          <section data-testid="conversation-empty-state" className="flex min-h-[34vh] flex-col justify-center rounded-xl border border-white/10 bg-white/[0.025] px-4 py-6 text-center">
+            <p className="text-sm font-black text-slate-100">这里会显示你和小智的沟通历史</p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+              用底部麦克风、文字或附件发出指令；小智的执行结果、待确认事项和回传内容都会回到这里。
+            </p>
+          </section>
         )}
 
         <section className="mt-4 space-y-3">
@@ -1390,12 +1243,6 @@ export default function ConversationHome() {
 
           <div ref={streamEndRef} />
         </section>
-
-        <CapabilityRail
-          capabilities={capabilities}
-          onOpenAll={() => setLocation("/navigator-command")}
-          onNavigate={setLocation}
-        />
       </main>
 
       <CommandComposer
@@ -1406,9 +1253,11 @@ export default function ConversationHome() {
         voiceNotice={voiceError || voiceNotice}
         voiceAudioLevel={voiceAudioLevel}
         isProcessing={isBusy}
+        attachments={attachments}
         onInputChange={setInputText}
         onToggleVoice={() => void handleToggleVoice()}
-        onAttach={() => setLocation("/scanner")}
+        onAttachFiles={handleAttachFiles}
+        onRemoveAttachment={handleRemoveAttachment}
         onSend={() => handleSend()}
       />
     </div>
