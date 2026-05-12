@@ -7,6 +7,12 @@ vi.mock('../../../services/task-orchestrator', () => ({
   },
 }));
 
+vi.mock('../../../services/pc-agent/PCAgent', () => ({
+  pcAgent: {
+    executeTask: vi.fn(),
+  },
+}));
+
 vi.mock('../../../storage/adapter', () => ({
   storageAdapter: {
     createProject: vi.fn(),
@@ -32,6 +38,7 @@ vi.mock('../../../lib/logger', () => ({
 import { ConversationActionExecutor } from '../../../services/assistant/ConversationActionExecutor';
 import { storageAdapter } from '../../../storage/adapter';
 import { taskOrchestrator } from '../../../services/task-orchestrator';
+import { pcAgent } from '../../../services/pc-agent/PCAgent';
 import { getDatabase } from '../../../db';
 import type { AssistantResponse, DraftItem } from '../../../services/assistant/HybridAssistant';
 
@@ -80,6 +87,11 @@ describe('ConversationActionExecutor', () => {
     vi.mocked(storageAdapter.searchVaultByIntent).mockResolvedValue([mockVaultItem as any]);
     vi.mocked(storageAdapter.createPerson).mockResolvedValue(mockPerson as any);
     vi.mocked(taskOrchestrator.createTask).mockResolvedValue(mockTask as any);
+    vi.mocked(pcAgent.executeTask).mockResolvedValue({
+      success: true,
+      type: 'custom',
+      message: 'PC task completed',
+    } as any);
   });
 
   describe('execute()', () => {
@@ -139,6 +151,35 @@ describe('ConversationActionExecutor', () => {
         action: 'create_task',
         entityType: 'task',
         entityId: 'task-1',
+      });
+    });
+
+    it('executes a PC task and returns a phone-visible result', async () => {
+      const response = makeResponse({
+        type: 'execute',
+        action: 'pc_execute',
+        actionParams: {
+          type: 'custom',
+          description: '整理桌面文件',
+          params: {},
+        },
+      });
+      const result = await executor.execute(response, 'user-1');
+
+      expect(pcAgent.executeTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'custom',
+          description: '整理桌面文件',
+          priority: 5,
+        }),
+      );
+      expect(result).toMatchObject({
+        success: true,
+        action: 'pc_execute',
+        entityType: 'pc_task',
+        entityData: {
+          message: 'PC task completed',
+        },
       });
     });
 

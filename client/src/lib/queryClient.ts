@@ -195,6 +195,22 @@ export async function apiRequest(
     throw new Error(`网络连接失败，请检查网络状态`);
   }
 
+  if (res.status === 403 && !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
+    const body = await res.clone().json().catch(() => null);
+    if (body?.code === 'CSRF_TOKEN_MISMATCH') {
+      cachedCsrf = null;
+      const retryHeaders = {
+        ...headers,
+        ...await getCsrfHeader(),
+      };
+      res = await fetchWithRetry(url, {
+        method,
+        headers: retryHeaders,
+        body: data ? JSON.stringify(data) : undefined,
+      }, 0);
+    }
+  }
+
   await throwIfResNotOk(res);
   return res;
 }

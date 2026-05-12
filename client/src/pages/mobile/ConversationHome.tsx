@@ -39,6 +39,7 @@ import {
   getAssistantPendingSummary,
   sendAssistantMessage,
   updateAssistantDraft,
+  type AssistantExecution,
   type AssistantResponse,
   type DraftItem,
 } from "@/lib/assistant-api";
@@ -121,6 +122,14 @@ interface PendingQueueItem {
   label: string;
   meta: string;
   itemCount?: number;
+}
+
+interface ExecutionReport {
+  id: string;
+  title: string;
+  detail: string;
+  route: string;
+  success: boolean;
 }
 
 interface LocalConversationHomeState {
@@ -212,6 +221,40 @@ function draftQueueLabel(items?: DraftItem[]) {
   const firstItem = items?.[0];
   if (!firstItem) return "待确认草案";
   return firstItem.label || describePendingAction(firstItem.action, firstItem.actionParams);
+}
+
+function executionRoute(execution: AssistantExecution) {
+  if (execution.entityType === "project" && execution.entityId) return `/projects/${execution.entityId}`;
+  if (execution.entityType === "task" && execution.entityId) return "/tasks";
+  if (execution.entityType === "memory") return "/vault";
+  if (execution.entityType === "pc_task") return "/devices";
+  return "/tasks";
+}
+
+function executionReportFromResult(execution?: AssistantExecution | null): ExecutionReport | null {
+  if (!execution) return null;
+  const summary = formatExecutionSummary(execution);
+  const message = typeof execution.entityData?.message === "string" ? execution.entityData.message : null;
+  return {
+    id: `${execution.action}-${execution.entityId ?? Date.now()}`,
+    title: execution.success ? "执行结果已回传" : "执行失败",
+    detail: message ?? summary ?? (execution.success ? "操作已完成" : execution.errorMessage ?? "未知错误"),
+    route: executionRoute(execution),
+    success: execution.success,
+  };
+}
+
+function executionReportFromDraft(executions: AssistantExecution[]): ExecutionReport | null {
+  if (executions.length === 0) return null;
+  const failed = executions.filter((execution) => !execution.success).length;
+  const first = executions[0];
+  return {
+    id: `draft-${Date.now()}`,
+    title: failed > 0 ? "草案执行有失败项" : "草案执行完成",
+    detail: failed > 0 ? `已完成 ${executions.length - failed} 项，${failed} 项失败` : `已完成全部 ${executions.length} 项`,
+    route: executionRoute(first),
+    success: failed === 0,
+  };
 }
 
 const ALERT_SEVERITY_PRIORITY: Record<PendingAlert["severity"], number> = {
@@ -390,6 +433,7 @@ export default function ConversationHome() {
   const [selectedPendingId, setSelectedPendingId] = useState<string | null>(null);
   const [consumedPendingIds, setConsumedPendingIds] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<ConversationAttachment[]>([]);
+  const [latestExecutionReport, setLatestExecutionReport] = useState<ExecutionReport | null>(null);
   const [localStateHydrated, setLocalStateHydrated] = useState(false);
   const streamEndRef = useRef<HTMLDivElement>(null);
   const lastVoiceTranscriptRef = useRef("");
@@ -663,9 +707,15 @@ export default function ConversationHome() {
     });
   }, [assistantPending, failedSend, inputText, localStateHydrated, pendingDraft]);
 
-  const appendAssistantResponse = (response: AssistantResponse, executionSummary?: string | null) => {
+  const appendAssistantResponse = (
+    response: AssistantResponse,
+    executionSummary?: string | null,
+    execution?: AssistantExecution | null,
+  ) => {
     const content = executionSummary ? `${response.message}\n\n${executionSummary}` : response.message;
     addMessage({ role: "assistant", content, timestamp: Date.now() });
+    const report = executionReportFromResult(execution);
+    if (report) setLatestExecutionReport(report);
     setFailedSend(null);
     setActionError(null);
     retainedActiveDraftRef.current = null;
@@ -771,7 +821,7 @@ export default function ConversationHome() {
     try {
       useAvatarStore.getState().setProcessing(true);
       const result = await sendAssistantMessage(message);
-      appendAssistantResponse(result.response, formatExecutionSummary(result.execution));
+      appendAssistantResponse(result.response, formatExecutionSummary(result.execution), result.execution);
     } catch (error) {
       setFailedSend((current) => ({
         message,
@@ -816,6 +866,8 @@ export default function ConversationHome() {
         content: summary ? `${result.message}\n\n${summary}` : result.message,
         timestamp: Date.now(),
       });
+      const report = executionReportFromResult(result.execution);
+      if (report) setLatestExecutionReport(report);
       consumePendingItem(pendingConfirmation.responseId);
       setPendingConfirmation(null);
       void queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] });
@@ -863,6 +915,8 @@ export default function ConversationHome() {
         content: failed > 0 ? `已完成 ${succeeded} 项，${failed} 项失败。` : `已完成全部 ${succeeded} 项。`,
         timestamp: Date.now(),
       });
+      const report = executionReportFromDraft(result.executions);
+      if (report) setLatestExecutionReport(report);
       consumePendingItem(pendingDraft.responseId);
       retainedActiveDraftRef.current = null;
       setPendingDraft(null);
@@ -1005,6 +1059,26 @@ export default function ConversationHome() {
             setLocation("/tasks");
           }}
         />
+
+        {latestExecutionReport && (
+          <section data-testid="execution-result-jump" className="mb-3">
+            <button
+              onClick={() => setLocation(latestExecutionReport.route)}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left active:bg-white/10",
+                latestExecutionReport.success
+                  ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-50"
+                  : "border-red-300/25 bg-red-300/10 text-red-50",
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-black">{latestExecutionReport.title}</p>
+                <p className="mt-0.5 truncate text-[10px] opacity-80">{latestExecutionReport.detail}</p>
+              </div>
+              <span className="shrink-0 text-[10px] font-bold opacity-75">查看</span>
+            </button>
+          </section>
+        )}
 
         {messages.length === 0 && (
           <section data-testid="conversation-empty-state" className="flex min-h-[34vh] flex-col justify-center rounded-xl border border-white/10 bg-white/[0.025] px-4 py-6 text-center">
