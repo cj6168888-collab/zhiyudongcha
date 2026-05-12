@@ -14,6 +14,7 @@
 import { createServiceLogger } from '../../lib/logger';
 import { storageAdapter } from '../../storage/adapter';
 import { taskOrchestrator } from '../task-orchestrator';
+import { pcAgent, type PCTaskType } from '../pc-agent/PCAgent';
 import { getDatabase } from '../../db';
 import { pendingActions } from '@shared/schema';
 import { and, eq, gt, lt } from 'drizzle-orm';
@@ -43,7 +44,7 @@ type StoredDraftItem = { action: string; label?: string; actionParams: Record<st
 export interface ExecutionResult {
   success: boolean;
   action: string;
-  entityType?: 'project' | 'task' | 'memory';
+  entityType?: 'project' | 'task' | 'memory' | 'pc_task';
   entityId?: string;
   entityData?: Record<string, unknown>;
   errorMessage?: string;
@@ -385,6 +386,9 @@ export class ConversationActionExecutor {
       case 'create_person':
         return this.createPerson(params, userId);
 
+      case 'pc_execute':
+        return this.executePcTask(params);
+
       default:
         logger.debug({ action }, 'Unknown action — skipping execution');
         return null;
@@ -579,6 +583,64 @@ export class ConversationActionExecutor {
       logger.error({ err }, 'Failed to save memory from conversation');
       return { success: false, action: 'save_memory', errorMessage: String(err) };
     }
+  }
+
+  private async executePcTask(params: Record<string, unknown>): Promise<ExecutionResult> {
+    const description = String(params.description ?? params.command ?? '').trim();
+    if (!description) {
+      return { success: false, action: 'pc_execute', errorMessage: 'description is required' };
+    }
+
+    try {
+      const result = await pcAgent.executeTask({
+        type: this.normalizePcTaskType(params.type),
+        description,
+        params: this.normalizePcTaskParams(params.params),
+        priority: typeof params.priority === 'number' ? params.priority : 5,
+      });
+
+      return {
+        success: result.success,
+        action: 'pc_execute',
+        entityType: 'pc_task',
+        entityId: `pc_${Date.now()}`,
+        entityData: {
+          type: result.type,
+          message: result.message,
+          data: result.data,
+          details: result.details,
+        },
+        errorMessage: result.success ? undefined : result.message,
+      };
+    } catch (err) {
+      logger.error({ err, description }, 'Failed to execute PC task from conversation');
+      return { success: false, action: 'pc_execute', errorMessage: String(err) };
+    }
+  }
+
+  private normalizePcTaskType(value: unknown): PCTaskType {
+    const allowed = new Set<PCTaskType>([
+      'file_organize',
+      'document_generate',
+      'ppt_create',
+      'system_optimize',
+      'software_install',
+      'software_uninstall',
+      'code_create',
+      'code_search',
+      'project_open',
+      'web_form_fill',
+      'custom',
+    ]);
+    return typeof value === 'string' && allowed.has(value as PCTaskType)
+      ? value as PCTaskType
+      : 'custom';
+  }
+
+  private normalizePcTaskParams(value: unknown): Record<string, unknown> {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : {};
   }
 }
 

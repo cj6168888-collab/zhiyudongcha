@@ -11,6 +11,12 @@ vi.mock('../../../services/task-orchestrator', () => ({
   },
 }));
 
+vi.mock('../../../services/pc-agent/PCAgent', () => ({
+  pcAgent: {
+    executeTask: vi.fn(),
+  },
+}));
+
 vi.mock('../../../storage/adapter', () => ({
   storageAdapter: {
     createProject: vi.fn(),

@@ -24,11 +24,23 @@ export function attachCSRFToken(req: Request, res: Response, next: NextFunction)
     return
   }
 
-  if (!req.session.csrfToken) {
+  const shouldSave = !req.session.csrfToken
+  if (shouldSave) {
     req.session.csrfToken = generateCSRFToken()
   }
 
   res.locals.csrfToken = req.session.csrfToken
+  if (shouldSave && typeof req.session.save === 'function') {
+    req.session.save((error) => {
+      if (error) {
+        next(error)
+        return
+      }
+      next()
+    })
+    return
+  }
+
   next()
 }
 

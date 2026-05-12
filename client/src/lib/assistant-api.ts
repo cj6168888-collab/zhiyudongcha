@@ -3,7 +3,7 @@
 export interface AssistantExecution {
   success: boolean;
   action: string;
-  entityType?: "project" | "task" | "memory";
+  entityType?: "project" | "task" | "memory" | "pc_task";
   entityId?: string;
   entityData?: Record<string, unknown>;
   errorMessage?: string;
@@ -149,12 +149,14 @@ export function formatExecutionSummary(execution?: AssistantExecution): string |
     project: "项目",
     task: "任务",
     memory: "记忆",
+    pc_task: "PC 执行",
   };
   const entityName = execution.entityType ? entityLabel[execution.entityType] : "事项";
   const title =
     execution.entityData?.title ??
     execution.entityData?.name ??
     execution.entityData?.fileName ??
+    execution.entityData?.message ??
     execution.entityId;
 
   return `已完成：${entityName}${title ? `「${String(title)}」` : ""}`;

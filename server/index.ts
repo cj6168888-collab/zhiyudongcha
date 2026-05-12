@@ -102,10 +102,12 @@ const serverConfig = {
     saveUninitialized: process.env['SESSION_SAVE_UNINITIALIZED'] !== 'false',
     rolling: process.env['SESSION_ROLLING'] === 'true',
     cookie: {
-      secure: process.env['COOKIE_SECURE'] !== 'false',
+      secure: process.env['COOKIE_SECURE']
+        ? process.env['COOKIE_SECURE'] === 'true'
+        : process.env['NODE_ENV'] === 'production',
       httpOnly: process.env['COOKIE_HTTP_ONLY'] !== 'false',
       maxAge: parseInt(process.env['COOKIE_MAX_AGE'] || '86400000'),
-      sameSite: process.env['COOKIE_SAME_SITE'] === 'true'
+      sameSite: process.env['COOKIE_SAME_SITE'] || (process.env['NODE_ENV'] === 'production' ? 'strict' : 'lax')
     }
   },
   api: {

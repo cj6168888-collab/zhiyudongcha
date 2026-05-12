@@ -1035,6 +1035,33 @@ class HybridAssistant {
   private tryParseCoreAction(text: string, responseId: string): AssistantResponse | null {
     const normalized = text.trim();
 
+    if (this.isPcExecutionRequest(normalized)) {
+      const description = this.normalizePcExecutionDescription(normalized);
+      return {
+        id: responseId,
+        handler: 'direct',
+        category: 'PC执行',
+        type: 'confirm',
+        message: '我会把这条指令交给 PC 端执行，并把结果回传到这里。执行前需要你确认一次。',
+        action: 'pc_execute',
+        actionParams: {
+          type: this.inferPcTaskType(description),
+          description,
+          params: {},
+        },
+        authorization: {
+          required: true,
+          reason: '这会让已绑定的 PC 端执行实际操作，需要确认后再开始。',
+          operation: 'pc_execute',
+          options: [
+            { label: '确认执行', action: 'approve' },
+            { label: '修改指令', action: 'modify' },
+            { label: '取消', action: 'deny' },
+          ],
+        },
+      };
+    }
+
     if (/(创建|新建|建立|新增|添加).{0,8}项目/.test(normalized)) {
       const title = this.extractEntityName(normalized, '项目') || '新项目';
       const description = this.extractDescription(normalized);
@@ -1150,6 +1177,28 @@ class HybridAssistant {
     }
 
     return null;
+  }
+
+  private isPcExecutionRequest(text: string): boolean {
+    return /(PC|pc|电脑|桌面|主机|Windows|Mac|电脑端|PC端)/u.test(text)
+      && /(执行|处理|整理|生成|打开|查找|搜索|运行|清理|优化|写|创建|做|帮我|让)/u.test(text);
+  }
+
+  private normalizePcExecutionDescription(text: string): string {
+    return text
+      .replace(/^(?:\u8bf7|\u9ebb\u70e6)?(?:\u5e2e\u6211)?(?:\u8ba9|\u53eb)?(?:PC|pc)\u7aef[\uFF0C,:\uFF1A\s]*/u, '')
+      .replace(/^(请|麻烦)?(帮我)?(让|叫)?(PC|pc|电脑|桌面|主机|电脑端|PC端)[，,:：\s]*/u, '')
+      .replace(/^(在)?(PC|pc|电脑|桌面|主机|电脑端|PC端)(上|里)?[，,:：\s]*/u, '')
+      .trim() || text.trim();
+  }
+
+  private inferPcTaskType(text: string): string {
+    if (/(PPT|演示|幻灯片)/iu.test(text)) return 'ppt_create';
+    if (/(文档|报告|合同|申报书|总结|计划)/u.test(text)) return 'document_generate';
+    if (/(整理|归档|文件|桌面)/u.test(text)) return 'file_organize';
+    if (/(代码|项目|程序|终端|仓库)/u.test(text)) return 'code_create';
+    if (/(清理|优化|缓存|临时文件|系统)/u.test(text)) return 'system_optimize';
+    return 'custom';
   }
 
   private extractEntityName(text: string, entity: '项目' | '任务'): string | null {
