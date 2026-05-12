@@ -353,12 +353,12 @@ export class StorageAdapter {
     return await systemStorage.createChatMessage(message);
   }
 
-  async getChatHistory(limit?: number): Promise<AvatarChatHistory[]> {
-    return await systemStorage.getChatHistory(limit);
+  async getChatHistory(limit?: number, scope?: { userId?: string; sessionId?: string; deviceId?: string }): Promise<AvatarChatHistory[]> {
+    return await systemStorage.getChatHistory(limit, scope);
   }
 
-  async getRecentChatContext(limit?: number): Promise<AvatarChatHistory[]> {
-    return await systemStorage.getRecentChatContext(limit);
+  async getRecentChatContext(limit?: number, scope?: { userId?: string; sessionId?: string; deviceId?: string }): Promise<AvatarChatHistory[]> {
+    return await systemStorage.getRecentChatContext(limit, scope);
   }
 
   async updateChatFeedback(id: string, feedback: number, note?: string): Promise<AvatarChatHistory | undefined> {

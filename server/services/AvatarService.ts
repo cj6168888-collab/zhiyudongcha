@@ -8,6 +8,12 @@ import type {
   InsertExpertDecision
 } from '@shared/schema';
 
+export interface AvatarChatHistoryScope {
+  userId?: string;
+  sessionId?: string;
+  deviceId?: string;
+}
+
 const logger = createServiceLogger('AvatarService');
 
 export class AvatarService {
@@ -64,11 +70,11 @@ export class AvatarService {
   /**
    * 获取聊天历史
    */
-  async getChatHistory(limit?: number): Promise<AvatarChatHistory[]> {
+  async getChatHistory(limit?: number, scope?: AvatarChatHistoryScope): Promise<AvatarChatHistory[]> {
     try {
-      return await storageAdapter.getChatHistory(limit);
+      return await storageAdapter.getChatHistory(limit, scope);
     } catch (error) {
-      logger.error({ err: error, limit }, '获取聊天历史失败');
+      logger.error({ err: error, limit, scope }, '获取聊天历史失败');
       throw error;
     }
   }
@@ -76,11 +82,11 @@ export class AvatarService {
   /**
    * 获取最近聊天上下文
    */
-  async getRecentChatContext(limit?: number): Promise<AvatarChatHistory[]> {
+  async getRecentChatContext(limit?: number, scope?: AvatarChatHistoryScope): Promise<AvatarChatHistory[]> {
     try {
-      return await storageAdapter.getRecentChatContext(limit);
+      return await storageAdapter.getRecentChatContext(limit, scope);
     } catch (error) {
-      logger.error({ err: error, limit }, '获取最近聊天上下文失败');
+      logger.error({ err: error, limit, scope }, '获取最近聊天上下文失败');
       throw error;
     }
   }

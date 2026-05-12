@@ -20,10 +20,14 @@ async function mockConversationShell(page: Page, options?: {
       });
     const originalFetch = window.fetch.bind(window);
     const historyKey = 'navigator.mobile.conversation-home.mock-history.v1';
+    const sessionKey = 'navigator.mobile.conversation-home.session-id.v1';
+    const deviceKey = 'navigator.mobile.conversation-home.device-id.v1';
 
     if (!mockOptions.preserveLocalState) {
       window.localStorage.removeItem('navigator.mobile.conversation-home.local-state.v1');
       window.localStorage.removeItem(historyKey);
+      window.localStorage.removeItem(sessionKey);
+      window.localStorage.removeItem(deviceKey);
     }
     (window as unknown as { __assistantCalls?: number }).__assistantCalls = 0;
     (window as unknown as { __assistantHistoryCalls?: number }).__assistantHistoryCalls = 0;
@@ -126,6 +130,8 @@ async function mockConversationShell(page: Page, options?: {
       if (path === '/api/assistant/history' && method === 'GET') {
         (window as unknown as { __assistantHistoryCalls?: number }).__assistantHistoryCalls =
           ((window as unknown as { __assistantHistoryCalls?: number }).__assistantHistoryCalls ?? 0) + 1;
+        (window as unknown as { __assistantHistorySearch?: string }).__assistantHistorySearch =
+          new URL(url, window.location.origin).search;
         return jsonResponse({
           success: true,
           messages: readHistory(),
@@ -185,6 +191,7 @@ async function mockConversationShell(page: Page, options?: {
             message: 'received',
           },
         };
+        (window as unknown as { __assistantPayload?: unknown }).__assistantPayload = payload;
         appendHistory('user', String(payload.message ?? ''));
         appendHistory('assistant', String((responseBody as any).response?.message ?? 'received'));
         return jsonResponse(responseBody);
@@ -246,7 +253,6 @@ test.describe('Mobile conversation home', () => {
   });
 
   test('sends final voice transcript through the current conversation', async ({ page }) => {
-    await mockConversationShell(page);
     await page.addInitScript(() => {
       class FakeSpeechRecognition {
         continuous = false;
@@ -275,9 +281,14 @@ test.describe('Mobile conversation home', () => {
       }
 
       (window as unknown as { SpeechRecognition: typeof FakeSpeechRecognition }).SpeechRecognition = FakeSpeechRecognition;
+      (window as unknown as { webkitSpeechRecognition: typeof FakeSpeechRecognition }).webkitSpeechRecognition = FakeSpeechRecognition;
     });
+    await mockConversationShell(page);
 
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await expect.poll(async () =>
+      (await page.getByTestId('conversation-voice-toggle').getAttribute('class')) ?? ''
+    ).not.toContain('text-slate-600');
     await page.getByTestId('conversation-voice-toggle').click();
 
     await expect(page.getByText('帮我整理今天最该推进的三件事')).toBeVisible();
@@ -316,6 +327,11 @@ test.describe('Mobile conversation home', () => {
 
     await expect(page.getByText(message)).toBeVisible();
     await expect(page.getByText('received')).toBeVisible();
+    const assistantPayload = await page.evaluate(() =>
+      (window as unknown as { __assistantPayload?: Record<string, unknown> }).__assistantPayload
+    );
+    expect(assistantPayload?.sessionId).toMatch(/^mobile-session-/);
+    expect(assistantPayload?.deviceId).toMatch(/^mobile-device-/);
 
     await page.reload({ waitUntil: 'domcontentloaded' });
 
@@ -324,6 +340,11 @@ test.describe('Mobile conversation home', () => {
     expect(await page.evaluate(() =>
       (window as unknown as { __assistantHistoryCalls?: number }).__assistantHistoryCalls ?? 0
     )).toBeGreaterThan(0);
+    const historySearch = await page.evaluate(() =>
+      (window as unknown as { __assistantHistorySearch?: string }).__assistantHistorySearch ?? ''
+    );
+    expect(historySearch).toContain('sessionId=mobile-session-');
+    expect(historySearch).toContain('deviceId=mobile-device-');
   });
 
   test('keeps device setup out of the home surface', async ({ page }) => {

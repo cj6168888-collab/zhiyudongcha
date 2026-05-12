@@ -1,4 +1,5 @@
 import { auditLogRepository, expertDecisionRepository, evolutionEventRepository, dailyReportRepository, avatarChatHistoryRepository, avatarUserPreferencesRepository } from '../../repositories';
+import type { AvatarChatHistoryScope } from '../../repositories/chat.repository';
 import type { AuditLog, ExpertDecision, EvolutionEvent, DailyReport, InsertAuditLog, InsertExpertDecision, InsertEvolutionEvent, InsertDailyReport, AvatarChatHistory, InsertAvatarChatHistory, AvatarUserPreferences, InsertAvatarUserPreferences } from '@shared/schema';
 
 export interface ISystemStorage {
@@ -19,8 +20,8 @@ export interface ISystemStorage {
   
   // Avatar chat and preferences
   createChatMessage(message: InsertAvatarChatHistory): Promise<AvatarChatHistory>;
-  getChatHistory(limit?: number): Promise<AvatarChatHistory[]>;
-  getRecentChatContext(limit?: number): Promise<AvatarChatHistory[]>;
+  getChatHistory(limit?: number, scope?: AvatarChatHistoryScope): Promise<AvatarChatHistory[]>;
+  getRecentChatContext(limit?: number, scope?: AvatarChatHistoryScope): Promise<AvatarChatHistory[]>;
   updateChatFeedback(id: string, feedback: number, note?: string): Promise<AvatarChatHistory | undefined>;
   getMemorizedChats(): Promise<AvatarChatHistory[]>;
   getAvatarUserPreferences(): Promise<AvatarUserPreferences | undefined>;
@@ -77,12 +78,12 @@ export class SystemStorage implements ISystemStorage {
     return await avatarChatHistoryRepository.create(message);
   }
 
-  async getChatHistory(limit?: number): Promise<AvatarChatHistory[]> {
-    return await avatarChatHistoryRepository.getHistory(limit || 100);
+  async getChatHistory(limit?: number, scope?: AvatarChatHistoryScope): Promise<AvatarChatHistory[]> {
+    return await avatarChatHistoryRepository.getHistory(limit || 100, scope);
   }
 
-  async getRecentChatContext(limit?: number): Promise<AvatarChatHistory[]> {
-    return await avatarChatHistoryRepository.getRecentContext(limit || 10);
+  async getRecentChatContext(limit?: number, scope?: AvatarChatHistoryScope): Promise<AvatarChatHistory[]> {
+    return await avatarChatHistoryRepository.getRecentContext(limit || 10, scope);
   }
 
   async updateChatFeedback(id: string, feedback: number, note?: string): Promise<AvatarChatHistory | undefined> {

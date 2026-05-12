@@ -31,6 +31,17 @@ interface AssistantHistoryItem {
   role: AssistantHistoryRole;
   content: string;
   createdAt: Date;
+  userId?: string | null;
+  sessionId?: string | null;
+  deviceId?: string | null;
+  source?: string | null;
+}
+
+interface AssistantHistoryScope {
+  userId?: string;
+  sessionId?: string;
+  deviceId?: string;
+  source?: string;
 }
 
 const fallbackAssistantHistory: AssistantHistoryItem[] = [];
@@ -42,11 +53,37 @@ function normalizeHistoryLimit(value: unknown) {
   return Math.max(1, Math.min(50, Math.floor(parsed)));
 }
 
-function pushFallbackHistory(role: AssistantHistoryRole, content: string) {
+function optionalText(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim().slice(0, 160) : undefined;
+}
+
+function assistantHistoryScopeFromRequest(req: Request, body?: Record<string, unknown>): AssistantHistoryScope {
+  const requestUserId = (req as unknown as { user?: { id?: string }; session?: { userId?: string } }).user?.id
+    || (req as unknown as { session?: { userId?: string } }).session?.userId;
+  return {
+    userId: optionalText(body?.userId ?? req.query.userId) ?? optionalText(requestUserId) ?? 'default',
+    sessionId: optionalText(body?.sessionId ?? req.query.sessionId),
+    deviceId: optionalText(body?.deviceId ?? req.query.deviceId),
+    source: optionalText(body?.source ?? req.query.source),
+  };
+}
+
+function scopeMatches(item: AssistantHistoryItem, scope: AssistantHistoryScope) {
+  if (scope.userId && item.userId !== scope.userId) return false;
+  if (scope.sessionId && item.sessionId !== scope.sessionId) return false;
+  if (scope.deviceId && item.deviceId !== scope.deviceId) return false;
+  return true;
+}
+
+function pushFallbackHistory(role: AssistantHistoryRole, content: string, scope: AssistantHistoryScope = {}) {
   fallbackAssistantHistory.push({
     id: `fallback-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     role,
     content,
+    userId: scope.userId,
+    sessionId: scope.sessionId,
+    deviceId: scope.deviceId,
+    source: scope.source,
     createdAt: new Date(),
   });
   if (fallbackAssistantHistory.length > FALLBACK_HISTORY_LIMIT) {
@@ -54,33 +91,41 @@ function pushFallbackHistory(role: AssistantHistoryRole, content: string) {
   }
 }
 
-async function recordAssistantHistory(role: AssistantHistoryRole, content: string, intent?: string) {
+async function recordAssistantHistory(role: AssistantHistoryRole, content: string, intent?: string, scope: AssistantHistoryScope = {}) {
   try {
     await avatarService.createChatMessage({
       role,
       content,
+      userId: scope.userId,
+      sessionId: scope.sessionId,
+      deviceId: scope.deviceId,
+      source: scope.source,
       intent,
       feedback: 0,
       isMemorized: 0,
       memoryWeight: 0,
     });
   } catch (error) {
-    logger.warn({ err: error, role }, 'Avatar chat history unavailable; using in-memory fallback');
-    pushFallbackHistory(role, content);
+    logger.warn({ err: error, role, scope }, 'Avatar chat history unavailable; using in-memory fallback');
+    pushFallbackHistory(role, content, scope);
   }
 }
 
-async function loadAssistantHistory(limit: number): Promise<AssistantHistoryItem[]> {
+async function loadAssistantHistory(limit: number, scope: AssistantHistoryScope): Promise<AssistantHistoryItem[]> {
   try {
-    return (await avatarService.getRecentChatContext(limit)).map((item) => ({
+    return (await avatarService.getRecentChatContext(limit, scope)).map((item) => ({
       id: item.id,
       role: item.role as AssistantHistoryRole,
       content: item.content,
       createdAt: item.createdAt ?? new Date(),
+      userId: item.userId,
+      sessionId: item.sessionId,
+      deviceId: item.deviceId,
+      source: item.source,
     }));
   } catch (error) {
-    logger.warn({ err: error }, 'Avatar chat history unavailable; reading in-memory fallback');
-    return fallbackAssistantHistory.slice(-limit);
+    logger.warn({ err: error, scope }, 'Avatar chat history unavailable; reading in-memory fallback');
+    return fallbackAssistantHistory.filter((item) => scopeMatches(item, scope)).slice(-limit);
   }
 }
 
@@ -125,9 +170,11 @@ function assistantMessageWithExecutionSummary(message: string, execution?: {
 
 router.get('/history', async (req: Request, res: Response) => {
   const limit = normalizeHistoryLimit(req.query.limit);
-  const messages = await loadAssistantHistory(limit);
+  const scope = assistantHistoryScopeFromRequest(req);
+  const messages = await loadAssistantHistory(limit, scope);
   res.json({
     success: true,
+    scope,
     messages: messages.map((item) => ({
       id: item.id,
       role: item.role,
@@ -241,6 +288,7 @@ router.get('/pending', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { message, type = 'text', source = 'app' } = req.body;
+    const historyScope = assistantHistoryScopeFromRequest(req, req.body);
 
     if (!message) {
       res.status(400).json({
@@ -304,11 +352,12 @@ router.post('/', async (req: Request, res: Response) => {
       action: response.action,
     }, 'Response generated');
 
-    await recordAssistantHistory('user', message, response.category);
+    await recordAssistantHistory('user', message, response.category, historyScope);
     await recordAssistantHistory(
       'assistant',
       assistantMessageWithExecutionSummary(response.message, executionResult),
       response.category,
+      historyScope,
     );
 
     // 异步记录 Conversation（不阻塞响应）
@@ -523,6 +572,7 @@ router.post('/draft/update', async (req: Request, res: Response) => {
 router.post('/draft/confirm', async (req: Request, res: Response) => {
   try {
     const { responseId } = req.body;
+    const historyScope = assistantHistoryScopeFromRequest(req, req.body);
     if (!responseId) {
       res.status(400).json({ success: false, error: 'responseId is required' });
       return;
@@ -559,6 +609,8 @@ router.post('/draft/confirm', async (req: Request, res: Response) => {
       failed > 0
         ? `草案执行有失败项：已完成 ${executions.length - failed} 项，${failed} 项失败。`
         : `草案执行完成：已完成全部 ${executions.length} 项。`,
+      undefined,
+      historyScope,
     );
     res.json({ success: true, executions });
   } catch (error) {
@@ -576,6 +628,7 @@ router.post('/authorize', async (req: Request, res: Response) => {
   try {
     const userId = (req as unknown as { user?: { id?: string } }).user?.id || 'default';
     const { responseId, action, modifications } = req.body;
+    const historyScope = assistantHistoryScopeFromRequest(req, req.body);
 
     logger.info({ responseId, action, userId }, 'Authorization received');
 
@@ -654,7 +707,7 @@ router.post('/authorize', async (req: Request, res: Response) => {
       });
     }
 
-    await recordAssistantHistory('assistant', assistantMessageWithExecutionSummary(message, executionResult));
+    await recordAssistantHistory('assistant', assistantMessageWithExecutionSummary(message, executionResult), undefined, historyScope);
 
     res.json({
       success: true,

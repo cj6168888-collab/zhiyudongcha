@@ -102,41 +102,80 @@ export interface AssistantHistoryMessage {
 
 export interface AssistantHistoryResult {
   success: boolean;
+  scope?: AssistantConversationContext;
   messages: AssistantHistoryMessage[];
 }
 
-export async function sendAssistantMessage(message: string): Promise<AssistantChatResult> {
+export interface AssistantConversationContext {
+  userId?: string;
+  sessionId?: string;
+  deviceId?: string;
+  source?: string;
+}
+
+function contextParams(context?: AssistantConversationContext) {
+  return Object.fromEntries(
+    Object.entries(context ?? {}).filter(([, value]) => typeof value === "string" && value.trim().length > 0),
+  );
+}
+
+export async function sendAssistantMessage(
+  message: string,
+  context?: AssistantConversationContext,
+): Promise<AssistantChatResult> {
   const res = await apiRequest("POST", "/api/assistant", {
     message,
     type: "text",
     source: "app",
+    ...contextParams(context),
   });
   return await res.json();
 }
 
-export async function getAssistantHistory(limit = 20): Promise<AssistantHistoryResult> {
-  const res = await apiRequest("GET", `/api/assistant/history?limit=${encodeURIComponent(String(limit))}`);
+export async function getAssistantHistory(
+  limit = 20,
+  context?: AssistantConversationContext,
+): Promise<AssistantHistoryResult> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    ...contextParams(context),
+  });
+  const res = await apiRequest("GET", `/api/assistant/history?${params.toString()}`);
   return await res.json();
 }
 
-export async function approveAssistantAction(responseId: string): Promise<AssistantAuthorizeResult> {
+export async function approveAssistantAction(
+  responseId: string,
+  context?: AssistantConversationContext,
+): Promise<AssistantAuthorizeResult> {
   const res = await apiRequest("POST", "/api/assistant/authorize", {
     responseId,
     action: "approve_once",
+    ...contextParams(context),
   });
   return await res.json();
 }
 
-export async function denyAssistantAction(responseId: string): Promise<AssistantAuthorizeResult> {
+export async function denyAssistantAction(
+  responseId: string,
+  context?: AssistantConversationContext,
+): Promise<AssistantAuthorizeResult> {
   const res = await apiRequest("POST", "/api/assistant/authorize", {
     responseId,
     action: "deny",
+    ...contextParams(context),
   });
   return await res.json();
 }
 
-export async function confirmAssistantDraft(responseId: string): Promise<DraftConfirmResult> {
-  const res = await apiRequest("POST", "/api/assistant/draft/confirm", { responseId });
+export async function confirmAssistantDraft(
+  responseId: string,
+  context?: AssistantConversationContext,
+): Promise<DraftConfirmResult> {
+  const res = await apiRequest("POST", "/api/assistant/draft/confirm", {
+    responseId,
+    ...contextParams(context),
+  });
   return await res.json();
 }
 
