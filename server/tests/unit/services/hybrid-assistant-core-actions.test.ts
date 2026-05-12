@@ -65,6 +65,18 @@ describe('HybridAssistant core action parsing', () => {
     expect(response.authorization?.operation).toBe('pc_execute');
   });
 
+  it('keeps short acceptance probe messages out of the AI fallback', async () => {
+    const response = await hybridAssistant.processMessage(
+      message('浏览器真实验收消息 1778587085436'),
+    );
+
+    expect(response.handler).toBe('direct');
+    expect(response.category).toBe('验收');
+    expect(response.type).toBe('report');
+    expect(response.message).toContain('已送达并记录');
+    expect(response.action).toBeUndefined();
+  });
+
   it.each([
     {
       text: '新增项目：客户成功系统，说明是把回访和续费统一管理。',

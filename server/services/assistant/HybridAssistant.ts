@@ -1062,6 +1062,16 @@ class HybridAssistant {
       };
     }
 
+    if (this.isAcceptanceProbe(normalized)) {
+      return {
+        id: responseId,
+        handler: 'direct',
+        category: '验收',
+        type: 'report',
+        message: '收到，这条验收消息已送达并记录。',
+      };
+    }
+
     if (/(创建|新建|建立|新增|添加).{0,8}项目/.test(normalized)) {
       const title = this.extractEntityName(normalized, '项目') || '新项目';
       const description = this.extractDescription(normalized);
@@ -1177,6 +1187,20 @@ class HybridAssistant {
     }
 
     return null;
+  }
+
+  private isAcceptanceProbe(text: string): boolean {
+    const compact = text.replace(/\s+/g, '');
+    if (!compact) return false;
+
+    const asksForWork = /(写|创建|新建|建立|新增|添加|生成|修复|优化|整理|执行|运行|查找|搜索|打开|做|帮我|让|记住|记一下|保存记忆|存到记忆|帮我记下)/u.test(compact);
+    if (asksForWork) return false;
+
+    const isShortProbe = compact.length <= 80;
+    const hasProbeKeyword = /(验收|测试|探活|连通性|联通性|送达|真实测试|真实验收|smoke|acceptance|ping|healthcheck|health-check)/iu.test(compact);
+    const isMessageProbe = /(消息|message)/iu.test(compact) && /(浏览器|前端|后端|手机|移动端|真实|测试|验收|probe)/iu.test(compact);
+
+    return isShortProbe && (hasProbeKeyword || isMessageProbe);
   }
 
   private isPcExecutionRequest(text: string): boolean {
