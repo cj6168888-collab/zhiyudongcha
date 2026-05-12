@@ -20,9 +20,9 @@ export function BusinessBottomNav() {
     <nav
       data-testid="bottom-nav"
       aria-label="移动端主导航"
-      className="z-[999] flex-shrink-0 border-t border-white/10 bg-[#0a0a0f]/95 pt-2 backdrop-blur-xl"
+      className="z-[999] flex-shrink-0 border-t border-white/10 bg-[#0a0a0f]/95 pt-1.5 backdrop-blur-xl"
     >
-      <div className="mx-auto grid h-[72px] max-w-lg grid-cols-5 gap-1.5 px-2">
+      <div className="mx-auto grid h-[70px] max-w-lg grid-cols-5 gap-1 px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.path || (item.id === 'conversation' && location === '/chat');
@@ -35,12 +35,12 @@ export function BusinessBottomNav() {
               aria-label={`${item.label}${isActive ? "，当前页面" : ""}`}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "relative flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl transition-all duration-200 active:scale-95",
-                isActive ? "bg-violet-500/10 text-[#a78bfa]" : "text-slate-500"
+                "relative flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl transition-all duration-200 active:scale-95",
+                isActive ? "text-[#b69cff]" : "text-slate-500"
               )}
             >
               {isActive && <span className="absolute top-1.5 h-0.5 w-7 rounded-full bg-[#8b5cf6]" />}
-              <Icon className="h-6 w-6" />
+              <Icon className={cn("h-6 w-6", isActive && "drop-shadow-[0_0_10px_rgba(139,92,246,0.45)]")} />
               <span className="text-xs font-black leading-none">{item.label}</span>
             </button>
           );

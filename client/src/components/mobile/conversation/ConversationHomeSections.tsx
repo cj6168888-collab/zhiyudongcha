@@ -179,6 +179,7 @@ interface CommandComposerProps {
 }
 
 interface ConversationLiveSurfaceProps {
+  hasHistory: boolean;
   voiceActive: boolean;
   voiceSupported: boolean;
   voiceInterimText: string;
@@ -186,6 +187,7 @@ interface ConversationLiveSurfaceProps {
 }
 
 export function ConversationLiveSurface({
+  hasHistory,
   voiceActive,
   voiceSupported,
   voiceInterimText,
@@ -200,30 +202,45 @@ export function ConversationLiveSurface({
 
   return (
     <section
-      data-testid="conversation-empty-state"
-      className="flex min-h-[38vh] flex-col items-center justify-center px-2 py-8 text-center"
+      data-testid="conversation-live-surface"
+      className={cn(
+        "rounded-xl border border-white/10 bg-white/[0.035]",
+        hasHistory
+          ? "mb-3 flex items-center gap-3 px-3 py-3 text-left"
+          : "flex min-h-[38vh] flex-col items-center justify-center px-4 py-8 text-center"
+      )}
     >
       <div
         className={cn(
-          "flex h-24 w-24 items-center justify-center rounded-full border text-white shadow-[0_0_34px_rgba(139,92,246,0.22)]",
+          "flex shrink-0 items-center justify-center rounded-full border text-white shadow-[0_0_34px_rgba(139,92,246,0.22)]",
+          hasHistory ? "h-12 w-12" : "h-24 w-24",
           voiceActive
             ? "border-red-200/50 bg-red-400/20"
             : "border-violet-200/25 bg-violet-400/15"
         )}
         aria-hidden="true"
       >
-        <Mic className="h-10 w-10" />
+        <Mic className={hasHistory ? "h-5 w-5" : "h-10 w-10"} />
       </div>
-      <p className="mt-5 max-w-[18rem] text-base font-black text-slate-100">
-        {statusText}
-      </p>
-      <div className="mt-4 h-1.5 w-44 overflow-hidden rounded-full bg-white/10">
-        <div
-          className={cn("h-full rounded-full transition-all", voiceActive ? "bg-red-200" : "bg-violet-300")}
-          style={{ width: voiceActive ? voiceLevelWidth : "36%" }}
-        />
+
+      <div className={cn("min-w-0", hasHistory ? "flex-1" : "mt-5 w-full max-w-[18rem]")}>
+        <p className={cn("font-black text-slate-100", hasHistory ? "truncate text-sm" : "text-base")}>
+          {statusText}
+        </p>
+        <div className={cn("h-1.5 overflow-hidden rounded-full bg-white/10", hasHistory ? "mt-2 w-full" : "mx-auto mt-4 w-44")}>
+          <div
+            className={cn("h-full rounded-full transition-all", voiceActive ? "bg-red-200" : "bg-violet-300")}
+            style={{ width: voiceActive ? voiceLevelWidth : "36%" }}
+          />
+        </div>
+        {!hasHistory && (
+          <div className="mt-8 rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.06] px-4 py-3 text-left">
+            <p className="text-sm font-bold leading-relaxed text-slate-100">
+              我在，直接说你要我做什么。可以语音，也可以打字；需要材料就先加到这次对话里。
+            </p>
+          </div>
+        )}
       </div>
-      <p className="mt-8 text-xs font-bold text-slate-500">暂无历史会话</p>
     </section>
   );
 }
@@ -249,6 +266,7 @@ export function CommandComposer({
     <footer className="flex-shrink-0 border-t border-white/10 bg-[#050817]/95 px-3 pb-3 pt-2 backdrop-blur-xl">
       {attachments.length > 0 && (
         <div className="mx-auto mb-2 flex max-w-lg flex-wrap gap-2">
+          <p className="basis-full text-[10px] font-bold text-slate-500">材料已加入本次对话</p>
           {attachments.map((file) => (
             <div
               key={file.id}
@@ -293,6 +311,7 @@ export function CommandComposer({
       )}
       <div className="mx-auto grid max-w-lg grid-cols-[3.25rem_3.25rem_minmax(0,1fr)_3.25rem] items-center gap-2">
         <button
+          data-testid="conversation-voice-toggle"
           onClick={onToggleVoice}
           className={cn(
             "inline-flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-200",

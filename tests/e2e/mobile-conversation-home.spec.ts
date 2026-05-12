@@ -113,6 +113,24 @@ async function mockConversationShell(page: Page, options?: {
         });
       }
 
+      if (path === '/api/assistant/authorize' && method === 'POST') {
+        const payload = init?.body ? JSON.parse(String(init.body)) : {};
+        (window as unknown as { __authorizePayload?: unknown }).__authorizePayload = payload;
+        return jsonResponse({
+          success: true,
+          message: '好的，PC 执行已完成：PC 端连通性测试完成：127.0.0.1 可达，耗时约 42ms',
+          execution: {
+            success: true,
+            action: 'pc_execute',
+            entityType: 'pc_task',
+            entityId: 'pc-run-1',
+            entityData: {
+              message: 'PC 端连通性测试完成：127.0.0.1 可达，耗时约 42ms',
+            },
+          },
+        });
+      }
+
       if ((path === '/api/assistant' || path === '/api/assistant/') && method === 'POST') {
         assistantCallCount += 1;
         (window as unknown as { __assistantCalls?: number }).__assistantCalls = assistantCallCount;
@@ -160,8 +178,9 @@ test.describe('Mobile conversation home', () => {
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
 
     await expect(page.locator('header')).toBeVisible();
-    await expect(page.getByTestId('conversation-empty-state')).toContainText('和小智说话');
-    await expect(page.getByTestId('conversation-empty-state')).toContainText('暂无历史会话');
+    await expect(page.getByTestId('conversation-live-surface')).toContainText('和小智说话');
+    await expect(page.getByTestId('conversation-live-surface')).toContainText('我在，直接说你要我做什么');
+    await expect(page.getByTestId('conversation-voice-toggle')).toBeVisible();
     await expect(page.getByTestId('now-strip')).toHaveCount(0);
     await expect(page.getByText('PC 执行')).toHaveCount(0);
     await expect(page.getByTestId('conversation-input')).toBeVisible();
@@ -182,6 +201,7 @@ test.describe('Mobile conversation home', () => {
     });
 
     await expect(page.getByTestId('conversation-attachment')).toContainText('contract-notes.txt');
+    await expect(page.getByText('材料已加入本次对话')).toBeVisible();
     await expect(page.getByTestId('conversation-send')).toBeEnabled();
     expect(page.url()).toBe(appUrl);
   });
@@ -368,6 +388,39 @@ test.describe('Mobile conversation home', () => {
     await expect(page.getByTestId('pending-confirmation-card')).toContainText('Ready to create Approval Project');
     await expect(page.getByTestId('pending-confirmation-approve')).toBeVisible();
     await expect(page.getByTestId('pending-confirmation-deny')).toBeVisible();
+  });
+
+  test('places real execution reports above the composer after approval', async ({ page }) => {
+    await mockConversationShell(page, {
+      assistantResult: {
+        success: true,
+        response: {
+          id: 'pending-pc',
+          handler: 'hybrid',
+          type: 'confirm',
+          message: 'approval required',
+          action: 'pc_execute',
+          actionParams: { type: 'system_optimize', description: 'connectivity diagnostic' },
+          authorization: {
+            required: true,
+            reason: '准备让 PC 执行连通性测试，并把结果回传手机端',
+            operation: 'pc_execute',
+            options: [
+              { label: 'Approve', action: 'approve' },
+              { label: 'Cancel', action: 'deny' },
+            ],
+          },
+        },
+      },
+    });
+
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await sendConversationMessage(page, '让PC端执行一次连通性测试，并把结果回传到手机端');
+    await page.getByTestId('pending-confirmation-approve').click();
+
+    await expect(page.getByTestId('execution-result-jump')).toContainText('执行结果已回传');
+    await expect(page.getByTestId('execution-result-jump')).toContainText('PC 端连通性测试完成');
+    await expect(page.getByText('好的，PC 执行已完成：PC 端连通性测试完成：127.0.0.1 可达，耗时约 42ms')).toBeVisible();
   });
 
   test('edits and saves a draft before execution', async ({ page }) => {
