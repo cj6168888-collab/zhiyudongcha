@@ -1,6 +1,7 @@
 ﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Request, Response, NextFunction } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import { shouldSkipRateLimit } from '../../../middleware/security-middleware';
 
 describe('Rate Limiter Middleware', () => {
   let mockRequest: Partial<Request>;
@@ -128,6 +129,14 @@ describe('Rate Limiter Middleware', () => {
       });
 
       expect(limiter).toBeDefined();
+    });
+
+    it('should skip passive mobile home polling but keep assistant commands limited', () => {
+      expect(shouldSkipRateLimit('GET', '/api/hp/balance')).toBe(true);
+      expect(shouldSkipRateLimit('GET', '/api/models/status')).toBe(true);
+      expect(shouldSkipRateLimit('GET', '/api/assistant/pending')).toBe(true);
+      expect(shouldSkipRateLimit('POST', '/api/assistant')).toBe(false);
+      expect(shouldSkipRateLimit('POST', '/api/assistant/pending')).toBe(false);
     });
   });
 
