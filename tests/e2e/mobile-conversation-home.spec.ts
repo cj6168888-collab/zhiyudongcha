@@ -600,6 +600,9 @@ test.describe('Mobile conversation home', () => {
 
     await expect(page.getByTestId('execution-result-jump')).toContainText('执行结果已回传');
     await expect(page.getByTestId('execution-result-jump')).toContainText('PC 端连通性测试完成');
+    await expect(page.getByTestId('execution-result-target')).toContainText('PC 执行');
+    await expect(page.getByTestId('execution-result-jump')).toContainText('查看设备');
+    await expect(page.getByTestId('execution-result-time')).toBeVisible();
     await expect(page.getByText('好的，PC 执行已完成：PC 端连通性测试完成：127.0.0.1 可达，耗时约 42ms')).toBeVisible();
   });
 

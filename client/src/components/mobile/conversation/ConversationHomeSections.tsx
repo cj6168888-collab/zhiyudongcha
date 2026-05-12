@@ -198,10 +198,15 @@ export function ConversationLiveSurface({
 }: ConversationLiveSurfaceProps) {
   const voiceLevelWidth = `${Math.max(8, Math.min(100, Math.round(voiceAudioLevel * 100)))}%`;
   const statusText = voiceActive
-    ? (voiceInterimText || "我在听")
+    ? (voiceInterimText || "正在听你说")
     : voiceSupported
       ? "和小智说话"
       : "语音暂不可用";
+  const statusDetail = voiceActive
+    ? (voiceInterimText ? "实时转写中" : "保持说话，我会自动接住这次指令")
+    : voiceSupported
+      ? "语音、文字和材料会进入同一次对话"
+      : "当前环境没有可用语音识别";
 
   return (
     <section
@@ -246,6 +251,9 @@ export function ConversationLiveSurface({
         <p className={cn("font-black text-slate-100", hasHistory ? "truncate text-sm" : "text-base")}>
           {statusText}
         </p>
+        <p className={cn("mt-1 text-slate-500", hasHistory ? "truncate text-[10px]" : "text-xs")}>
+          {statusDetail}
+        </p>
         <div className={cn("h-1.5 overflow-hidden rounded-full bg-white/10", hasHistory ? "mt-2 w-full" : "mx-auto mt-4 w-44")}>
           <div
             className={cn("h-full rounded-full transition-all", voiceActive ? "bg-red-200" : "bg-violet-300")}
@@ -253,9 +261,16 @@ export function ConversationLiveSurface({
           />
         </div>
         {!hasHistory && (
-          <div className="mt-8 rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.06] px-4 py-3 text-left">
-            <p className="text-sm font-bold leading-relaxed text-slate-100">
-              点按麦克风直接说，也可以在下面打字；需要材料就先加到这次对话里。
+          <div className={cn(
+            "mt-8 rounded-2xl rounded-tl-md border px-4 py-3 text-left",
+            voiceActive
+              ? "border-red-200/20 bg-red-300/10"
+              : "border-white/10 bg-white/[0.06]"
+          )}>
+            <p className={cn("text-sm font-bold leading-relaxed", voiceActive ? "text-red-50" : "text-slate-100")}>
+              {voiceActive
+                ? (voiceInterimText || "我在听，直接说完整指令。")
+                : "点按麦克风直接说，也可以在下面打字；需要材料就先加到这次对话里。"}
             </p>
           </div>
         )}
