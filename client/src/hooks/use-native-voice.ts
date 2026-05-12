@@ -24,6 +24,7 @@ export function useNativeVoice(): UseNativeVoiceResult {
   const [isSupported, setIsSupported]           = useState(false);
 
   const listenersRef = useRef<PluginListenerHandle[]>([]);
+  const listenerRegistrationRef = useRef<Promise<void> | null>(null);
   const log = createServiceLogger('useNativeVoice');
 
   // Check availability once on mount
@@ -70,17 +71,21 @@ export function useNativeVoice(): UseNativeVoiceResult {
       listenersRef.current = handles;
     };
 
-    register().catch((err) => log.error('Failed to register voice listeners', err));
+    const registration = register();
+    listenerRegistrationRef.current = registration;
+    registration.catch((err) => log.error('Failed to register voice listeners', err));
 
     return () => {
       listenersRef.current.forEach((h) => h.remove());
       listenersRef.current = [];
+      listenerRegistrationRef.current = null;
     };
   }, []);
 
   const startListening = useCallback(async () => {
     if (!isSupported) return;
     try {
+      await listenerRegistrationRef.current;
       setError(null);
       setTranscript('');
       setPartialTranscript('');

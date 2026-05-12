@@ -206,6 +206,49 @@ test.describe('Mobile conversation home', () => {
     expect(page.url()).toBe(appUrl);
   });
 
+  test('sends final voice transcript through the current conversation', async ({ page }) => {
+    await mockConversationShell(page);
+    await page.addInitScript(() => {
+      class FakeSpeechRecognition {
+        continuous = false;
+        interimResults = false;
+        lang = 'zh-CN';
+        maxAlternatives = 1;
+        onstart: (() => void) | null = null;
+        onresult: ((event: unknown) => void) | null = null;
+        onend: (() => void) | null = null;
+
+        start() {
+          setTimeout(() => {
+            this.onstart?.();
+            setTimeout(() => {
+              const finalResult = [{ transcript: '帮我整理今天最该推进的三件事', confidence: 0.96 }] as Array<unknown> & { isFinal: boolean };
+              finalResult.isFinal = true;
+              this.onresult?.({ results: [finalResult] });
+              this.onend?.();
+            }, 30);
+          }, 0);
+        }
+
+        stop() {
+          this.onend?.();
+        }
+      }
+
+      (window as unknown as { SpeechRecognition: typeof FakeSpeechRecognition }).SpeechRecognition = FakeSpeechRecognition;
+    });
+
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await page.getByTestId('conversation-voice-toggle').click();
+
+    await expect(page.getByText('帮我整理今天最该推进的三件事')).toBeVisible();
+    await expect(page.getByText('received')).toBeVisible();
+    await expect(page.getByTestId('conversation-input')).toHaveValue('');
+    expect(await page.evaluate(() =>
+      (window as unknown as { __assistantCalls?: number }).__assistantCalls ?? 0
+    )).toBe(1);
+  });
+
   test('restores unsent composer text after reload', async ({ page }) => {
     await mockConversationShell(page, { preserveLocalState: true });
 
