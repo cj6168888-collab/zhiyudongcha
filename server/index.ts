@@ -6,6 +6,7 @@
  * @date 2026-04-19
  */
 
+import './lib/load-env';
 import express from 'express';
 import session from 'express-session';
 import { createServer as createHttpServer, Server } from 'http';

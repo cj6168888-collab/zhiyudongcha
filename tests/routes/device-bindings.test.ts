@@ -219,11 +219,15 @@ describe('Device Bindings API Routes — P1', () => {
       expect(res.body.devices).toHaveLength(0);
     });
 
-    it('service 异常返回 500', async () => {
+    it('service 异常时返回安全空列表', async () => {
       deviceBindingServiceMock.listDevices.mockRejectedValue(new Error('db error'));
       const res = await request(app).get('/api/device-bindings');
 
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        success: true,
+        devices: [],
+      });
     });
   });
 

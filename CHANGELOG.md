@@ -8,6 +8,9 @@
 
 ### Added
 
+- Added mobile conversation home hardening for failed-send recovery, pending/draft queue switching, draft editing before execution, and native/Web Speech voice dictation fallback.
+- Added API contract documentation for `/api/assistant/pending`, `/api/assistant/pending/discard`, `/api/assistant/draft/update`, and `/api/assistant/draft/confirm`.
+- Added Playwright coverage for the mobile conversation home controls, failed-send retry, confirmation cards, and draft edit/save flow.
 - Added `docs/OPENCLAW_INTEGRATION_STATUS.md` and `docs/ROUTE_LAZY_LOAD_SMOKE.md` to document active OpenClaw routes and route lazy-load runtime smoke coverage.
 - 建立新的权威文档入口：[docs/00_CANONICAL_INDEX.md](./docs/00_CANONICAL_INDEX.md)。
 - 建立产品、设计、技术三套基线。
@@ -19,6 +22,7 @@
 
 ### Changed
 
+- Hardened assistant pending/draft route tests for DB recovery, in-memory merge semantics, created-at ordering, input validation, and user-scoped draft ownership.
 - Integrated OpenClaw remote control and task orchestration into the main app tree, then removed duplicate feature-drop sources and unused root-level pages.
 - Converted `client/src/App.tsx` page routes to route-level `React.lazy` loading and refreshed Capacitor `www` assets.
 - Stabilized release smoke scripts: production build env for `release:r1-gate`, `.env` loading for `deploy-smoke`, and focused UI smoke filtering for known realtime WebSocket noise.

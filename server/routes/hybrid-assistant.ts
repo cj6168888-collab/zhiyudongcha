@@ -363,6 +363,38 @@ router.delete('/authorizations/:id', (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/assistant/draft/update
+ *
+ * 用户在移动端修改草案条目后，保存回 pending_actions，随后确认执行使用修改后的版本。
+ */
+router.post('/draft/update', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as unknown as { user?: { id?: string } }).user?.id || 'default';
+    const { responseId, items } = req.body;
+    if (!responseId) {
+      res.status(400).json({ success: false, error: 'responseId is required' });
+      return;
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      res.status(400).json({ success: false, error: 'items must be a non-empty array' });
+      return;
+    }
+
+    const updatedDraft = await conversationActionExecutor.updateDraftByResponseId(responseId, items, userId);
+    if (!updatedDraft) {
+      res.status(404).json({ success: false, error: '草案不存在或已过期' });
+      return;
+    }
+
+    logger.info({ responseId, itemCount: updatedDraft.items?.length ?? 0 }, 'Draft updated');
+    res.json({ success: true, draft: updatedDraft });
+  } catch (error) {
+    logger.error({ err: error }, 'Draft update failed');
+    res.status(500).json({ success: false, error: '草案保存失败' });
+  }
+});
+
+/**
  * POST /api/assistant/draft/confirm
  *
  * 用户确认草案后执行所有条目
@@ -376,7 +408,7 @@ router.post('/draft/confirm', async (req: Request, res: Response) => {
     }
     const userId = (req as unknown as { user?: { id?: string } }).user?.id || 'default';
 
-    const executions = await conversationActionExecutor.executeDraftByResponseId(responseId);
+    const executions = await conversationActionExecutor.executeDraftByResponseId(responseId, userId);
     if (!executions) {
       res.status(404).json({ success: false, error: '草案不存在或已过期' });
       return;
@@ -426,7 +458,7 @@ router.post('/authorize', async (req: Request, res: Response) => {
       case 'approve_once':
         // 取出暂存的 pending action 并执行
         if (responseId) {
-          executionResult = await conversationActionExecutor.executeByResponseId(responseId);
+          executionResult = await conversationActionExecutor.executeByResponseId(responseId, userId);
           if (executionResult?.success) {
             message = `好的，已完成：${executionResult.entityType} 已创建`;
           } else if (executionResult && !executionResult.success) {
@@ -446,7 +478,7 @@ router.post('/authorize', async (req: Request, res: Response) => {
           conditions: {},
         });
         if (responseId) {
-          executionResult = await conversationActionExecutor.executeByResponseId(responseId);
+          executionResult = await conversationActionExecutor.executeByResponseId(responseId, userId);
         }
         message = '好的，以后这类事我直接处理，不用再来问您了';
         break;
@@ -458,11 +490,14 @@ router.post('/authorize', async (req: Request, res: Response) => {
           conditions: { maxAmount: 1000 },
         });
         if (responseId) {
-          executionResult = await conversationActionExecutor.executeByResponseId(responseId);
+          executionResult = await conversationActionExecutor.executeByResponseId(responseId, userId);
         }
         message = '好的，已设置类似操作的授权额度';
         break;
       case 'deny':
+        if (responseId) {
+          await conversationActionExecutor.discardByResponseId(responseId, userId);
+        }
         message = '好的，已取消';
         break;
       case 'modify':
@@ -501,6 +536,28 @@ router.post('/authorize', async (req: Request, res: Response) => {
 
   } catch (error) {
     res.status(500).json({ success: false, error: '授权处理失败' });
+  }
+});
+
+/**
+ * POST /api/assistant/pending/discard
+ *
+ * 用户取消恢复出的 pending/draft 条目时，前后端都清理同一条暂存记录。
+ */
+router.post('/pending/discard', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as unknown as { user?: { id?: string } }).user?.id || 'default';
+    const { responseId } = req.body;
+    if (!responseId) {
+      res.status(400).json({ success: false, error: 'responseId is required' });
+      return;
+    }
+
+    const discarded = await conversationActionExecutor.discardByResponseId(responseId, userId);
+    res.json({ success: true, discarded });
+  } catch (error) {
+    logger.error({ err: error }, 'Pending discard failed');
+    res.status(500).json({ success: false, error: '取消失败' });
   }
 });
 

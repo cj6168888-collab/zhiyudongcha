@@ -17,6 +17,29 @@ export interface SecurityMiddlewareOptions {
   customHeaders?: Record<string, string>
 }
 
+export function shouldSkipRateLimit(method: string, requestPath?: string): boolean {
+  const path = requestPath ?? ''
+  const alwaysSkipPaths = ['/health', '/metrics', '/api/meta/rate-limit-stats']
+  if (alwaysSkipPaths.some(skipPath => path.includes(skipPath))) {
+    return true
+  }
+
+  if (method !== 'GET') {
+    return false
+  }
+
+  const passivePollingPaths = [
+    '/api/hp/balance',
+    '/api/models/status',
+    '/api/models/cloud-status',
+    '/api/device-bindings',
+    '/api/assistant/pending',
+    '/api/alerts/pending'
+  ]
+
+  return passivePollingPaths.some(skipPath => path === skipPath || path.startsWith(`${skipPath}/`))
+}
+
 /**
  * 安全中间件配置
  */
@@ -148,8 +171,7 @@ export class SecurityMiddleware {
       },
       skip: (req) => {
         // 跳过健康检查等特殊路由
-        const skipPaths = ['/health', '/metrics', '/api/meta/rate-limit-stats']
-        return skipPaths.some(path => req.path?.includes(path))
+        return shouldSkipRateLimit(req.method, req.path)
       }
     })
   }

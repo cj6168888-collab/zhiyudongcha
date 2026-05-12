@@ -67,9 +67,13 @@ import { conversationExecutionEventRecorder } from '../../../services/assistant/
 import { storageAdapter } from '../../../storage/adapter';
 import { taskOrchestrator } from '../../../services/task-orchestrator';
 
-function createApp() {
+function createApp(userId = 'default') {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    (req as any).user = { id: userId };
+    next();
+  });
   app.use('/api/assistant', hybridAssistantRouter);
   return app;
 }
@@ -191,6 +195,105 @@ describe('Hybrid Assistant first product loop', () => {
       pending: [],
       draft: [],
     });
+  });
+
+  it('merges memory and database pending summaries by id and keeps createdAt order', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-db-merge-pending',
+        type: 'confirm',
+        message: '需要您确认是否创建项目',
+        action: 'create_project',
+        actionParams: {
+          title: '内存旧标题',
+        },
+      }),
+    );
+
+    const app = createApp('summary-user');
+
+    await request(app)
+      .post('/api/assistant')
+      .send({ message: '帮我创建一个需要确认的项目' })
+      .expect(200);
+
+    const recoveredAt = Date.now();
+    const dbRows = [
+      {
+        id: 'resp-db-draft',
+        entryType: 'draft',
+        action: null,
+        actionParams: null,
+        items: [
+          {
+            action: 'create_task',
+            label: '创建任务：恢复任务',
+            actionParams: { name: '恢复任务', triggerType: 'MANUAL' },
+          },
+        ],
+        expiresAt: new Date(recoveredAt + 20 * 60 * 1000),
+        createdAt: new Date(recoveredAt + 1000),
+      },
+      {
+        id: 'resp-db-merge-pending',
+        entryType: 'pending',
+        action: 'create_project',
+        actionParams: { title: 'DB恢复覆盖' },
+        items: null,
+        expiresAt: new Date(recoveredAt + 20 * 60 * 1000),
+        createdAt: new Date(recoveredAt + 2000),
+      },
+      {
+        id: 'resp-db-pending',
+        entryType: 'pending',
+        action: 'save_memory',
+        actionParams: { content: '恢复记忆', tags: ['恢复'] },
+        items: null,
+        expiresAt: new Date(recoveredAt + 20 * 60 * 1000),
+        createdAt: new Date(recoveredAt + 3000),
+      },
+    ];
+    const where = vi.fn().mockResolvedValue(dbRows);
+    const from = vi.fn(() => ({ where }));
+    const select = vi.fn(() => ({ from }));
+    mockGetDatabase.mockReturnValue({ select });
+
+    const pendingSummary = await request(app)
+      .get('/api/assistant/pending')
+      .expect(200);
+
+    expect(pendingSummary.body).toMatchObject({
+      success: true,
+      count: 3,
+      pending: [
+        {
+          id: 'resp-db-merge-pending',
+          action: 'create_project',
+          actionParams: { title: 'DB恢复覆盖' },
+        },
+        {
+          id: 'resp-db-pending',
+          action: 'save_memory',
+          actionParams: { content: '恢复记忆', tags: ['恢复'] },
+        },
+      ],
+      draft: [
+        {
+          id: 'resp-db-draft',
+          entryType: 'draft',
+          items: [
+            {
+              action: 'create_task',
+              label: '创建任务：恢复任务',
+              actionParams: { name: '恢复任务', triggerType: 'MANUAL' },
+            },
+          ],
+        },
+      ],
+    });
+    expect(select).toHaveBeenCalledTimes(1);
+    expect(from).toHaveBeenCalledTimes(1);
+    expect(where).toHaveBeenCalledTimes(1);
   });
 
   it('executes create_task returned by AI', async () => {
@@ -329,6 +432,44 @@ describe('Hybrid Assistant first product loop', () => {
         execution: expect.objectContaining({ action: 'create_project', success: true }),
       }),
     );
+  });
+
+  it('removes a pending action after deny authorization', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue(
+      makeAssistantResponse({
+        id: 'resp-deny-project',
+        type: 'confirm',
+        message: '需要您确认是否创建项目',
+        action: 'create_project',
+        actionParams: {
+          title: '待取消项目',
+        },
+      }),
+    );
+
+    const app = createApp();
+
+    await request(app)
+      .post('/api/assistant')
+      .send({ message: '帮我创建一个需要取消的项目' })
+      .expect(200);
+
+    await request(app)
+      .post('/api/assistant/authorize')
+      .send({ responseId: 'resp-deny-project', action: 'deny' })
+      .expect(200);
+
+    const pendingSummary = await request(app)
+      .get('/api/assistant/pending')
+      .expect(200);
+
+    expect(storageAdapter.createProject).not.toHaveBeenCalled();
+    expect(pendingSummary.body).toMatchObject({
+      success: true,
+      count: 0,
+      pending: [],
+      draft: [],
+    });
   });
 
   // ── CRON 循环任务执行 ──────────────────────────────────────────────────────
@@ -514,6 +655,135 @@ describe('Hybrid Assistant first product loop', () => {
     );
   });
 
+  it('updates a stored draft before execution', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue({
+      id: 'resp-draft-update',
+      handler: 'ai',
+      type: 'draft',
+      message: '我理解了以下 1 项内容，请确认后我来执行：',
+      draftItems: [
+        { action: 'create_project', label: '创建项目：旧项目', actionParams: { title: '旧项目', description: '' } },
+      ],
+    } as any);
+
+    const app = createApp();
+
+    await request(app)
+      .post('/api/assistant')
+      .send({ message: '先起草一个项目' })
+      .expect(200);
+
+    const updateResponse = await request(app)
+      .post('/api/assistant/draft/update')
+      .send({
+        responseId: 'resp-draft-update',
+        items: [
+          {
+            action: 'create_project',
+            label: '创建项目：新项目',
+            actionParams: { title: '新项目', description: '修改后的说明' },
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(updateResponse.body).toMatchObject({
+      success: true,
+      draft: {
+        id: 'resp-draft-update',
+        items: [
+          {
+            action: 'create_project',
+            label: '创建项目：新项目',
+            actionParams: { title: '新项目', description: '修改后的说明' },
+          },
+        ],
+      },
+    });
+
+    await request(app)
+      .post('/api/assistant/draft/confirm')
+      .send({ responseId: 'resp-draft-update' })
+      .expect(200);
+
+    expect(storageAdapter.createProject).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '新项目', description: '修改后的说明' }),
+    );
+  });
+
+  it('validates /draft/update input before saving changes', async () => {
+    await request(createApp())
+      .post('/api/assistant/draft/update')
+      .send({ items: [{ action: 'create_project', actionParams: { title: '缺少ID' } }] })
+      .expect(400);
+
+    await request(createApp())
+      .post('/api/assistant/draft/update')
+      .send({ responseId: 'resp-missing-items' })
+      .expect(400);
+
+    await request(createApp())
+      .post('/api/assistant/draft/update')
+      .send({ responseId: 'resp-empty-items', items: [] })
+      .expect(400);
+
+    await request(createApp())
+      .post('/api/assistant/draft/update')
+      .send({
+        responseId: 'resp-unknown-draft',
+        items: [{ action: 'create_project', actionParams: { title: '不存在' } }],
+      })
+      .expect(404);
+  });
+
+  it('keeps draft update and confirm scoped to the owner user', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue({
+      id: 'resp-owner-draft',
+      handler: 'ai',
+      type: 'draft',
+      message: '我理解了以下 1 项内容，请确认后我来执行：',
+      draftItems: [
+        { action: 'create_project', label: '创建项目：用户隔离', actionParams: { title: '用户隔离', description: '' } },
+      ],
+    } as any);
+
+    await request(createApp('owner-user'))
+      .post('/api/assistant')
+      .send({ message: '先起草一个只属于我的项目' })
+      .expect(200);
+
+    await request(createApp('other-user'))
+      .post('/api/assistant/draft/update')
+      .send({
+        responseId: 'resp-owner-draft',
+        items: [
+          {
+            action: 'create_project',
+            label: '创建项目：越权修改',
+            actionParams: { title: '越权修改', description: '' },
+          },
+        ],
+      })
+      .expect(404);
+
+    await request(createApp('other-user'))
+      .post('/api/assistant/draft/confirm')
+      .send({ responseId: 'resp-owner-draft' })
+      .expect(404);
+
+    await request(createApp('owner-user'))
+      .post('/api/assistant/draft/confirm')
+      .send({ responseId: 'resp-owner-draft' })
+      .expect(200);
+
+    expect(storageAdapter.createProject).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '用户隔离' }),
+    );
+    expect(storageAdapter.createProject).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: '越权修改' }),
+    );
+  });
+
   it('executes all draft items after /draft/confirm', async () => {
     vi.mocked(hybridAssistant.processMessage).mockResolvedValue({
       id: 'resp-draft-2',
@@ -556,6 +826,43 @@ describe('Hybrid Assistant first product loop', () => {
       success: true,
       action: 'create_task',
     });
+  });
+
+  it('discards a stored draft without executing it', async () => {
+    vi.mocked(hybridAssistant.processMessage).mockResolvedValue({
+      id: 'resp-draft-discard',
+      handler: 'ai',
+      type: 'draft',
+      message: '我理解了以下 1 项内容，请确认后我来执行：',
+      draftItems: [
+        { action: 'create_project', label: '创建项目：暂不执行', actionParams: { title: '暂不执行', description: '' } },
+      ],
+    } as any);
+
+    const app = createApp();
+
+    await request(app)
+      .post('/api/assistant')
+      .send({ message: '先起草一个项目但不要执行' })
+      .expect(200);
+
+    const discardResponse = await request(app)
+      .post('/api/assistant/pending/discard')
+      .send({ responseId: 'resp-draft-discard' })
+      .expect(200);
+
+    const pendingSummary = await request(app)
+      .get('/api/assistant/pending')
+      .expect(200);
+
+    expect(discardResponse.body).toMatchObject({ success: true, discarded: true });
+    expect(storageAdapter.createProject).not.toHaveBeenCalled();
+    expect(pendingSummary.body.success).toBe(true);
+    expect(pendingSummary.body.draft).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'resp-draft-discard' }),
+      ]),
+    );
   });
 
   it('returns 404 for /draft/confirm with unknown responseId', async () => {

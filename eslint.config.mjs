@@ -75,21 +75,7 @@ export default [
       'require-await': 'off',
       '@typescript-eslint/require-await': 'warn',
 
-      // 导入排序
       '@typescript-eslint/no-require-imports': 'error',
-      'import/order': ['error', {
-        groups: [
-          'builtin',
-          'external',
-          'internal',
-          ['parent', 'sibling'],
-          'index',
-        ],
-        alphabetize: {
-          order: 'asc',
-          caseInsensitive: true,
-        },
-      }],
     },
   },
 
@@ -171,7 +157,6 @@ export default [
 
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      'react/prop-types': 'off',
     },
   },
 ];

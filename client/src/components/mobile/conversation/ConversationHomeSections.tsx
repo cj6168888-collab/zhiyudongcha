@@ -1,13 +1,13 @@
-import type { LucideIcon } from "lucide-react";
 import {
-  Bot,
-  ChevronRight,
+  FileText,
   Loader2,
   Mic,
   Paperclip,
   Send,
   Sparkles,
+  X,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface XiaozhiStatusHeaderProps {
@@ -15,10 +15,9 @@ interface XiaozhiStatusHeaderProps {
   brainLabel: string;
   role: string;
   isProcessing: boolean;
-  hpPercent: number;
-  hpToneClass: string;
   deviceLabel: string;
   deviceHealthy: boolean;
+  loading?: boolean;
   onOpenNavigator: () => void;
 }
 
@@ -27,12 +26,31 @@ export function XiaozhiStatusHeader({
   brainLabel,
   role,
   isProcessing,
-  hpPercent,
-  hpToneClass,
   deviceLabel,
   deviceHealthy,
+  loading = false,
   onOpenNavigator,
 }: XiaozhiStatusHeaderProps) {
+  if (loading) {
+    return (
+      <header className="flex-shrink-0 border-b border-white/10 bg-[#050817]/95 px-4 pb-3 pt-3 backdrop-blur-xl">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-12 w-12 rounded-xl bg-white/10" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-5 w-24 bg-white/10" />
+            <Skeleton className="h-3 w-40 bg-white/10" />
+          </div>
+          <Skeleton className="h-10 w-10 rounded-xl bg-white/10" />
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          <Skeleton className="h-6 w-20 rounded-full bg-white/10" />
+          <Skeleton className="h-6 w-20 rounded-full bg-white/10" />
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="flex-shrink-0 border-b border-white/10 bg-[#050817]/95 px-4 pb-3 pt-3 backdrop-blur-xl">
       <div className="flex items-center gap-3">
@@ -62,197 +80,195 @@ export function XiaozhiStatusHeader({
         </button>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
-          <p className="text-[10px] text-slate-500">HP</p>
-          <p className={cn("mt-0.5 text-sm font-black", hpToneClass)}>{hpPercent}%</p>
-        </div>
-        <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
-          <p className="text-[10px] text-slate-500">安全区</p>
-          <p className="mt-0.5 text-sm font-black text-blue-200">
-            {role === "MASTER" ? "主控" : "受限"}
-          </p>
-        </div>
-        <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
-          <p className="text-[10px] text-slate-500">设备</p>
-          <p className={cn("mt-0.5 text-sm font-black", deviceHealthy ? "text-emerald-200" : "text-amber-200")}>
-            {deviceLabel}
-          </p>
-        </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-bold text-slate-300">
+          {role === "MASTER" ? "主控" : "受限"}
+        </span>
+        <span className={cn(
+          "rounded-full border px-2.5 py-1 text-[11px] font-bold",
+          deviceHealthy
+            ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+            : "border-amber-300/20 bg-amber-300/10 text-amber-100"
+        )}>
+          设备 {deviceLabel}
+        </span>
       </div>
     </header>
   );
 }
 
+type NowStripNoticeTone = "info" | "warning" | "danger";
+
 interface NowStripProps {
-  currentProjectTitle: string | null;
-  pendingCount: number;
-  onOpenContext: () => void;
-  onOpenPending: () => void;
-  onOpenTasks: () => void;
+  noticeTitle?: string | null;
+  noticeDetail?: string | null;
+  noticeTone?: NowStripNoticeTone;
+  actionLabel?: string;
+  loading?: boolean;
+  onOpenNotice: () => void;
 }
 
 export function NowStrip({
-  currentProjectTitle,
-  pendingCount,
-  onOpenContext,
-  onOpenPending,
-  onOpenTasks,
+  noticeTitle,
+  noticeDetail,
+  noticeTone = "info",
+  actionLabel = "查看",
+  loading = false,
+  onOpenNotice,
 }: NowStripProps) {
-  return (
-    <section className="grid grid-cols-3 gap-2">
-      <button
-        onClick={onOpenContext}
-        className="min-h-16 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left active:bg-white/10"
-      >
-        <p className="text-[10px] text-slate-500">当前上下文</p>
-        <p className="mt-1 truncate text-xs font-bold text-white">{currentProjectTitle ?? "未选择项目"}</p>
-      </button>
-      <button
-        onClick={onOpenPending}
-        className="min-h-16 rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-left active:bg-amber-400/15"
-      >
-        <p className="text-[10px] text-amber-200/70">待确认</p>
-        <p className="mt-1 text-xs font-black text-amber-100">{pendingCount} 项</p>
-      </button>
-      <button
-        onClick={onOpenTasks}
-        className="min-h-16 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left active:bg-white/10"
-      >
-        <p className="text-[10px] text-slate-500">自动化</p>
-        <p className="mt-1 text-xs font-bold text-slate-200">去查看</p>
-      </button>
-    </section>
-  );
-}
+  if (loading) {
+    return (
+      <section className="mb-3">
+        <Skeleton className="h-10 w-full rounded-lg bg-white/10" />
+      </section>
+    );
+  }
 
-export function XiaozhiBrief() {
+  if (!noticeTitle || !noticeDetail) return null;
+
+  const noticeToneClass = {
+    info: "border-sky-400/20 bg-sky-400/10 text-sky-100",
+    warning: "border-amber-400/20 bg-amber-400/10 text-amber-100",
+    danger: "border-red-400/25 bg-red-400/10 text-red-100",
+  }[noticeTone];
+
   return (
-    <section className="mt-3 rounded-lg border border-violet-300/15 bg-violet-300/[0.06] p-3">
-      <div className="flex items-start gap-2">
-        <Bot className="mt-0.5 h-4 w-4 shrink-0 text-violet-200" />
-        <div className="min-w-0">
-          <p className="text-xs font-bold text-violet-100">我在。你可以直接说要我做什么。</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-            我会先理解，再把需要写入、执行或高风险的动作拿给你确认。
-          </p>
+    <section data-testid="now-strip" aria-label="重要通知" className="mb-3">
+      <button
+        data-testid="home-notice"
+        onClick={onOpenNotice}
+        className={cn("flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left active:bg-white/10", noticeToneClass)}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-black">{noticeTitle}</p>
+          <p className="mt-0.5 truncate text-[10px] opacity-80">{noticeDetail}</p>
         </div>
-      </div>
+        <span className="shrink-0 text-[10px] font-bold opacity-75">{actionLabel}</span>
+      </button>
     </section>
   );
 }
 
-interface StarterPromptListProps {
-  prompts: string[];
-  onSelect: (prompt: string) => void;
+export interface ConversationAttachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
 }
 
-export function StarterPromptList({ prompts, onSelect }: StarterPromptListProps) {
-  return (
-    <section className="mt-3 space-y-2">
-      {prompts.map((prompt) => (
-        <button
-          key={prompt}
-          onClick={() => onSelect(prompt)}
-          className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2.5 text-left text-xs text-slate-200 active:bg-white/10"
-        >
-          <span className="min-w-0 truncate">{prompt}</span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
-        </button>
-      ))}
-    </section>
-  );
-}
-
-export interface CapabilityItem {
-  label: string;
-  desc: string;
-  path: string;
-  icon: LucideIcon;
-  status: string;
-}
-
-interface CapabilityRailProps {
-  capabilities: CapabilityItem[];
-  onOpenAll: () => void;
-  onNavigate: (path: string) => void;
-}
-
-export function CapabilityRail({ capabilities, onOpenAll, onNavigate }: CapabilityRailProps) {
-  return (
-    <section className="mt-5 pb-3">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-[11px] font-black text-slate-500">能力</h2>
-        <button onClick={onOpenAll} className="text-[11px] font-bold text-violet-200">
-          全部
-        </button>
-      </div>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {capabilities.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.path}
-              onClick={() => onNavigate(item.path)}
-              className="w-24 shrink-0 rounded-lg border border-white/10 bg-white/[0.035] p-2.5 text-left active:bg-white/10"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <Icon className="h-4 w-4 text-slate-200" />
-                <span className="rounded border border-white/10 px-1 py-0.5 text-[8px] font-bold text-slate-400">
-                  {item.status}
-                </span>
-              </div>
-              <p className="mt-2 text-xs font-bold text-white">{item.label}</p>
-              <p className="mt-0.5 truncate text-[10px] text-slate-500">{item.desc}</p>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 interface CommandComposerProps {
   inputText: string;
   voiceActive: boolean;
+  voiceSupported: boolean;
+  voiceInterimText: string;
+  voiceNotice: string | null;
+  voiceAudioLevel: number;
   isProcessing: boolean;
+  attachments: ConversationAttachment[];
   onInputChange: (value: string) => void;
   onToggleVoice: () => void;
-  onAttach: () => void;
+  onAttachFiles: (files: File[]) => void;
+  onRemoveAttachment: (id: string) => void;
   onSend: () => void;
 }
 
 export function CommandComposer({
   inputText,
   voiceActive,
+  voiceSupported,
+  voiceInterimText,
+  voiceNotice,
+  voiceAudioLevel,
   isProcessing,
+  attachments,
   onInputChange,
   onToggleVoice,
-  onAttach,
+  onAttachFiles,
+  onRemoveAttachment,
   onSend,
 }: CommandComposerProps) {
+  const voiceLevelWidth = `${Math.max(8, Math.min(100, Math.round(voiceAudioLevel * 100)))}%`;
+
   return (
     <footer className="flex-shrink-0 border-t border-white/10 bg-[#050817]/95 px-3 pb-3 pt-2 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-lg items-end gap-2">
+      {attachments.length > 0 && (
+        <div className="mx-auto mb-2 flex max-w-lg flex-wrap gap-2">
+          {attachments.map((file) => (
+            <div
+              key={file.id}
+              data-testid="conversation-attachment"
+              className="flex max-w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2"
+            >
+              <FileText className="h-4 w-4 shrink-0 text-slate-300" />
+              <div className="min-w-0">
+                <p className="max-w-44 truncate text-[11px] font-bold text-slate-100">{file.name}</p>
+                <p className="text-[9px] text-slate-500">{formatFileSize(file.size)}</p>
+              </div>
+              <button
+                onClick={() => onRemoveAttachment(file.id)}
+                className="ml-1 rounded-full p-1 text-slate-500 active:bg-white/10"
+                aria-label={`移除 ${file.name}`}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {(voiceActive || voiceInterimText || voiceNotice) && (
+        <div className="mx-auto mb-2 max-w-lg rounded-lg border border-violet-300/20 bg-violet-300/10 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "h-2 w-2 shrink-0 rounded-full",
+                voiceActive ? "animate-pulse bg-red-300" : "bg-violet-300"
+              )}
+            />
+            <p className="min-w-0 flex-1 truncate text-xs font-bold text-violet-100">
+              {voiceInterimText || voiceNotice || "正在听..."}
+            </p>
+          </div>
+          {voiceActive && (
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-violet-300 transition-all" style={{ width: voiceLevelWidth }} />
+            </div>
+          )}
+        </div>
+      )}
+      <div className="mx-auto flex max-w-lg items-center gap-2">
         <button
           onClick={onToggleVoice}
           className={cn(
-            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04]",
-            voiceActive && "border-violet-300/40 bg-violet-400/15 text-violet-100"
+            "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04]",
+            voiceActive && "border-red-300/50 bg-red-400/15 text-red-100",
+            !voiceSupported && "text-slate-600"
           )}
-          aria-label="语音输入"
+          aria-label={voiceActive ? "停止语音输入" : "语音输入"}
         >
           <Mic className="h-5 w-5" />
         </button>
-        <button
-          onClick={onAttach}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300"
-          aria-label="添加材料"
-        >
+        <label className="inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 active:bg-white/10" aria-label="添加材料">
           <Paperclip className="h-5 w-5" />
-        </button>
-        <div className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 focus-within:border-violet-300/40">
+          <input
+            data-testid="conversation-file-input"
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              onAttachFiles(Array.from(event.currentTarget.files ?? []));
+              event.currentTarget.value = "";
+            }}
+          />
+        </label>
+        <div className="flex min-h-12 min-w-0 flex-1 items-center rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 focus-within:border-violet-300/40">
           <textarea
+            data-testid="conversation-input"
             value={inputText}
             onChange={(event) => onInputChange(event.target.value)}
             onKeyDown={(event) => {
@@ -267,9 +283,10 @@ export function CommandComposer({
           />
         </div>
         <button
+          data-testid="conversation-send"
           onClick={onSend}
-          disabled={!inputText.trim() || isProcessing}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white disabled:bg-white/10 disabled:text-slate-600"
+          disabled={(!inputText.trim() && attachments.length === 0) || isProcessing}
+          className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white disabled:bg-white/10 disabled:text-slate-600"
           aria-label="发送"
         >
           {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}

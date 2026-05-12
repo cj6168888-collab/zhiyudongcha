@@ -32,5 +32,17 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5001,
     allowedHosts: true,
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/ws": {
+        target: "ws://localhost:3000",
+        ws: true,
+        changeOrigin: true,
+      },
+    },
   },
 });

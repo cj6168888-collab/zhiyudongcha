@@ -88,6 +88,176 @@ type ApiResponse<T> = {
 - `/api/report`
 - `/api/health`
 
+## Assistant Mobile Queue Contracts
+
+The mobile conversation home depends on these mounted assistant endpoints.
+Status is `Experimental` because the response envelope still follows the
+existing route shape instead of the canonical `ApiResponse<T>` wrapper.
+
+### `GET /api/assistant/pending`
+
+- Status: `Experimental`
+- Auth: current request user when available; falls back to `default` in local/dev contexts
+- Permission: user-scoped read of active pending actions and drafts
+- Risk level: `L0 observation`
+- Data sensitivity: action titles, draft labels, action parameters
+- Audit behavior: none; read-only recovery endpoint
+- Tests: `server/tests/unit/routes/hybrid-assistant-flow.test.ts`
+
+Response:
+
+```ts
+type AssistantPendingSummary = {
+  success: true;
+  count: number;
+  pending: Array<{
+    id: string;
+    entryType: 'pending';
+    action: string;
+    actionParams?: Record<string, unknown>;
+    expiresAt: string | Date;
+    createdAt: string | Date;
+  }>;
+  draft: Array<{
+    id: string;
+    entryType: 'draft';
+    action: null;
+    items: Array<{
+      action: string;
+      label?: string;
+      actionParams: Record<string, unknown>;
+    }>;
+    expiresAt: string | Date;
+    createdAt: string | Date;
+  }>;
+};
+```
+
+Behavior:
+
+- Merges active in-memory queue entries with persisted `pending_actions` rows.
+- De-duplicates by `id`, with DB rows overriding the in-memory snapshot for the same id.
+- Sorts merged rows by `createdAt` ascending before splitting `pending` and `draft`.
+- Returns an empty successful summary when the DB table is unavailable.
+
+### `POST /api/assistant/pending/discard`
+
+- Status: `Experimental`
+- Auth: current request user when available; falls back to `default`
+- Permission: user-scoped discard of one active pending action or draft
+- Risk level: `L1 organize`
+- Data sensitivity: response id only
+- Audit behavior: none; discard removes unexecuted temporary work
+- Tests: `server/tests/unit/routes/hybrid-assistant-flow.test.ts`
+
+Request:
+
+```ts
+type DiscardPendingRequest = {
+  responseId: string;
+};
+```
+
+Response:
+
+```ts
+type DiscardPendingResponse = {
+  success: true;
+  discarded: boolean;
+};
+```
+
+Errors:
+
+- `400` when `responseId` is missing.
+- `500` when discard handling fails unexpectedly.
+
+### `POST /api/assistant/draft/update`
+
+- Status: `Experimental`
+- Auth: current request user when available; falls back to `default`
+- Permission: user-scoped update of one active draft
+- Risk level: `L2 draft`
+- Data sensitivity: draft action labels and action parameters
+- Audit behavior: none until the draft is confirmed and executed
+- Tests: `server/tests/unit/routes/hybrid-assistant-flow.test.ts`
+
+Request:
+
+```ts
+type UpdateDraftRequest = {
+  responseId: string;
+  items: Array<{
+    action: string;
+    label?: string;
+    actionParams: Record<string, unknown>;
+  }>;
+};
+```
+
+Response:
+
+```ts
+type UpdateDraftResponse = {
+  success: true;
+  draft: {
+    id: string;
+    entryType: 'draft';
+    action: null;
+    items: UpdateDraftRequest['items'];
+    expiresAt: string | Date;
+    createdAt: string | Date;
+  };
+};
+```
+
+Errors:
+
+- `400` when `responseId` is missing.
+- `400` when `items` is missing, empty, or not an array.
+- `404` when the draft does not exist, expired, or belongs to another user.
+- `500` when draft persistence fails unexpectedly.
+
+### `POST /api/assistant/draft/confirm`
+
+- Status: `Experimental`
+- Auth: current request user when available; falls back to `default`
+- Permission: user-scoped execution of one active draft
+- Risk level: depends on draft item actions; current supported actions create projects, tasks, memories, and persons, or search vault
+- Data sensitivity: draft action parameters and execution results
+- Audit behavior: successful executions are recorded through `ConversationExecutionEventRecorder`
+- Tests: `server/tests/unit/routes/hybrid-assistant-flow.test.ts`
+
+Request:
+
+```ts
+type ConfirmDraftRequest = {
+  responseId: string;
+};
+```
+
+Response:
+
+```ts
+type ConfirmDraftResponse = {
+  success: true;
+  executions: Array<{
+    success: boolean;
+    action: string;
+    entityType?: 'project' | 'task' | 'memory';
+    entityId?: string;
+    entityData?: Record<string, unknown>;
+    errorMessage?: string;
+  }>;
+};
+```
+
+Errors:
+
+- `400` when `responseId` is missing.
+- `404` when the draft does not exist, expired, or belongs to another user.
+- `500` when draft execution fails unexpectedly.
+
 ## WebSocket 合约
 
 WebSocket 端点必须文档化：

@@ -18,7 +18,11 @@
     "smoke:assistant-risk": "node scripts/assistant-risk-smoke.mjs",
     "smoke:assistant-ui": "node scripts/assistant-ui-smoke.mjs",
     "release:r1-gate": "node scripts/release-r1-gate.mjs",
+    "lint": "eslint client/src/pages/mobile/ConversationHome.tsx client/src/components/mobile/conversation/ConversationHomeSections.tsx client/src/lib/assistant-api.ts",
+    "check": "tsc --noEmit",
+    "format:check": "git diff --check",
     "test": "npm run test:api && npm run test:unit",
+    "test:run": "npm run test",
     "test:unit": "node --require ./scripts/vitest-windows-net-use-shim.cjs ./node_modules/vitest/vitest.mjs run",
     "test:api": "node --require ./scripts/vitest-windows-net-use-shim.cjs ./node_modules/vitest/vitest.mjs run --config vitest.api.config.ts",
     "test:e2e": "playwright test",
@@ -120,8 +124,8 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.42.1",
+    "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/vite": "^4.1.14",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
