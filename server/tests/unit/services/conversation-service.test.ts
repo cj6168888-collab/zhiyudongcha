@@ -186,6 +186,74 @@ describe('ConversationService.reviewCandidate', () => {
   });
 });
 
+describe('ConversationService.getInbox', () => {
+  it('returns empty inbox when db unavailable', async () => {
+    vi.mocked(getDatabase).mockReturnValue(null as any);
+    const result = await conversationService.getInbox({ ownerId: OWNER });
+    expect(result).toEqual({ conversations: [], total: 0 });
+  });
+
+  it('returns conversation history with pending work metadata', async () => {
+    const db = makeDb([
+      {
+        ...CONV_ROW,
+        id: 'conv-history-001',
+        status: 'completed',
+        total_count: '2',
+        candidate_count: '3',
+        pending_count: '2',
+        task_pending_count: '1',
+        memory_pending_count: '1',
+        event_pending_count: '0',
+        last_activity_at: new Date('2026-05-12T08:00:00.000Z').toISOString(),
+      },
+      {
+        ...CONV_ROW,
+        id: 'conv-history-002',
+        status: 'completed',
+        total_count: '2',
+        candidate_count: '0',
+        pending_count: '0',
+        task_pending_count: '0',
+        memory_pending_count: '0',
+        event_pending_count: '0',
+      },
+    ]);
+    vi.mocked(getDatabase).mockReturnValue(db as any);
+
+    const result = await conversationService.getInbox({ ownerId: OWNER, limit: 10, offset: 0 });
+
+    expect(result.total).toBe(2);
+    expect(result.conversations).toHaveLength(2);
+    expect(result.conversations[0].pendingCount).toBe(2);
+    expect(result.conversations[0].candidateCounts).toEqual({ total: 3, task: 1, memory: 1, event: 0 });
+    expect(result.conversations[0].lastActivityAt).toEqual(new Date('2026-05-12T08:00:00.000Z'));
+  });
+
+  it('keeps completed conversations even when they have no pending candidates', async () => {
+    const db = makeDb([
+      {
+        ...CONV_ROW,
+        id: 'conv-completed-no-pending',
+        status: 'completed',
+        total_count: '1',
+        candidate_count: '0',
+        pending_count: '0',
+        task_pending_count: '0',
+        memory_pending_count: '0',
+        event_pending_count: '0',
+      },
+    ]);
+    vi.mocked(getDatabase).mockReturnValue(db as any);
+
+    const result = await conversationService.getInbox({ ownerId: OWNER });
+
+    expect(result.conversations).toHaveLength(1);
+    expect(result.conversations[0].id).toBe('conv-completed-no-pending');
+    expect(result.conversations[0].pendingCount).toBe(0);
+  });
+});
+
 describe('ConversationService.getInboxCounts', () => {
   it('returns empty object when db unavailable', async () => {
     vi.mocked(getDatabase).mockReturnValue(null as any);
