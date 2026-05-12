@@ -862,9 +862,10 @@ export default function ConversationHome() {
       useAvatarStore.getState().setProcessing(true);
       const result = await approveAssistantAction(pendingConfirmation.responseId);
       const summary = formatExecutionSummary(result.execution);
+      const shouldAppendSummary = summary && result.execution?.entityType !== "pc_task";
       addMessage({
         role: "assistant",
-        content: summary ? `${result.message}\n\n${summary}` : result.message,
+        content: shouldAppendSummary ? `${result.message}\n\n${summary}` : result.message,
         timestamp: Date.now(),
       });
       const report = executionReportFromResult(result.execution);

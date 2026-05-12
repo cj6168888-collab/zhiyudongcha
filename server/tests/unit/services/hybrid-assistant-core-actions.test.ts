@@ -51,6 +51,20 @@ describe('HybridAssistant core action parsing', () => {
     });
   });
 
+  it('routes phone-to-PC execution requests before mobile navigation intent', async () => {
+    const response = await hybridAssistant.processMessage(
+      message('让PC端执行一次连通性测试，并把结果回传到手机端'),
+    );
+
+    expect(response.type).toBe('confirm');
+    expect(response.action).toBe('pc_execute');
+    expect(response.actionParams).toMatchObject({
+      type: 'system_optimize',
+      description: '执行一次连通性测试，并把结果回传到手机端',
+    });
+    expect(response.authorization?.operation).toBe('pc_execute');
+  });
+
   it.each([
     {
       text: '新增项目：客户成功系统，说明是把回访和续费统一管理。',

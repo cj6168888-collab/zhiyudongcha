@@ -52,6 +52,28 @@ export interface PCTaskResult {
   };
 }
 
+function extractConnectionTarget(description: string, params: Record<string, unknown>): { host: string; port: number } {
+  const hostFromParams = typeof params.host === 'string' && params.host.trim()
+    ? params.host.trim()
+    : undefined;
+  const portFromParams = typeof params.port === 'number'
+    ? params.port
+    : typeof params.port === 'string'
+      ? Number.parseInt(params.port, 10)
+      : undefined;
+  const hostMatch = description.match(/(?:连接|连通|访问|ping|测试)\s*([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|localhost|127\.0\.0\.1|::1)/iu);
+  const portMatch = description.match(/(?:端口|port)\s*(\d{1,5})/iu);
+
+  return {
+    host: hostFromParams || hostMatch?.[1] || '127.0.0.1',
+    port: Number.isFinite(portFromParams) && portFromParams! > 0
+      ? portFromParams!
+      : portMatch?.[1]
+        ? Number.parseInt(portMatch[1], 10)
+        : 80,
+  };
+}
+
 // PC端Agent
 export class PCAgent {
   private static instance: PCAgent | null = null;
@@ -357,9 +379,34 @@ export class PCAgent {
    * 处理系统优化任务
    */
   private async handleSystemOptimize(task: PCTaskRequest): Promise<PCTaskResult> {
-    const { description } = task;
+    const { description, params } = task;
 
     const suggestions: string[] = [];
+
+    if (/(网络|连接|连通|连通性|诊断|ping)/iu.test(description)) {
+      const target = extractConnectionTarget(description, params);
+      const result = await systemOperationService.testConnection(target.host, target.port);
+      const message = result.reachable
+        ? `PC 端连通性测试完成：${target.host} 可达，耗时约 ${result.latency ?? 0}ms`
+        : `PC 端连通性测试完成：${target.host} 不可达`;
+
+      return {
+        success: result.reachable,
+        type: 'system_optimize',
+        message,
+        data: {
+          host: target.host,
+          port: target.port,
+          reachable: result.reachable,
+          latency: result.latency,
+        },
+        details: {
+          output: result.reachable
+            ? `${target.host}:${target.port} reachable in ${result.latency ?? 0}ms`
+            : result.error || 'Host unreachable',
+        },
+      };
+    }
 
     if (description.includes('清理') || description.includes('优化')) {
       // 清理临时文件
@@ -579,6 +626,10 @@ export class PCAgent {
     const { description } = task;
 
     // 智能分析描述，尝试匹配已知任务类型
+    if (/(网络|连接|连通|连通性|诊断|ping)/iu.test(description)) {
+      return this.handleSystemOptimize({ ...task, type: 'system_optimize' });
+    }
+
     if (description.includes('桌面') || description.includes('文件')) {
       return this.handleFileOrganize({ ...task, type: 'file_organize' });
     }
