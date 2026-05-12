@@ -23,6 +23,12 @@ export interface ConversationRecord {
   updatedAt: Date;
 }
 
+export interface ConversationInboxRecord extends ConversationRecord {
+  pendingCount: number;
+  candidateCounts: Record<string, number>;
+  lastActivityAt: Date;
+}
+
 export interface ConversationSegmentRecord {
   id: string;
   conversationId: string;
@@ -301,7 +307,7 @@ class ConversationService {
     `);
   }
 
-  async getInbox(query: InboxQuery): Promise<{ conversations: ConversationRecord[]; total: number }> {
+  async getInbox(query: InboxQuery): Promise<{ conversations: ConversationInboxRecord[]; total: number }> {
     const db = this.db;
     if (!db) return { conversations: [], total: 0 };
 
@@ -309,20 +315,40 @@ class ConversationService {
     const offset = query.offset ?? 0;
 
     const rows = await db.execute(sql`
-      SELECT c.*, COUNT(*) OVER() AS total_count
+      WITH candidate_summary AS (
+        SELECT
+          conversation_id,
+          COUNT(*) AS candidate_count,
+          COUNT(*) FILTER (WHERE status = 'pending') AS pending_count,
+          COUNT(*) FILTER (WHERE status = 'pending' AND candidate_type = 'task') AS task_pending_count,
+          COUNT(*) FILTER (WHERE status = 'pending' AND candidate_type = 'memory') AS memory_pending_count,
+          COUNT(*) FILTER (WHERE status = 'pending' AND candidate_type = 'event') AS event_pending_count
+        FROM conversation_candidates
+        GROUP BY conversation_id
+      )
+      SELECT
+        c.*,
+        COUNT(*) OVER() AS total_count,
+        COALESCE(cs.candidate_count, 0) AS candidate_count,
+        COALESCE(cs.pending_count, 0) AS pending_count,
+        COALESCE(cs.task_pending_count, 0) AS task_pending_count,
+        COALESCE(cs.memory_pending_count, 0) AS memory_pending_count,
+        COALESCE(cs.event_pending_count, 0) AS event_pending_count,
+        GREATEST(
+          c.updated_at,
+          COALESCE(c.ended_at, c.updated_at),
+          COALESCE(c.imported_at, c.updated_at)
+        ) AS last_activity_at
       FROM conversations c
+      LEFT JOIN candidate_summary cs ON cs.conversation_id = c.id
       WHERE c.owner_id = ${query.ownerId}
-        AND c.status IN ('review_pending', 'completed')
-        AND EXISTS (
-          SELECT 1 FROM conversation_candidates cc
-          WHERE cc.conversation_id = c.id AND cc.status = 'pending'
-        )
-      ORDER BY c.created_at DESC
+        AND c.status <> 'discarded'
+      ORDER BY last_activity_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `);
 
     const total = rows.rows[0] ? Number((rows.rows[0] as Record<string, unknown>).total_count) : 0;
-    return { conversations: rows.rows.map(r => this.mapRow(r)), total };
+    return { conversations: rows.rows.map(r => this.mapInboxRow(r)), total };
   }
 
   async getInboxCounts(ownerId: string): Promise<Record<string, number>> {
@@ -366,6 +392,20 @@ class ConversationService {
       importedAt: r.imported_at ? new Date(r.imported_at) : null,
       createdAt: new Date(r.created_at),
       updatedAt: new Date(r.updated_at),
+    };
+  }
+
+  private mapInboxRow(r: Record<string, unknown>): ConversationInboxRecord {
+    return {
+      ...this.mapRow(r),
+      pendingCount: Number(r.pending_count ?? 0),
+      candidateCounts: {
+        total: Number(r.candidate_count ?? 0),
+        task: Number(r.task_pending_count ?? 0),
+        memory: Number(r.memory_pending_count ?? 0),
+        event: Number(r.event_pending_count ?? 0),
+      },
+      lastActivityAt: new Date((r.last_activity_at ?? r.updated_at) as string | number | Date),
     };
   }
 
