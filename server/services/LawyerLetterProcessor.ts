@@ -32,6 +32,7 @@ export interface LawyerLetterInfo {
 export interface RiskAssessment {
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   score: number;
+  scoreExplanation?: string;
   factors: string[];
   recommendations: string[];
   relatedLaws: string[];
@@ -380,13 +381,16 @@ class LawyerLetterProcessor {
     lines.push('');
     lines.push('**主张与诉求**:');
 
-    const claimLines = [...letterInfo.keyClaims, ...letterInfo.demands];
-    const displayClaims = claimLines.length > 0
-      ? [...new Set(claimLines)].slice(0, 5)
-      : text.split(/[。！？]/).filter(s => s.trim().length > 20).slice(0, 3).map(s => `${s.trim()}。`);
-
-    for (const claim of displayClaims) {
-      lines.push(`- ${claim}`);
+    const disputeTypes = this.describeDisputeTypes(text);
+    if (disputeTypes.length > 0) {
+      lines.push(`- 争议类型: ${disputeTypes.join('、')}`);
+    }
+    const requestedActions = this.extractRequestedActions(text);
+    if (requestedActions.length > 0) {
+      lines.push(`- 对方诉求: ${requestedActions.join('、')}`);
+    }
+    if (!disputeTypes.length && !requestedActions.length) {
+      lines.push('- 函件未清晰列明争议类型或具体诉求，需要要求发函方补充。');
     }
 
     if (entities?.amounts?.length) {
@@ -396,7 +400,7 @@ class LawyerLetterProcessor {
     if (riskAssessment) {
       lines.push('');
       lines.push('**风险等级**:');
-      lines.push(`- ${riskAssessment.severity}（评分 ${riskAssessment.score}，依据期限、金额、争议类型和拟采取法律行动综合判断）`);
+      lines.push(`- ${riskAssessment.severity}（评分 ${riskAssessment.score}/30；${riskAssessment.scoreExplanation || '依据期限、金额、争议类型和拟采取法律行动综合判断'}）`);
       if (riskAssessment.responseDeadline) {
         lines.push(`- 回复期限: ${riskAssessment.responseDeadline}`);
       }
@@ -533,6 +537,7 @@ class LawyerLetterProcessor {
     return {
       severity,
       score: totalScore,
+      scoreExplanation: this.describeScore(totalScore, hasShortDeadline, hasLargeClaim, hasFormalActionThreat),
       factors,
       recommendations,
       relatedLaws: [...new Set(relatedLaws)],
@@ -550,7 +555,7 @@ class LawyerLetterProcessor {
       laws.push('《中华人民共和国著作权法》第十条：著作权包括复制权、发行权、信息网络传播权等权利，软件代码问题需先核验作品属性和权属。');
       laws.push('《中华人民共和国著作权法》第五十二条：未经许可使用作品等侵权行为，应根据情况承担停止侵害、消除影响、赔礼道歉、赔偿损失等民事责任。');
       laws.push('《中华人民共和国民法典》第一千一百六十五条：过错侵害他人民事权益造成损害的，应承担侵权责任。');
-      laws.push('《中华人民共和国民法典》第一千一百八十五条：故意侵害知识产权且情节严重的，权利人可请求惩罚性赔偿。');
+      laws.push('《中华人民共和国民法典》第一千一百八十五条：仅在故意侵害知识产权且情节严重并能举证时，权利人可请求惩罚性赔偿。');
     }
 
     if (/合同|违约|尾款|验收|付款|服务/.test(text)) {
@@ -613,7 +618,7 @@ class LawyerLetterProcessor {
     const actions: string[] = [];
 
     if (responseDeadline) {
-      actions.push(`在 ${responseDeadline} 前发送书面回函，说明已收到函件、保留权利并要求对方补充证据。`);
+      actions.push(`在对方要求的 ${responseDeadline} 内发送书面回函，说明已收到函件、保留权利并要求对方补充证据。`);
     } else if (severity === 'HIGH' || severity === 'CRITICAL') {
       actions.push('尽快发送书面回函，避免被对方主张怠于回应或扩大损失。');
     }
@@ -638,6 +643,50 @@ class LawyerLetterProcessor {
     }
 
     return [...new Set(actions)];
+  }
+
+  private describeDisputeTypes(text: string): string[] {
+    const types: string[] = [];
+    if (/软件|代码|源代码/.test(text) && /侵权|未经授权|复制|使用/.test(text)) {
+      types.push('软件代码著作权侵权');
+    }
+    if (/合同|违约|尾款|验收|付款|服务/.test(text)) {
+      types.push('合同违约');
+    }
+    if (/商标/.test(text)) {
+      types.push('商标争议');
+    }
+    if (/专利/.test(text)) {
+      types.push('专利争议');
+    }
+    return types;
+  }
+
+  private extractRequestedActions(text: string): string[] {
+    const actions: string[] = [];
+    if (/停止/.test(text)) actions.push('停止争议行为');
+    if (/删除/.test(text)) actions.push('删除相关代码或资料');
+    if (/公开道歉|道歉/.test(text)) actions.push('公开道歉');
+    if (/赔偿|补偿/.test(text)) actions.push('赔偿损失');
+    if (/更正/.test(text)) actions.push('更正相关内容');
+    if (/诉讼|仲裁|起诉/.test(text)) actions.push('逾期后诉讼或仲裁');
+    return actions;
+  }
+
+  private describeScore(
+    _score: number,
+    hasShortDeadline: boolean,
+    hasLargeClaim: boolean,
+    hasFormalActionThreat: boolean
+  ): string {
+    const scale = '0-4为LOW，5-9为MEDIUM，10-17为HIGH，18以上或短期限+明确金额+正式法律行动为CRITICAL';
+    const triggers = [
+      hasShortDeadline ? '短期限' : '',
+      hasLargeClaim ? '明确金额' : '',
+      hasFormalActionThreat ? '诉讼/仲裁等正式行动' : '',
+    ].filter(Boolean);
+
+    return `${scale}；本案触发${triggers.length ? triggers.join('、') : '常规函件'}因素`;
   }
 
   private extractResponseDeadline(text: string, entities: ProcessResult['entities']): string | undefined {
