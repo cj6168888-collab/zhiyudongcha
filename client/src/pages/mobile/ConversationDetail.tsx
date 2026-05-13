@@ -408,6 +408,12 @@ export default function ConversationDetail({ params }: Props) {
     );
   }
 
+  const continueParams = new URLSearchParams({
+    resumeConversationId: conv.id,
+    resumeTitle: conv.title ?? conv.summary ?? "这段会话",
+  });
+  const continueConversationPath = `/?${continueParams.toString()}`;
+
   return (
     <SafeLayout headerTitle={conv.title ?? "会话详情"}>
       <section data-testid="conversation-detail-overview" className="mb-4 border-b border-white/10 pb-4">
@@ -519,7 +525,7 @@ export default function ConversationDetail({ params }: Props) {
         <button
           type="button"
           data-testid="continue-conversation"
-          onClick={() => setLocation("/")}
+          onClick={() => setLocation(continueConversationPath)}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-violet-500 text-sm font-black text-white active:bg-violet-600"
         >
           <MessageCircle className="h-4 w-4" />

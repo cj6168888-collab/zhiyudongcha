@@ -424,6 +424,27 @@ test.describe('Mobile conversation home', () => {
     expect(historySearch).toContain('deviceId=mobile-device-');
   });
 
+  test('sends resumed conversation context with the next message', async ({ page }) => {
+    await mockConversationShell(page);
+
+    await page.goto(`${appUrl}?resumeConversationId=conv-pc&resumeTitle=${encodeURIComponent('PC 执行回流')}`, {
+      waitUntil: 'domcontentloaded',
+    });
+
+    await expect(page.getByTestId('resume-conversation-context')).toContainText('正在接着这段会话');
+    await expect(page.getByTestId('resume-conversation-context')).toContainText('PC 执行回流');
+
+    await sendConversationMessage(page, '接着刚才那段继续');
+
+    const assistantPayload = await page.evaluate(() =>
+      (window as unknown as { __assistantPayload?: Record<string, unknown> }).__assistantPayload
+    );
+    expect(assistantPayload?.resumeConversationId).toBe('conv-pc');
+    expect(assistantPayload?.resumeConversationTitle).toBe('PC 执行回流');
+    expect(assistantPayload?.sessionId).toMatch(/^mobile-session-/);
+    expect(assistantPayload?.deviceId).toMatch(/^mobile-device-/);
+  });
+
   test('keeps device setup out of the home surface', async ({ page }) => {
     await mockConversationShell(page);
 

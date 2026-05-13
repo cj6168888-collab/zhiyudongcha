@@ -122,6 +122,8 @@ export interface AssistantConversationContext {
   sessionId?: string;
   deviceId?: string;
   source?: string;
+  resumeConversationId?: string;
+  resumeConversationTitle?: string;
 }
 
 function contextParams(context?: AssistantConversationContext) {

@@ -117,6 +117,9 @@ test.describe('Mobile conversation detail', () => {
     await expect(page.getByTestId('candidate-linked-entity')).toContainText('vault-1');
 
     await page.getByTestId('continue-conversation').click();
-    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page).toHaveURL(/\/\?resumeConversationId=conv-pc/);
+    const targetUrl = new URL(page.url());
+    expect(targetUrl.searchParams.get('resumeConversationId')).toBe('conv-pc');
+    expect(targetUrl.searchParams.get('resumeTitle')).toBe('PC 执行回流');
   });
 });

@@ -8,6 +8,7 @@ import {
   FileText,
   FolderKanban,
   Loader2,
+  MessageSquareText,
   Pencil,
   RefreshCw,
   Save,
@@ -137,6 +138,12 @@ interface ExecutionReport {
   success: boolean;
 }
 
+interface ResumeConversationContext {
+  conversationId: string;
+  title: string;
+  createdAt: number;
+}
+
 interface LocalConversationHomeState {
   inputText?: string;
   failedSend?: FailedSend | null;
@@ -146,6 +153,7 @@ interface LocalConversationHomeState {
     editing: boolean;
     updatedAt: number;
   } | null;
+  resumeContext?: ResumeConversationContext | null;
   updatedAt: number;
 }
 
@@ -158,6 +166,7 @@ const ACTION_META: Record<string, { label: string; icon: typeof FolderKanban }> 
 
 const LOCAL_STATE_KEY = "navigator.mobile.conversation-home.local-state.v1";
 const LOCAL_STATE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const RESUME_CONTEXT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const CONVERSATION_SESSION_KEY = "navigator.mobile.conversation-home.session-id.v1";
 const CONVERSATION_DEVICE_KEY = "navigator.mobile.conversation-home.device-id.v1";
 
@@ -340,6 +349,38 @@ function isDraftItemArray(value: unknown): value is DraftItem[] {
   });
 }
 
+function normalizeResumeTitle(value: unknown) {
+  const title = typeof value === "string" ? value.trim() : "";
+  return title ? title.slice(0, 80) : "这段会话";
+}
+
+function normalizeResumeConversationContext(value: unknown): ResumeConversationContext | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<ResumeConversationContext>;
+  if (typeof candidate.conversationId !== "string" || !candidate.conversationId.trim()) return null;
+  if (typeof candidate.createdAt !== "number" || Date.now() - candidate.createdAt > RESUME_CONTEXT_MAX_AGE_MS) return null;
+
+  return {
+    conversationId: candidate.conversationId.trim().slice(0, 160),
+    title: normalizeResumeTitle(candidate.title),
+    createdAt: candidate.createdAt,
+  };
+}
+
+function readResumeConversationContextFromUrl(): ResumeConversationContext | null {
+  if (typeof window === "undefined") return null;
+
+  const params = new URLSearchParams(window.location.search);
+  const conversationId = params.get("resumeConversationId")?.trim();
+  if (!conversationId) return null;
+
+  return {
+    conversationId: conversationId.slice(0, 160),
+    title: normalizeResumeTitle(params.get("resumeTitle")),
+    createdAt: Date.now(),
+  };
+}
+
 function readLocalConversationHomeState(): LocalConversationHomeState | null {
   if (typeof window === "undefined") return null;
 
@@ -372,11 +413,13 @@ function readLocalConversationHomeState(): LocalConversationHomeState | null {
           updatedAt: typeof parsed.activeDraft.updatedAt === "number" ? parsed.activeDraft.updatedAt : parsed.updatedAt,
         }
       : null;
+    const resumeContext = normalizeResumeConversationContext(parsed.resumeContext);
 
     return {
       inputText,
       failedSend,
       activeDraft,
+      resumeContext,
       updatedAt: parsed.updatedAt,
     };
   } catch {
@@ -391,8 +434,9 @@ function writeLocalConversationHomeState(state: Omit<LocalConversationHomeState,
   const hasInput = Boolean(state.inputText?.trim());
   const hasFailedSend = Boolean(state.failedSend?.message?.trim());
   const hasActiveDraft = Boolean(state.activeDraft?.responseId && state.activeDraft.items.length);
+  const hasResumeContext = Boolean(state.resumeContext?.conversationId);
 
-  if (!hasInput && !hasFailedSend && !hasActiveDraft) {
+  if (!hasInput && !hasFailedSend && !hasActiveDraft && !hasResumeContext) {
     window.localStorage.removeItem(LOCAL_STATE_KEY);
     return;
   }
@@ -497,6 +541,7 @@ export default function ConversationHome() {
   const [consumedPendingIds, setConsumedPendingIds] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<ConversationAttachment[]>([]);
   const [latestExecutionReport, setLatestExecutionReport] = useState<ExecutionReport | null>(null);
+  const [resumeContext, setResumeContext] = useState<ResumeConversationContext | null>(null);
   const [localStateHydrated, setLocalStateHydrated] = useState(false);
   const streamEndRef = useRef<HTMLDivElement>(null);
   const lastVoiceTranscriptRef = useRef("");
@@ -585,11 +630,22 @@ export default function ConversationHome() {
     : modelStatus?.syncing
       ? `模型同步中 ${Math.round(modelStatus.progress ?? 0)}%`
       : activeService?.name ?? modelStatus?.currentModel ?? modelStatus?.localModel ?? "模型待配置";
+  const assistantConversationContext = useMemo(() => ({
+    ...conversationContext,
+    ...(resumeContext
+      ? {
+          resumeConversationId: resumeContext.conversationId,
+          resumeConversationTitle: resumeContext.title,
+        }
+      : {}),
+  }), [conversationContext, resumeContext]);
 
   useEffect(() => {
     const localState = readLocalConversationHomeState();
+    const nextResumeContext = readResumeConversationContextFromUrl() ?? localState?.resumeContext ?? null;
     if (localState?.inputText) setInputText(localState.inputText);
     if (localState?.failedSend) setFailedSend(localState.failedSend);
+    if (nextResumeContext) setResumeContext(nextResumeContext);
     retainedActiveDraftRef.current = localState?.activeDraft ?? null;
     setLocalStateHydrated(true);
   }, []);
@@ -614,8 +670,9 @@ export default function ConversationHome() {
       inputText,
       failedSend,
       activeDraft,
+      resumeContext,
     });
-  }, [draftEditing, draftEdits, failedSend, inputText, localStateHydrated, pendingDraft]);
+  }, [draftEditing, draftEdits, failedSend, inputText, localStateHydrated, pendingDraft, resumeContext]);
 
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -774,8 +831,9 @@ export default function ConversationHome() {
       inputText,
       failedSend,
       activeDraft: null,
+      resumeContext,
     });
-  }, [assistantPending, failedSend, inputText, localStateHydrated, pendingDraft]);
+  }, [assistantPending, failedSend, inputText, localStateHydrated, pendingDraft, resumeContext]);
 
   const appendAssistantResponse = useCallback((
     response: AssistantResponse,
@@ -901,7 +959,7 @@ export default function ConversationHome() {
 
     try {
       useAvatarStore.getState().setProcessing(true);
-      const result = await sendAssistantMessage(message, conversationContext);
+      const result = await sendAssistantMessage(message, assistantConversationContext);
       appendAssistantResponse(result.response, formatExecutionSummary(result.execution), result.execution);
       void queryClient.invalidateQueries({ queryKey: ["assistant-history"] });
     } catch (error) {
@@ -920,7 +978,7 @@ export default function ConversationHome() {
     addMessage,
     appendAssistantResponse,
     attachments,
-    conversationContext,
+    assistantConversationContext,
     failedSend,
     inputText,
     isBusy,
@@ -1188,6 +1246,30 @@ export default function ConversationHome() {
           voiceAudioLevel={voiceAudioLevel}
           onToggleVoice={() => void handleToggleVoice()}
         />
+
+        {resumeContext && (
+          <section
+            data-testid="resume-conversation-context"
+            className="mt-3 rounded-lg border border-violet-300/20 bg-violet-300/[0.08] px-3 py-2.5"
+          >
+            <div className="flex items-center gap-2.5">
+              <MessageSquareText className="h-4 w-4 shrink-0 text-violet-200" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-black text-violet-100">正在接着这段会话</p>
+                <p className="mt-0.5 truncate text-xs font-semibold text-slate-300">{resumeContext.title}</p>
+              </div>
+              <button
+                type="button"
+                data-testid="clear-resume-context"
+                aria-label="不再接着这段会话"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-400 active:bg-white/10"
+                onClick={() => setResumeContext(null)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </section>
+        )}
 
         <section className="mt-4 space-y-3" aria-label="本次会话">
           {messages.length > 0 && (
