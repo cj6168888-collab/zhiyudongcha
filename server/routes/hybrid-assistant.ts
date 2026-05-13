@@ -251,6 +251,15 @@ function assistantMessageWithExecutionSummary(message: string, execution?: {
   if (execution.entityType === 'pc_task' && typeof execution.entityData?.message === 'string') {
     return `${message}\n\n${execution.entityData.message}`;
   }
+  if (execution.entityType === 'task') {
+    const id = execution.entityData?.id ? `，ID：${String(execution.entityData.id)}` : '';
+    const status = execution.entityData?.status ? `，当前状态：${String(execution.entityData.status)}` : '';
+    return `${message}\n\n已写入待办/任务系统${id}${status}。这是一条待办记录，不会自动拨打电话或外发消息；后续可在任务列表查看、修改或手动触发。`;
+  }
+  if (execution.entityType === 'memory') {
+    const id = execution.entityData?.id ? `，ID：${String(execution.entityData.id)}` : '';
+    return `${message}\n\n已保存到记忆库${id}，后续对话会优先参考这条偏好。`;
+  }
   return message;
 }
 
@@ -444,9 +453,13 @@ router.post('/', async (req: Request, res: Response) => {
     }, 'Response generated');
 
     await recordAssistantHistory('user', message, response.category, historyScope);
+    const clientResponse = executionResult
+      ? { ...response, message: assistantMessageWithExecutionSummary(response.message, executionResult) }
+      : response;
+
     await recordAssistantHistory(
       'assistant',
-      assistantMessageWithExecutionSummary(response.message, executionResult),
+      clientResponse.message,
       response.category,
       historyScope,
     );
@@ -458,7 +471,7 @@ router.post('/', async (req: Request, res: Response) => {
         await recordAssistantConversationTurn({
           userId,
           message,
-          responseMessage: response.message,
+          responseMessage: clientResponse.message,
           convMode,
           resumeConversation,
         });
@@ -468,7 +481,7 @@ router.post('/', async (req: Request, res: Response) => {
     // 返回
     res.json({
       success: true,
-      response,
+      response: clientResponse,
       ...(resumeConversation ? { conversation: { id: resumeConversation.id, resumed: true } } : {}),
       ...(executionResult ? { execution: executionResult } : {}),
     });

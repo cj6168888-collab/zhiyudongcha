@@ -333,7 +333,7 @@ class LawyerLetterProcessor {
       entities.dates = [...new Set(dateMatches)];
     }
 
-    const amountRegex = /[\d,]+(?:\.\d+)?\s*(?:万|亿|元|美元|欧元|英镑)/g;
+    const amountRegex = /[\d,]+(?:\.\d+)?\s*(?:(?:万|亿)?元|万|亿|美元|欧元|英镑)/g;
     const amountMatches = text.match(amountRegex);
     if (amountMatches) {
       entities.amounts = [...new Set(amountMatches)];
@@ -618,7 +618,10 @@ class LawyerLetterProcessor {
     const actions: string[] = [];
 
     if (responseDeadline) {
-      actions.push(`在对方要求的 ${responseDeadline} 内发送书面回函，说明已收到函件、保留权利并要求对方补充证据。`);
+      const deadlinePhrase = responseDeadline.endsWith('内')
+        ? `按对方要求在收到函件后${responseDeadline}`
+        : `在对方要求的 ${responseDeadline} 前`;
+      actions.push(`${deadlinePhrase}发送书面回函，说明已收到函件、保留权利并要求对方补充证据。`);
     } else if (severity === 'HIGH' || severity === 'CRITICAL') {
       actions.push('尽快发送书面回函，避免被对方主张怠于回应或扩大损失。');
     }
@@ -679,7 +682,7 @@ class LawyerLetterProcessor {
     hasLargeClaim: boolean,
     hasFormalActionThreat: boolean
   ): string {
-    const scale = '0-4为LOW，5-9为MEDIUM，10-17为HIGH，18以上或短期限+明确金额+正式法律行动为CRITICAL';
+    const scale = '系统内部风控分级，非法定或司法裁判标准：0-4为LOW，5-9为MEDIUM，10-17为HIGH，18以上或短期限+明确金额+正式法律行动为CRITICAL';
     const triggers = [
       hasShortDeadline ? '短期限' : '',
       hasLargeClaim ? '明确金额' : '',

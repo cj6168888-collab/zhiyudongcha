@@ -301,15 +301,13 @@ class ProfessionalKnowledgeService {
         }
       }
 
-      if (results.length < limit) {
-        const existing = new Set(results.map(result => `${result.title}\u0000${result.content}`));
-        for (const fallback of this.searchSeedKnowledge(query, type, category, limit, similarityThreshold)) {
-          const key = `${fallback.title}\u0000${fallback.content}`;
-          if (!existing.has(key) && !addedIds.has(fallback.id)) {
-            existing.add(key);
-            addedIds.add(fallback.id);
-            results.push(fallback);
-          }
+      const existing = new Set(results.map(result => `${result.title}\u0000${result.content}`));
+      for (const fallback of this.searchSeedKnowledge(query, type, category, limit, similarityThreshold)) {
+        const key = `${fallback.title}\u0000${fallback.content}`;
+        if (!existing.has(key) && !addedIds.has(fallback.id)) {
+          existing.add(key);
+          addedIds.add(fallback.id);
+          results.push(fallback);
         }
       }
 
@@ -398,6 +396,42 @@ class ProfessionalKnowledgeService {
     
     if (content.includes(query)) {
       charScore = Math.max(charScore, 0.9);
+    }
+
+    const searchable = `${content} ${tags.join(' ')}`;
+    const synonymGroups = [
+      ['拖欠工资', '克扣工资', '无故拖欠劳动者的工资', '未及时足额支付劳动报酬'],
+      ['没有缴纳社保', '未缴社保', '未依法为劳动者缴纳社会保险费', '社会保险费'],
+      ['解除劳动合同', '可以解除劳动合同', '单方解除', '被迫解除'],
+      ['经济补偿', '支付经济补偿', '经济补偿金'],
+      ['未签合同', '没签合同', '没签劳动合同', '没签书面合同', '没签书面劳动合同', '没有签合同', '没有签劳动合同', '未订立书面劳动合同', '二倍工资', '双倍工资', '双倍工资差额'],
+      ['违法解除', '违法终止', '违法辞退', '非法辞退', '无故辞退', '口头辞退', '不用来了', '赔偿金', '2N'],
+      ['违约金', '过分高于', '实际损失', '适当减少'],
+      ['管辖', '争议解决', '法院'],
+      ['劳动仲裁', '劳动争议仲裁', '仲裁时效', '申请仲裁', '劳动争议', '调解', '诉讼'],
+    ];
+
+    let synonymHits = 0;
+    for (const group of synonymGroups) {
+      const queryHit = group.some(term => query.includes(term));
+      const contentHit = group.some(term => searchable.includes(term));
+      if (queryHit && contentHit) {
+        synonymHits++;
+      }
+    }
+    if (synonymHits > 0) {
+      charScore = Math.max(charScore, Math.min(0.98, 0.78 + synonymHits * 0.08));
+    }
+    if (query.includes('经济补偿') && /经济补偿按劳动者在本单位工作的年限|每满一年支付一个月工资/.test(searchable)) {
+      charScore = Math.max(charScore, 0.95);
+    }
+    if (/拖欠工资|未及时足额支付劳动报酬|未缴社保|社会保险费|解除合同|解除劳动合同|经济补偿|劳动争议/.test(query)) {
+      if (/劳动争议申请仲裁的时效期间为一年/.test(searchable)) {
+        charScore = Math.max(charScore, 0.96);
+      }
+      if (/可以向劳动争议仲裁委员会申请仲裁|对仲裁裁决不服/.test(searchable)) {
+        charScore = Math.max(charScore, 0.94);
+      }
     }
     
     for (const tag of tags) {

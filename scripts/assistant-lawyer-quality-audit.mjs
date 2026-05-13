@@ -259,7 +259,10 @@ async function runCase(testCase, startedAt) {
       summary: '',
     }))
     : null;
-  if (llmJudge?.issues?.length && Number(llmJudge.score ?? 100) < 75) {
+  const seriousLlmIssues = (llmJudge?.issues || []).filter(isSeriousLlmIssue);
+  if (seriousLlmIssues.length > 0) {
+    issues.push(...seriousLlmIssues.map((issue) => `LLM评审：${issue}`));
+  } else if (llmJudge?.issues?.length && Number(llmJudge.score ?? 100) < 75) {
     issues.push(...llmJudge.issues.map((issue) => `LLM评审：${issue}`));
   }
 
@@ -278,7 +281,7 @@ async function runCase(testCase, startedAt) {
     id: testCase.id,
     feature: testCase.feature,
     userExpectation: testCase.userExpectation,
-    passed: endpointOk && checks.every((check) => check.passed) && rubricResult.passed && score >= 75,
+    passed: endpointOk && checks.every((check) => check.passed) && rubricResult.passed && score >= 75 && issues.length === 0,
     score,
     durationMs: Date.now() - startedAt,
     issues,
@@ -418,6 +421,28 @@ function getByPath(value, pathExpression) {
 }
 
 function collectText(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    if (typeof value.report === 'string') {
+      return collectText(value.report);
+    }
+    if (typeof value.response?.answer === 'string') {
+      return collectText({
+        answer: value.response.answer,
+        confidenceScore: value.response.confidenceScore,
+        dataSources: value.response.dataSources,
+        warnings: value.response.warnings,
+      });
+    }
+    if (typeof value.response?.message === 'string') {
+      return collectText({
+        message: value.response.message,
+        category: value.response.category,
+        type: value.response.type,
+        authorization: value.response.authorization,
+      });
+    }
+  }
+
   const chunks = [];
   const seen = new Set();
   const ignoredKeys = new Set([
@@ -452,6 +477,15 @@ function collectText(value) {
 
   visit(value);
   return chunks.join('\n');
+}
+
+function isSeriousLlmIssue(issue) {
+  if (/LLM评审失败/u.test(issue)) return false;
+  if (/轻微|未强调|未明确|建议|可进一步|略显|可能影响阅读/u.test(issue)) return false;
+  const normalized = issue
+    .replace(/错误率/gu, '指标率')
+    .replace(/时效敏感|时效提示|仲裁时效说明/gu, '程序提示');
+  return /编造|事实错误|错误引用|错误且不相关|无关.*法条|不准确|未检索|未验证|法条.*(?:缺失|适用错误|引用错误)|N\+1|绝对化|严重/u.test(normalized);
 }
 
 function summarize(results) {

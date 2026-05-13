@@ -15,6 +15,7 @@ import path from 'path';
 import { registerRoutes } from './routes';
 import { storage } from './storage';
 import { logger } from './lib/logger';
+import { ensureAssistantRuntimeSchema } from './services/assistant-runtime-schema';
 import { swarmTaskRegistry } from './services/swarm-task-registry';
 import { conversationActionExecutor } from './services/assistant/ConversationActionExecutor';
 import { cozeAPI } from './lib/coze-api';
@@ -222,6 +223,13 @@ async function main(): Promise<void> {
   }, '启动领航者 (Navigator-X) 服务器');
 
   const httpServer = await createServer(serverConfig.port, serverConfig.host);
+
+  // 确保 restart-safe 运行时表存在，避免本地/老库遗漏迁移时降级为纯内存状态。
+  try {
+    await ensureAssistantRuntimeSchema();
+  } catch (error) {
+    logger.warn({ err: error }, 'Assistant runtime schema ensure failed');
+  }
 
   // 从 DB 恢复蜂群任务和暂存动作（restart-safe）
   await Promise.allSettled([

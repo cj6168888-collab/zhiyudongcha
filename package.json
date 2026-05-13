@@ -18,6 +18,7 @@
     "smoke:assistant-risk": "node scripts/assistant-risk-smoke.mjs",
     "smoke:assistant-ui": "node scripts/assistant-ui-smoke.mjs",
     "quality:lawyer": "node scripts/assistant-lawyer-quality-audit.mjs",
+    "quality:assistant": "node scripts/assistant-capability-quality-audit.mjs",
     "release:r1-gate": "node scripts/release-r1-gate.mjs",
     "lint": "eslint client/src/pages/mobile/ConversationHome.tsx client/src/components/mobile/conversation/ConversationHomeSections.tsx client/src/lib/assistant-api.ts",
     "check": "tsc --noEmit",

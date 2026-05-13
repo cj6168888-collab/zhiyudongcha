@@ -877,6 +877,10 @@ class HybridAssistant {
         return this.handleRiskDecision(responseId, riskDecision);
       }
 
+      if (this.isEmotionalConversationRequest(message.content)) {
+        return this.handleEmotionalConversation(message.content, responseId);
+      }
+
       // ========== 第0.5步：多实体结构化草案 ==========
       if (this.isComplexMultiEntityInput(message.content)) {
         return this.handleStructuredDraft(message, responseId, userId);
@@ -925,6 +929,24 @@ class HybridAssistant {
     ];
 
     return patterns.some(p => text.includes(p));
+  }
+
+  private isEmotionalConversationRequest(text: string): boolean {
+    const hasEmotion = /烦|委屈|压力|焦虑|崩溃|难受|生气|不爽|心累|没底|担心|客户.*冲|语气.*冲/u.test(text);
+    const asksForThinking = /理一下|梳理|怎么回应|怎么说|帮我想|先聊|先别|别急|不要.*任务|别.*任务|暂时.*别/u.test(text);
+    const explicitExecution = /创建|新建|添加|保存|发给|发送|打电话|下单|支付|删除|提交/u.test(text);
+    return (hasEmotion && asksForThinking) || (hasEmotion && !explicitExecution);
+  }
+
+  private handleEmotionalConversation(text: string, responseId: string): AssistantResponse {
+    const emotion = /委屈/.test(text) ? '委屈' : /压力|焦虑|没底/.test(text) ? '压力' : /烦|不爽|生气/.test(text) ? '烦躁' : '情绪压力';
+    return {
+      id: responseId,
+      handler: 'direct',
+      category: '情绪陪伴',
+      type: 'report',
+      message: `我理解，你现在不是要我立刻创建任务，而是先把这股${emotion}接住、把回应思路理清楚。先别急着行动，也暂时别把话说重。\n\n可以先这样处理：第一，先把对方语气和事实分开，不急着反击；第二，回复里保留边界，例如“我理解你很着急，我先确认事实，10分钟内给你明确答复”；第三，如果对方继续冲，先暂停争辩，改成书面确认问题点。\n\n你可以把客户原话发我，我先帮你拆成“对方真正诉求、你要守住的边界、适合发出的回复”三段。`,
+    };
   }
 
   /**
