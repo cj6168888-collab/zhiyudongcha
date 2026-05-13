@@ -4,10 +4,10 @@ import {
   Mic,
   Paperclip,
   Send,
-  Sparkles,
   X,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NavigatorMark } from "@/components/mobile/navigator/NavigatorMark";
 import { cn } from "@/lib/utils";
 
 const WAVE_BARS = [34, 58, 82, 46, 72, 52, 38];
@@ -75,10 +75,11 @@ export function XiaozhiStatusHeader({
 
         <button
           onClick={onOpenNavigator}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:bg-white/10"
+          className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-cyan-200/25 bg-cyan-300/[0.07] text-cyan-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_24px_rgba(34,211,238,0.12)] active:bg-cyan-300/12"
           aria-label="打开领航"
         >
-          <Sparkles className="h-5 w-5" />
+          <span className="absolute inset-x-2 top-1 h-px bg-gradient-to-r from-transparent via-cyan-100/70 to-transparent" />
+          <NavigatorMark active className="h-7 w-7" />
         </button>
       </div>
 

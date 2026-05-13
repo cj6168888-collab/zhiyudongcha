@@ -11,13 +11,14 @@ import { SafeLayout } from "@/components/mobile/SafeLayout";
 import {
   Zap, Radar, Send, Activity, Database, CheckCircle2,
   ChevronRight, Clock, ShieldCheck, Settings2, Key,
-  Compass, Ship, AlertTriangle, Users
+  Ship, AlertTriangle, Users
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { NavigatorMark } from "@/components/mobile/navigator/NavigatorMark";
 
 const defaultFleetTasks = [
   { id: 'T1', node: '#772', task: '合同风险交叉建模', progress: 85 },
@@ -57,8 +58,8 @@ export default function NavigatorCommand() {
         <div className="p-6 rounded-[2.5rem] bg-primary/10 border border-primary/20 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center shadow-2xl">
-                <Compass className="w-7 h-7" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-200/25 bg-cyan-300/[0.12] text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.14)]">
+                <NavigatorMark active className="h-8 w-8" />
               </div>
               <div>
                 <h2 className="text-base font-black text-white italic tracking-widest uppercase font-serif italic">Navigator-X</h2>
