@@ -170,6 +170,7 @@ public class VoicePlugin extends Plugin {
                         if (!text.isEmpty()) {
                             JSObject event = new JSObject();
                             event.put("text", text);
+                            event.put("confidence", 1.0f);
                             event.put("isFinal", false);
                             notifyListeners("speechResult", event);
                         }
@@ -201,6 +202,8 @@ public class VoicePlugin extends Plugin {
 
             } catch (Exception e) {
                 isListening = false;
+                MainActivity activity = (MainActivity) getActivity();
+                activity.stopListening();
                 destroySpeechRecognizer();
                 call.reject("START_FAILED", e.getMessage());
             }
