@@ -20,6 +20,8 @@ describe('ConversationRiskGuard', () => {
     ['把客户资料导出发给外部顾问', 'confirm', 'privacy'],
     ['授权第三方读取通讯录', 'confirm', 'privacy'],
     ['帮我修改账号密码', 'confirm', 'account'],
+    ['现在马上替我发律师函起诉对方并报案', 'confirm', 'legal_financial_medical'],
+    ['起诉对方这件事你直接帮我办', 'confirm', 'legal_financial_medical'],
   ])('classifies risky instruction: %s', (text, level, category) => {
     const decision = conversationRiskGuard.evaluate(text);
 

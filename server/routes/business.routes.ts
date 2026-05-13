@@ -73,6 +73,7 @@ router.post('/experts/review', validateBody(expertReviewSchema), async (req, res
   const { expertId, imageBase64, content, projectId } = req.body;
   try {
     let result;
+    const isLegalExpert = /(lawyer|legal|律师|法务)/i.test(expertId);
     if (imageBase64) {
       const pureBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
       const effectiveProjectId = projectId || 'SYSTEM';
@@ -82,20 +83,38 @@ router.post('/experts/review', validateBody(expertReviewSchema), async (req, res
       result = await lawyerLetterProcessor.processFromFile({
         path: `scan_${safeProjectId}_${safeExpertId}_${ts}.jpg`,
         content: pureBase64,
-        encoding: 'base64'
+          encoding: 'base64'
+      });
+    } else if (content && isLegalExpert) {
+      const effectiveProjectId = projectId || 'SYSTEM';
+      const safeProjectId = sanitizeIdForPath(effectiveProjectId);
+      const safeExpertId = sanitizeIdForPath(expertId);
+      const ts = Date.now();
+      result = await lawyerLetterProcessor.processFromFile({
+        path: `review_${safeProjectId}_${safeExpertId}_${ts}.txt`,
+        content,
+        encoding: 'utf-8',
+        size: Buffer.byteLength(content, 'utf8'),
       });
     } else {
       result = { success: true, summary: content || "分析已受理" };
     }
+    const report = result.summary || content || "分析已受理";
     const vaultItem = await storageAdapter.createVaultItem({
+      category: isLegalExpert ? 'LEGAL' : 'EXPERT_REVIEW',
       fileName: `${expertId}-成果-${Date.now()}.md`,
-      content: result.summary,
+      filePath: `/vault/business/${sanitizeIdForPath(expertId)}-${Date.now()}.md`,
+      content: report,
       expertId,
-      projectId: projectId || 'SYSTEM'
+      projectId: projectId || 'SYSTEM',
+      semanticTags: [expertId, projectId || 'SYSTEM', isLegalExpert ? 'LEGAL' : 'EXPERT_REVIEW'],
+      semanticIndex: report.slice(0, 1000),
+      sandboxStatus: 'VERIFIED',
+      privacyZone: 'ZONE_GREEN',
     });
     // Z3 协议：同步分身
     webSocketManager.context.broadcastDataChange('vault', 'create', vaultItem);
-    res.json({ success: true, item: vaultItem, report: result.summary });
+    res.json({ success: true, item: vaultItem, report, analysis: result });
   } catch (err) {
     logger.error({ err }, 'Expert review error');
     res.status(500).json({ success: false, error: { code: 'EXPERT_ERROR', message: "专家节点挂起" } });

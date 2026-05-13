@@ -145,6 +145,36 @@ export class DocumentDecoderService {
     return "TEXT";
   }
 
+  async decodeDocument(
+    filePath: string,
+    content = "",
+    encoding: "utf-8" | "base64" | "binary" = "utf-8"
+  ): Promise<DecodeResult> {
+    const fileType = this.detectFileType("", filePath);
+
+    if (!content) {
+      return this.decodeFile(filePath, fileType);
+    }
+
+    if (fileType === "TEXT") {
+      return {
+        success: true,
+        text: encoding === "base64"
+          ? Buffer.from(content, "base64").toString("utf-8")
+          : content,
+        confidence: 1.0,
+        metadata: { format: "inline-text" },
+      };
+    }
+
+    const safeName = path.basename(filePath).replace(/[^a-zA-Z0-9._-]+/g, "_") || "document";
+    const tempPath = path.join(this.uploadDir, `decode-${Date.now()}-${safeName}`);
+    const payload = encoding === "base64" ? Buffer.from(content, "base64") : Buffer.from(content, "utf-8");
+    fs.writeFileSync(tempPath, payload);
+
+    return this.decodeFile(tempPath, fileType);
+  }
+
   async decodeFile(filePath: string, fileType: FileType, mimeType?: string): Promise<DecodeResult> {
     try {
       switch (fileType) {

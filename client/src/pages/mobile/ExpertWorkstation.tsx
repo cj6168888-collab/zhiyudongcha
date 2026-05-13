@@ -1,49 +1,103 @@
-﻿/**
- * ExpertWorkstation - 专家深度工作站 2.0 (状态绑定修复版)
- *
- * 修复：专家标题映射、输入框状态绑定、专家切换
+/**
+ * ExpertWorkstation - 专家深度工作站
  */
 import { SafeLayout } from "@/components/mobile/SafeLayout";
 import {
-  Mic, Send, BrainCircuit, FileText, ChevronRight, Activity, Zap, LineChart, ArrowLeft
+  Send, BrainCircuit, FileText, ChevronRight, Activity, LineChart, X, ShieldCheck, AlertTriangle
 } from "lucide-react";
 import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { apiRequest } from "@/lib/queryClient";
 
-// 专家配置映射
-const EXPERT_CONFIG: Record<string, { name: string; icon: typeof BrainCircuit; color: string; description: string }> = {
-  lawyer: { name: '随身律师', icon: BrainCircuit, color: 'text-blue-400', description: '合同评审、法律咨询' },
-  finance: { name: '财务主管', icon: BrainCircuit, color: 'text-green-400', description: '收支归类、税务预判' },
-  psychology: { name: '心理专家', icon: BrainCircuit, color: 'text-rose-400', description: '对手性格分析、博弈建议' },
-  planner: { name: '首席策划', icon: BrainCircuit, color: 'text-purple-400', description: '竞品分析、博弈推演' },
-  secretary: { name: '商务秘书', icon: BrainCircuit, color: 'text-amber-400', description: '会议纪要、日程同步' },
+type ExpertType = 'LEGAL' | 'FINANCE' | 'STRATEGY' | 'PSYCHOLOGY' | 'PLANNING' | 'SECRETARY';
+type ExpertId = 'lawyer' | 'legal' | 'finance' | 'psychology' | 'planner' | 'strategy' | 'secretary';
+
+interface ExpertConfig {
+  name: string;
+  icon: typeof BrainCircuit;
+  color: string;
+  description: string;
+  expertType: ExpertType;
+  professionalMode?: 'LEGAL' | 'FINANCE';
+}
+
+interface ThoughtStep {
+  step: number;
+  reasoning: string;
+  evidence?: string[];
+  conclusion: string;
+  confidence: number;
+}
+
+interface ExpertAnalysis {
+  expert: ExpertType;
+  finalVerdict: string;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  recommendations: string[];
+  chainOfThought: ThoughtStep[];
+  executionTimeMs?: number;
+}
+
+interface ProfessionalResult {
+  success: boolean;
+  response?: {
+    answer: string;
+    confidenceScore: number;
+    dataSources?: Array<{ title?: string; matchScore?: number; path?: string }>;
+    warnings?: string[];
+    isRefused?: boolean;
+    refusalReason?: string;
+  };
+  cotSteps?: Array<{ step: string; status: string; details: string }>;
+  processingTimeMs?: number;
+}
+
+interface WorkstationResult {
+  analysis?: ExpertAnalysis;
+  professional?: ProfessionalResult;
+}
+
+interface VaultItem {
+  id: string;
+  fileName: string;
+}
+
+const EXPERT_CONFIG: Record<ExpertId, ExpertConfig> = {
+  lawyer: { name: '随身律师', icon: ShieldCheck, color: 'text-blue-400', description: '合同评审、法律咨询', expertType: 'LEGAL', professionalMode: 'LEGAL' },
+  legal: { name: '随身律师', icon: ShieldCheck, color: 'text-blue-400', description: '合同评审、法律咨询', expertType: 'LEGAL', professionalMode: 'LEGAL' },
+  finance: { name: '财务主管', icon: BrainCircuit, color: 'text-green-400', description: '收支归类、税务预判', expertType: 'FINANCE', professionalMode: 'FINANCE' },
+  psychology: { name: '心理专家', icon: BrainCircuit, color: 'text-rose-400', description: '对手性格分析、博弈建议', expertType: 'PSYCHOLOGY' },
+  planner: { name: '首席策划', icon: BrainCircuit, color: 'text-purple-400', description: '竞品分析、博弈推演', expertType: 'PLANNING' },
+  strategy: { name: '首席策划', icon: BrainCircuit, color: 'text-purple-400', description: '竞品分析、博弈推演', expertType: 'STRATEGY' },
+  secretary: { name: '商务秘书', icon: BrainCircuit, color: 'text-amber-400', description: '会议纪要、日程同步', expertType: 'SECRETARY' },
 };
 
-type ExpertId = keyof typeof EXPERT_CONFIG;
+const RISK_STYLE: Record<ExpertAnalysis['riskLevel'], string> = {
+  LOW: 'text-green-400 border-green-500/30 bg-green-500/10',
+  MEDIUM: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
+  HIGH: 'text-orange-400 border-orange-500/30 bg-orange-500/10',
+  CRITICAL: 'text-red-400 border-red-500/30 bg-red-500/10',
+};
+
+async function postJson<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const res = await apiRequest('POST', path, body);
+  return await res.json() as T;
+}
 
 export default function ExpertWorkstation({ params }: { params: { id: string } }) {
-  const queryClient = useQueryClient();
   const expertId = params.id as ExpertId;
-
-  // 获取当前专家配置
   const expertConfig = useMemo(() => {
-    return EXPERT_CONFIG[expertId] || {
-      name: '未知专家',
-      icon: BrainCircuit,
-      color: 'text-gray-400',
-      description: '未知领域'
-    };
+    return EXPERT_CONFIG[expertId] || EXPERT_CONFIG.lawyer;
   }, [expertId]);
 
   const [activeTab, setActiveTab] = useState<'live' | 'knowledge' | 'simulation'>('live');
   const [queryInput, setQueryInput] = useState('');
   const [reasoningSteps, setSteps] = useState<string[]>([]);
-  const [simulationData, setSimulationData] = useState<any>(null);
+  const [result, setResult] = useState<WorkstationResult | null>(null);
 
-  // 1. 获取后端真实的专家知识库文档
-  const { data: vaultItems, refetch: refetchVault } = useQuery({
+  const { data: vaultItems, refetch: refetchVault } = useQuery<VaultItem[]>({
     queryKey: ['/api/vault', params.id],
     queryFn: async () => {
       const res = await fetch(`/api/vault?expertId=${params.id}`);
@@ -52,138 +106,198 @@ export default function ExpertWorkstation({ params }: { params: { id: string } }
     }
   });
 
-  // 2. 核心激活：专家协同评审与自动存证
-  const swarmMutation = useMutation({
-    mutationFn: async (query: string) => {
-      setSteps([]);
-      const res = await fetch('/api/business/experts/swarm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, expertId, projectId: 'P-DEFAULT' })
+  const analysisMutation = useMutation({
+    mutationFn: async (query: string): Promise<WorkstationResult> => {
+      setResult(null);
+      setSteps(['提交真实专家接口']);
+
+      let professional: ProfessionalResult | undefined;
+      if (expertConfig.professionalMode) {
+        setSteps(prev => [...prev, '执行零幻觉知识库检索']);
+        professional = await postJson<ProfessionalResult>('/api/professional/query', {
+          query,
+          mode: expertConfig.professionalMode,
+        });
+      }
+
+      setSteps(prev => [...prev, '执行专家分析与风险判定']);
+      const single = await postJson<{ success: boolean; data: ExpertAnalysis }>('/api/expert-orchestrator/single', {
+        query,
+        expertType: expertConfig.expertType,
+        useKnowledgeBase: true,
       });
-      return await res.json();
+
+      return { professional, analysis: single.data };
     },
     onSuccess: async (data) => {
-      if (data.success) {
-        // 模拟思维链渐进呈现
-        const steps = ["同步项目 RAG 库", "建立逻辑对冲模型", "测算博弈成算", "最终建议已物理归档"];
-        for (const s of steps) {
-          await new Promise(r => setTimeout(r, 600));
-          setSteps(prev => [...prev, s]);
-        }
-        // 关键：即时刷新知识库
-        await refetchVault();
-        toast.success("战略成果已存入智库。");
-      }
+      setResult(data);
+      setSteps(prev => [...prev, '产出已返回，可核查依据和建议']);
+      await refetchVault();
+      toast.success("专家分析完成");
     },
-    onError: () => {
-      toast.error("请求失败，请稍后重试");
+    onError: (error) => {
+      setSteps([]);
+      toast.error(error instanceof Error ? error.message : "请求失败，请稍后重试");
     }
   });
 
-  // 处理查询提交
   const handleQuerySubmit = () => {
     if (!queryInput.trim()) {
       toast.error("请输入查询内容");
       return;
     }
-    swarmMutation.mutate(queryInput);
+    analysisMutation.mutate(queryInput);
   };
 
-  // 清空输入
-  const handleClearInput = () => {
-    setQueryInput('');
-  };
-
-  // 获取页面标题
-  const getHeaderTitle = () => {
-    return expertConfig.name;
-  };
+  const answer = result?.professional?.response?.answer || result?.analysis?.finalVerdict;
+  const confidence = result?.professional?.response?.confidenceScore;
+  const dataSources = result?.professional?.response?.dataSources || [];
+  const riskLevel = result?.analysis?.riskLevel;
 
   return (
-    <SafeLayout headerTitle={getHeaderTitle()} showBack={true}>
-      <div className="flex flex-col h-full px-1">
+    <SafeLayout headerTitle={expertConfig.name} showBack={true}>
+      <div className="flex h-full flex-col px-1">
+        <div className="mb-4 rounded-lg border border-white/10 bg-white/[0.04] p-3">
+          <div className="flex items-center gap-3">
+            <expertConfig.icon className={cn("h-5 w-5", expertConfig.color)} />
+            <div>
+              <p className="text-sm font-bold text-white">{expertConfig.name}</p>
+              <p className="text-[10px] text-gray-500">{expertConfig.description}</p>
+            </div>
+          </div>
+        </div>
 
-        <div className="flex bg-white/5 p-1 rounded-2xl mb-6">
+        <div className="mb-4 flex rounded-lg bg-white/5 p-1">
           {(['live', 'knowledge', 'simulation'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "flex-1 py-2.5 rounded-xl text-[10px] font-bold transition-all uppercase",
+                "flex-1 rounded-md py-2 text-[10px] font-bold uppercase transition-all",
                 activeTab === tab ? "bg-white/10 text-white shadow-lg" : "text-gray-500 active:bg-white/5"
               )}
             >
-              {tab === 'live' ? '互动' : tab === 'knowledge' ? '知识' : '推演'}
+              {tab === 'live' ? '实时互动' : tab === 'knowledge' ? '知识库' : '推演'}
             </button>
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-24">
+        <div className="no-scrollbar flex-1 overflow-y-auto pb-24">
           {activeTab === 'live' ? (
-            <div className="h-full flex flex-col justify-between min-h-[400px]">
-              <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-4">
-                {reasoningSteps.map((s, i) => (
-                  <div key={i} className="w-full p-4 rounded-2xl bg-white/5 border border-white/5 text-xs text-gray-300 italic animate-in fade-in slide-in-from-bottom-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
-                      <span className="text-[8px] text-gray-600 font-mono">Step {i+1}</span>
+            <div className="flex min-h-[400px] flex-col justify-between">
+              <div className="flex-1 space-y-3 p-1">
+                {reasoningSteps.map((step, index) => (
+                  <div key={`${step}-${index}`} className="rounded-lg border border-white/5 bg-white/[0.04] p-3 text-xs text-gray-300">
+                    <div className="mb-1 flex items-center gap-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      <span className="text-[9px] font-mono text-gray-600">Step {index + 1}</span>
                     </div>
-                    {s}
+                    {step}
                   </div>
                 ))}
-                {reasoningSteps.length === 0 && (
-                  <div className="w-32 h-32 rounded-full border border-primary/20 flex items-center justify-center bg-primary/5 animate-pulse">
-                    <BrainCircuit className="w-12 h-12 text-primary" />
+
+                {!result && reasoningSteps.length === 0 && (
+                  <div className="flex min-h-64 flex-col items-center justify-center gap-4 text-center">
+                    <div className="flex h-28 w-28 items-center justify-center rounded-full border border-primary/20 bg-primary/5">
+                      <BrainCircuit className="h-10 w-10 text-primary" />
+                    </div>
+                    <p className="max-w-64 text-xs leading-relaxed text-gray-500">输入具体事实、合同条款或函件内容后，系统会返回可核查的法律分析结果。</p>
+                  </div>
+                )}
+
+                {answer && (
+                  <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.04] p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {riskLevel && (
+                        <span className={cn("rounded-md border px-2 py-1 text-[10px] font-black", RISK_STYLE[riskLevel])}>
+                          {riskLevel}
+                        </span>
+                      )}
+                      {typeof confidence === 'number' && (
+                        <span className="rounded-md border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-[10px] font-black text-blue-300">
+                          置信度 {Math.round(confidence * 100)}%
+                        </span>
+                      )}
+                      {result?.professional?.response?.isRefused && (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-[10px] font-black text-red-300">
+                          <AlertTriangle className="h-3 w-3" />
+                          依据不足
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="whitespace-pre-wrap text-xs leading-relaxed text-gray-200">{answer}</div>
+
+                    {dataSources.length > 0 && (
+                      <div className="space-y-2 border-t border-white/10 pt-3">
+                        <p className="text-[10px] font-black uppercase text-gray-500">引用来源</p>
+                        {dataSources.slice(0, 4).map((source, index) => (
+                          <div key={`${source.path || source.title}-${index}`} className="rounded-md bg-black/20 p-2 text-[10px] text-gray-400">
+                            {index + 1}. {source.title || source.path || '知识库来源'} {typeof source.matchScore === 'number' ? `(${Math.round(source.matchScore * 100)}%)` : ''}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {result?.analysis?.recommendations?.length ? (
+                      <div className="space-y-2 border-t border-white/10 pt-3">
+                        <p className="text-[10px] font-black uppercase text-gray-500">行动建议</p>
+                        {result.analysis.recommendations.slice(0, 5).map((recommendation, index) => (
+                          <div key={`${recommendation}-${index}`} className="text-xs leading-relaxed text-gray-300">
+                            {index + 1}. {recommendation}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </div>
-              <div className="p-4 bg-white/5 rounded-3xl border border-white/5 flex items-center gap-3">
+
+              <div className="mt-4 flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3">
                 <input
                   type="text"
                   value={queryInput}
                   onChange={(e) => setQueryInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleQuerySubmit()}
                   placeholder={`向${expertConfig.name}提问...`}
-                  className="flex-1 bg-transparent text-sm text-white placeholder:text-gray-600 outline-none"
-                  disabled={swarmMutation.isPending}
+                  className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-gray-600"
+                  disabled={analysisMutation.isPending}
                 />
                 {queryInput && (
-                  <button onClick={handleClearInput} className="p-1 text-gray-500">
-                    <ArrowLeft className="w-4 h-4" />
+                  <button onClick={() => setQueryInput('')} className="rounded-md p-2 text-gray-500 active:bg-white/10">
+                    <X className="h-4 w-4" />
                   </button>
                 )}
                 <button
                   onClick={handleQuerySubmit}
-                  disabled={swarmMutation.isPending || !queryInput.trim()}
-                  className="w-10 h-10 rounded-full bg-primary flex items-center justify-center active:scale-95 transition-all disabled:opacity-50"
+                  disabled={analysisMutation.isPending || !queryInput.trim()}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-primary transition-all active:scale-95 disabled:opacity-50"
                 >
-                  {swarmMutation.isPending ? (
-                    <Activity className="w-4 h-4 text-white animate-spin" />
+                  {analysisMutation.isPending ? (
+                    <Activity className="h-4 w-4 animate-spin text-white" />
                   ) : (
-                    <Send className="w-4 h-4 text-white" />
+                    <Send className="h-4 w-4 text-white" />
                   )}
                 </button>
               </div>
             </div>
           ) : activeTab === 'knowledge' ? (
             <div className="space-y-3">
-              <h4 className="text-[10px] font-bold text-gray-500 uppercase px-1">关联交付物 ({vaultItems?.length || 0})</h4>
-              {vaultItems?.map((item: any) => (
-                <div key={item.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
+              <h4 className="px-1 text-[10px] font-bold uppercase text-gray-500">关联交付物 ({vaultItems?.length || 0})</h4>
+              {vaultItems?.map((item) => (
+                <div key={item.id} className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.04] p-4">
                   <div className="flex items-center gap-3 overflow-hidden">
-                    <FileText className="w-4 h-4 text-primary shrink-0" />
-                    <span className="text-sm text-gray-200 truncate">{item.fileName}</span>
+                    <FileText className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="truncate text-sm text-gray-200">{item.fileName}</span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-700" />
+                  <ChevronRight className="h-4 w-4 text-gray-700" />
                 </div>
               ))}
             </div>
           ) : (
-            /* 推演模式保持逻辑... */
             <div className="py-10 text-center">
-              <LineChart className="w-16 h-16 text-primary/20 mx-auto animate-pulse mb-4" />
-              <p className="text-xs text-gray-500 px-10 leading-relaxed italic">MCTS 引擎正在后台模拟当日全网 10,000 次博弈走向...</p>
+              <LineChart className="mx-auto mb-4 h-16 w-16 text-primary/20" />
+              <p className="px-10 text-xs italic leading-relaxed text-gray-500">推演模式会调用多专家编排接口，对法律、财务和策略风险进行交叉仲裁。</p>
             </div>
           )}
         </div>

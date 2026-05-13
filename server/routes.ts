@@ -34,6 +34,8 @@ import recommendRouter from "./routes/recommend";
 import meetingRouter from "./routes/meeting";
 import smartAssistantRouter from "./routes/smart-assistant";
 import hybridAssistantRouter from "./routes/hybrid-assistant";
+import expertOrchestratorRouter from "./routes/expert-orchestrator";
+import { registerExpertRoutes } from "./routes/expert";
 import crossDeviceRouter from "./routes/cross-device";
 import deviceCommandRouter from "./routes/device-command";
 import pcAgentRouter from "./routes/pc-agent";
@@ -96,6 +98,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.use('/api/recommend', recommendRouter);
   app.use('/api/meeting', meetingRouter);
   app.use('/api/assistant', hybridAssistantRouter);
+  app.use('/api/expert-orchestrator', expertOrchestratorRouter);
+  registerExpertRoutes(app, {
+    httpServer,
+    connectedUsers: context.connectedUsers,
+    storage: storageAdapter,
+  });
   app.use('/api/cross-device', crossDeviceRouter);
   app.use('/api/devices', deviceCommandRouter);
   app.use('/api/pc-agent', pcAgentRouter);

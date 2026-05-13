@@ -115,6 +115,10 @@ describe('Business API Routes', () => {
   });
 
   it('validates expert review input, persists review reports, and broadcasts vault changes', async () => {
+    lawyerLetterProcessorMock.processFromFile
+      .mockResolvedValueOnce({ success: true, summary: 'text legal summary' })
+      .mockResolvedValueOnce({ success: true, summary: 'image summary' });
+
     const invalidResponse = await request(app).post('/api/business/experts/review').send({ content: 'x' });
     const contentResponse = await request(app).post('/api/business/experts/review').send({
       expertId: 'lawyer-1',
@@ -129,11 +133,12 @@ describe('Business API Routes', () => {
 
     expect(invalidResponse.status).toBe(400);
     expect(contentResponse.status).toBe(200);
+    expect(contentResponse.body.report).toBe('text legal summary');
     expect(contentResponse.body.item).toMatchObject({ id: 'vault-1' });
     expect(storageAdapterMock.createVaultItem).toHaveBeenCalledWith(
       expect.objectContaining({
         expertId: 'lawyer-1',
-        content: 'review this contract',
+        content: 'text legal summary',
         projectId: 'project-1',
       }),
     );
@@ -143,7 +148,15 @@ describe('Business API Routes', () => {
       expect.objectContaining({ id: 'vault-1' }),
     );
     expect(imageResponse.status).toBe(200);
-    expect(lawyerLetterProcessorMock.processFromFile).toHaveBeenCalledWith(
+    expect(lawyerLetterProcessorMock.processFromFile).toHaveBeenNthCalledWith(1,
+      expect.objectContaining({
+        path: expect.stringMatching(/^review_project-1_lawyer-1_\d+\.txt$/),
+        content: 'review this contract',
+        encoding: 'utf-8',
+        size: expect.any(Number),
+      }),
+    );
+    expect(lawyerLetterProcessorMock.processFromFile).toHaveBeenNthCalledWith(2,
       expect.objectContaining({
         path: expect.stringMatching(/^scan_project_1_lawyer_1_\d+\.jpg$/),
         content: 'abc123',

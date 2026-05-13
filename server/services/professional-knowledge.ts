@@ -219,6 +219,10 @@ class ProfessionalKnowledgeService {
     limit: number = 5,
     similarityThreshold: number = 0.1
   ): Promise<KnowledgeSearchResult[]> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
     const startTime = Date.now();
     const queryVector = simpleTextToVector(query, EMBEDDING_DIMENSIONS);
     const results: KnowledgeSearchResult[] = [];
@@ -238,7 +242,11 @@ class ProfessionalKnowledgeService {
             similarity = cosineSimilarity(queryVector, entryVector);
           }
           
-          const keywordMatch = this.calculateKeywordMatch(query, entry.content, entry.tags || []);
+          const keywordMatch = this.calculateKeywordMatch(
+            query,
+            `${entry.lawName} ${entry.articleNumber || ''} ${entry.content}`,
+            entry.tags || []
+          );
           const combinedScore = Math.max(similarity, keywordMatch);
           
           if (combinedScore >= similarityThreshold && !addedIds.has(entry.id)) {
@@ -270,7 +278,11 @@ class ProfessionalKnowledgeService {
             similarity = cosineSimilarity(queryVector, entryVector);
           }
           
-          const keywordMatch = this.calculateKeywordMatch(query, entry.content, entry.tags || []);
+          const keywordMatch = this.calculateKeywordMatch(
+            query,
+            `${entry.title} ${entry.content}`,
+            entry.tags || []
+          );
           const combinedScore = Math.max(similarity, keywordMatch);
           
           if (combinedScore >= similarityThreshold && !addedIds.has(entry.id)) {
@@ -289,6 +301,18 @@ class ProfessionalKnowledgeService {
         }
       }
 
+      if (results.length < limit) {
+        const existing = new Set(results.map(result => `${result.title}\u0000${result.content}`));
+        for (const fallback of this.searchSeedKnowledge(query, type, category, limit, similarityThreshold)) {
+          const key = `${fallback.title}\u0000${fallback.content}`;
+          if (!existing.has(key) && !addedIds.has(fallback.id)) {
+            existing.add(key);
+            addedIds.add(fallback.id);
+            results.push(fallback);
+          }
+        }
+      }
+
       results.sort((a, b) => b.similarity - a.similarity);
       const processingTime = Date.now() - startTime;
       logger.info(`[ProfKnowledge] Search completed in ${processingTime}ms, found ${results.length} matches`);
@@ -297,8 +321,69 @@ class ProfessionalKnowledgeService {
       
     } catch (error) {
       logger.error({ error }, 'Search error');
-      return [];
+      return this.searchSeedKnowledge(query, type, category, limit, similarityThreshold);
     }
+  }
+
+  private searchSeedKnowledge(
+    query: string,
+    type?: KnowledgeType,
+    category?: string,
+    limit: number = 5,
+    similarityThreshold: number = 0.1
+  ): KnowledgeSearchResult[] {
+    const results: KnowledgeSearchResult[] = [];
+
+    if (!type || type === 'LEGAL') {
+      const legalEntries: InsertLegalKnowledge[] = [
+        ...laborLawEntries,
+        ...contractLawEntries,
+        ...companyLawEntries,
+        ...competitionLawEntries,
+        ...judicialInterpretationsEntries,
+      ];
+
+      legalEntries.forEach((entry, index) => {
+        if (category && entry.category !== category) return;
+        const title = `${entry.lawName} ${entry.articleNumber || ''}`.trim();
+        const similarity = this.calculateKeywordMatch(query, `${title} ${entry.content}`, entry.tags || []);
+        if (similarity >= similarityThreshold) {
+          results.push({
+            id: `seed-legal-${index}`,
+            type: 'LEGAL',
+            title,
+            content: entry.content || '',
+            category: entry.category || 'GENERAL',
+            tags: entry.tags || [],
+            similarity,
+            articleNumber: entry.articleNumber || undefined,
+          });
+        }
+      });
+    }
+
+    if (!type || type === 'FINANCE') {
+      extendedFinanceEntries.forEach((entry, index) => {
+        if (category && entry.category !== category) return;
+        const similarity = this.calculateKeywordMatch(query, `${entry.title} ${entry.content}`, entry.tags || []);
+        if (similarity >= similarityThreshold) {
+          results.push({
+            id: `seed-finance-${index}`,
+            type: 'FINANCE',
+            title: entry.title,
+            content: entry.content || '',
+            category: entry.category || 'GENERAL',
+            tags: entry.tags || [],
+            similarity,
+            source: entry.source || undefined,
+          });
+        }
+      });
+    }
+
+    return results
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, limit);
   }
   
   private calculateKeywordMatch(query: string, content: string, tags: string[]): number {
