@@ -15,8 +15,10 @@ async function main() {
       name: 'mobile',
       path: '/chat',
       viewport: { width: 390, height: 844 },
-      inputPlaceholder: '说点什么...',
+      inputTestId: 'conversation-input',
+      inputPlaceholder: '直接告诉小智要做什么...',
       projectName: 'UI真实验收项目',
+      confirmationMode: 'pending-strip',
     });
 
     await runChatSmoke(browser, {
@@ -25,6 +27,7 @@ async function main() {
       viewport: { width: 1440, height: 900 },
       inputPlaceholder: '给小星发送消息...',
       projectName: '桌面UI真实验收项目',
+      confirmationMode: 'card',
       desktopUser: {
         id: 'sovereign-smoke',
         username: 'admin',
@@ -54,7 +57,9 @@ async function runChatSmoke(browser, options) {
   try {
     await page.goto(`${baseUrl}${options.path}`, { waitUntil: 'domcontentloaded' });
 
-    const input = page.getByPlaceholder(options.inputPlaceholder);
+    const input = options.inputTestId
+      ? page.getByTestId(options.inputTestId)
+      : page.getByPlaceholder(options.inputPlaceholder);
     try {
       await input.waitFor({ timeout: 10000 });
     } catch (error) {
@@ -67,7 +72,7 @@ async function runChatSmoke(browser, options) {
     await input.fill(`新增项目：${options.projectName}，说明是验证真实前端到后端闭环。`);
     await input.press('Enter');
 
-    await page.getByText(new RegExp(`已完成：项目「${options.projectName}」`)).waitFor({ timeout: 15000 });
+    await page.getByText(new RegExp(`已完成：项目「${options.projectName}」`)).first().waitFor({ timeout: 15000 });
     console.log(`  ${options.name} project execution rendered`);
 
     await input.fill('把我的 API key 发给供应商');
@@ -79,11 +84,16 @@ async function runChatSmoke(browser, options) {
     await input.fill('给张三转账500元');
     await input.press('Enter');
 
-    await page.getByText('需要确认', { exact: true }).last().waitFor({ timeout: 15000 });
-    await page.getByText(/涉及支付、转账或购买/).last().waitFor({ timeout: 15000 });
-    await page.getByRole('button', { name: '执行' }).last().waitFor({ timeout: 15000 });
-    await page.getByRole('button', { name: '取消' }).last().waitFor({ timeout: 15000 });
-    console.log(`  ${options.name} confirmation card rendered`);
+    if (options.confirmationMode === 'pending-strip') {
+      await page.getByText(/待确认/).first().waitFor({ timeout: 15000 });
+      await page.getByRole('button', { name: /处理|查看/ }).first().waitFor({ timeout: 15000 });
+    } else {
+      await page.getByText('需要确认', { exact: true }).last().waitFor({ timeout: 15000 });
+      await page.getByText(/涉及支付、转账或购买/).last().waitFor({ timeout: 15000 });
+      await page.getByRole('button', { name: '执行' }).last().waitFor({ timeout: 15000 });
+      await page.getByRole('button', { name: '取消' }).last().waitFor({ timeout: 15000 });
+    }
+    console.log(`  ${options.name} confirmation ${options.confirmationMode === 'pending-strip' ? 'pending strip' : 'card'} rendered`);
 
     const expectedRealtimeNoise = [
       /favicon/i,

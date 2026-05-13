@@ -11,6 +11,7 @@ const logDir = path.join(root, '.local');
 const skipBuild = process.argv.includes('--skip-build');
 const skipMigrate = process.argv.includes('--skip-migrate');
 const skipUi = process.argv.includes('--skip-ui');
+const skipQuality = process.argv.includes('--skip-quality');
 
 function command(name) {
   return process.platform === 'win32' && name === 'npm' ? 'npm.cmd' : name;
@@ -116,11 +117,13 @@ async function main() {
     PORT: String(port),
     HOST: host,
     COOKIE_SECURE: process.env.COOKIE_SECURE || 'false',
-    COOKIE_SAME_SITE: process.env.COOKIE_SAME_SITE || 'false',
+    COOKIE_SAME_SITE: process.env.COOKIE_SAME_SITE || 'lax',
     AUTHZ_STRICT: process.env.AUTHZ_STRICT || 'false',
     REDIS_HOST: process.env.REDIS_HOST || dotEnv.REDIS_HOST || 'localhost',
     REDIS_PORT: process.env.REDIS_PORT || dotEnv.REDIS_PORT || '6379',
     ASSISTANT_SMOKE_BASE_URL: baseUrl,
+    ASSISTANT_QUALITY_BASE_URL: baseUrl,
+    ASSISTANT_QUALITY_OUTPUT_DIR: logDir,
   };
 
   if (!env.DATABASE_URL && !skipMigrate) {
@@ -171,6 +174,10 @@ async function main() {
     if (!skipUi) {
       await run('npm', ['run', 'smoke:assistant-ui'], { env });
     }
+    if (!skipQuality) {
+      await run('npm', ['run', 'quality:lawyer'], { env });
+      await run('npm', ['run', 'quality:assistant'], { env });
+    }
     console.log(JSON.stringify({
       gate: 'r1',
       baseUrl,
@@ -178,6 +185,8 @@ async function main() {
       assistantSmoke: 'passed',
       riskSmoke: 'passed',
       uiSmoke: skipUi ? 'skipped' : 'passed',
+      lawyerQuality: skipQuality ? 'skipped' : 'passed',
+      assistantQuality: skipQuality ? 'skipped' : 'passed',
     }, null, 2));
   } finally {
     await stopServer();

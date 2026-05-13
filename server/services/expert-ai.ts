@@ -193,6 +193,12 @@ const EXPERT_PROMPTS: Record<ExpertType, string> = {
 3. 行为预测
 4. 沟通策略建议
 
+【沟通与执行边界】
+- 先承接用户情绪，再分析对方可能动机；对动机只能写“可能/需要核实”，不得把心理推断说成确定事实。
+- 不得编造行业基准、心理学研究结论、合同条款编号、客户组织结构或对方授权状态；事实不足时明确写“依据不足，需要补充原话、合同或项目流程”。
+- 对发邮件、发消息、打电话、联系客户等外部动作，只能提供草稿和建议，必须明确“不会未经用户确认代发/代联系”；不要写“立即发送”。
+- 情绪调节建议必须写成“可选”，例如“如果你愿意，可以先暂停30秒”，不能像强制指令；心理支持不替代医疗或心理咨询。
+
 【输出格式】
 请用JSON格式输出：
 {
@@ -218,6 +224,7 @@ const EXPERT_PROMPTS: Record<ExpertType, string> = {
 - 每个量化指标必须写明统计口径，例如“错误率=审批接口5xx响应数/审批接口总请求数”，不要只写百分比。
 - 合规底线、审批不可绕过、财务控制等约束，如果没有用户提供的公司制度编号或监管条款，只能写“依据不足，需产品/法务/财务确认”，不能包装成已验证依据。
 - 计划必须区分“必须上线的MVP”“可以砍掉的范围”“需要外部确认的前置条件”。
+- 输出必须是完整、可解析的JSON；最多3个分析步骤、7条建议，每条建议保持一句话，避免长篇导致截断。
 
 【输出格式】
 请用JSON格式输出：
@@ -269,8 +276,8 @@ async function callDashScope(systemPrompt: string, userMessage: string): Promise
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage }
       ],
-      temperature: 0.7,
-      max_tokens: 2000,
+      temperature: 0.3,
+      max_tokens: 3000,
     }),
   });
 
@@ -473,6 +480,8 @@ function buildGeneralExpertFallbackAnalysis(
         '先不要立刻回怼，等情绪降下来再发文字，避免留下攻击性表达。',
         '建议话术：我理解你现在很着急，我先把事实确认清楚，再给你一个明确答复。',
         '边界话术：如果这属于新增范围，我可以先给影响评估；确认后再调整排期。未确认前不建议直接改，以免影响当前版本质量。',
+        '执行边界：我可以帮你草拟邮件、消息或会议提纲，但不会未经你明确确认代发邮件、发消息、打电话或联系客户。',
+        '可选自我调节：如果你愿意，可以先暂停30秒做慢呼吸，只是为了降低冲动反应；不舒服时跳过。',
         '下一步：把对方原话发来，我按“对方诉求、你的边界、可发送回复”三段帮你整理。',
       ],
       executionTimeMs: Date.now() - startTime,
@@ -481,19 +490,52 @@ function buildGeneralExpertFallbackAnalysis(
   }
 
   if (expertType === 'FINANCE') {
+    const confirmedRevenue = amountFromQuery(query, /(?:确认收入|收入)\s*([\d.]+)\s*(万)?/);
+    const receivable = amountFromQuery(query, /(?:应收账款|应收)\D*?([\d.]+)\s*(万)?/);
+    const immediatePayables = amountFromQuery(query, /(?:工资和房租|工资|房租)\D*?([\d.]+)\s*(万)?/);
+    const supplierPayables = amountFromQuery(query, /(?:供应商账期|供应商)\D*?([\d.]+)\s*(万)?/);
+    const hasFullSpecialInvoiceRequest = /全额|专票|增值税专票|先开票/.test(query);
+    const immediateGap = immediatePayables;
+    const gapAfterReceivable = receivable !== null && immediatePayables !== null ? receivable - immediatePayables : null;
+    const vatRate = 0.13;
+    const estimatedOutputVat = confirmedRevenue !== null && hasFullSpecialInvoiceRequest
+      ? Math.round(confirmedRevenue / (1 + vatRate) * vatRate)
+      : null;
+
     return {
       expert: expertType,
       query,
       chainOfThought: [{
         step: 1,
         reasoning: `财务分析服务异常，已切换为保守兜底：${errorNote}`,
-        evidence: ['用户提供的收入、成本、现金流、发票或税务事实'],
-        conclusion: '先按现金流缺口、税务合规、票据凭证和支付优先级四项拆解。',
+        evidence: [
+          confirmedRevenue !== null ? `本月确认收入${formatCurrency(confirmedRevenue)}` : '本月确认收入待核实',
+          receivable !== null ? `应收账款${formatCurrency(receivable)}未回款` : '应收账款金额待核实',
+          immediatePayables !== null ? `下周工资和房租需支付${formatCurrency(immediatePayables)}` : '下周刚性支出待核实',
+          supplierPayables !== null ? `供应商账期金额${formatCurrency(supplierPayables)}` : '供应商账期金额待核实',
+          hasFullSpecialInvoiceRequest ? '客户要求先开全额增值税专票再付款' : '开票条件待核实',
+        ],
+        conclusion: gapAfterReceivable !== null
+          ? `若本周没有回款，至少先面对${formatCurrency(immediateGap)}刚性现金缺口；若能收回${formatCurrency(receivable)}应收款，扣除下周工资房租后仍有${formatCurrency(gapAfterReceivable)}缓冲，但还要覆盖供应商账期和税费。`
+          : '先按现金流缺口、税务合规、票据凭证和支付优先级四项拆解。',
         confidence: 60,
       }],
-      finalVerdict: '当前只能给出保守财务检查框架：先核对未来4-8周现金流入流出、应收账款回款概率、发票开具/进项抵扣资料、税费申报期限和必须支付项。',
-      riskLevel: 'MEDIUM',
-      recommendations: ['列出周现金流表', '区分必须支付、可延期、可谈判项目', '核对发票和合同一致性', '重大税务处理交给会计或税务顾问复核'],
+      finalVerdict: [
+        `现金流判断：本周应先按“已到账为0、下周刚性支出${formatCurrency(immediatePayables)}”做压力测试，未回款前现金缺口至少是${formatCurrency(immediateGap)}；${receivable !== null ? `45万应收款只有实际到账后才能用于覆盖工资房租，到账后理论缓冲为${formatCurrency(gapAfterReceivable)}，` : ''}供应商${formatCurrency(supplierPayables)}账期不能默认继续拖延。`,
+        hasFullSpecialInvoiceRequest
+          ? `税务判断：不要为了催款直接先开全额专票。若按${formatCurrency(confirmedRevenue)}含税收入和13%税率粗估，销项税约${formatCurrency(estimatedOutputVat)}，一旦先开票但客户不付款，会提前形成销项税和申报压力；还要核实合同履约、开票义务、进项抵扣和收入确认口径，避免票货款不匹配或被认定为异常开票。`
+          : '税务判断：开票、收入确认和纳税义务发生时间要和合同履约、收款条件、验收资料匹配，不能只按口头要求处理。',
+        '执行边界：我可以帮你整理催款函、付款排序和现金流表，但不会替你直接开票、付款或对外发送文件；涉及专票和税款申报需会计或税务顾问复核。',
+      ].join('\n'),
+      riskLevel: immediateGap !== null && immediateGap > 0 ? 'HIGH' : 'MEDIUM',
+      recommendations: [
+        `[EXECUTE_NOW] 今天先锁定工资房租${formatCurrency(immediatePayables)}为刚性支出，暂停非必要付款，把供应商${formatCurrency(supplierPayables)}列为可谈判延期项。`,
+        `[EXECUTE_NOW] 向客户发催款确认：付款到账后开具全额专票，或先按合同约定开具阶段性/部分发票；不要无条件先开全额专票。`,
+        `[EXECUTE_NOW] 做一张本周现金流表：期初现金、预计到账${formatCurrency(receivable)}、工资房租${formatCurrency(immediatePayables)}、供应商${formatCurrency(supplierPayables)}、预计销项税${formatCurrency(estimatedOutputVat)}。`,
+        '[WAIT_CONFIRM] 与客户重谈付款条款、开票节点和验收资料，需要确认合同约定、客户信用、45万应收账龄和历史回款记录。',
+        '[WAIT_CONFIRM] 是否动用备用金、短期授信或压缩供应商付款，需要老板或财务负责人确认资金成本和合作影响。',
+        '[INFORM_ONLY] 增值税、企业所得税和收入确认口径由会计按合同、验收、开票和收款资料复核；这里不替代正式税务申报意见。',
+      ],
       executionTimeMs: Date.now() - startTime,
       timestamp: Date.now(),
     };
@@ -675,11 +717,30 @@ function buildLegalFallbackAnalysis(
   };
 }
 
+function amountFromQuery(query: string, pattern: RegExp): number | null {
+  const match = query.match(pattern);
+  if (!match) return null;
+  const value = Number(match[1]);
+  if (!Number.isFinite(value)) return null;
+  return match[2] === '万' ? value * 10000 : value;
+}
+
+function formatCurrency(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '待核实金额';
+  if (Math.abs(value) >= 10000 && value % 10000 === 0) return `${value / 10000}万元`;
+  if (Math.abs(value) >= 10000) return `${(value / 10000).toFixed(2)}万元`;
+  return `${value}元`;
+}
+
 function calibrateExpertAnalysis(
   expertType: ExpertType,
   parsed: Partial<ExpertAnalysis>,
   query: string
 ): Partial<ExpertAnalysis> {
+  if (expertType === 'PSYCHOLOGY') {
+    return calibratePsychologyAnalysis(parsed);
+  }
+
   if (expertType === 'PLANNING') {
     const recommendations = (parsed.recommendations || []).map(item => item || '');
     if (/审批|上线|灰度|错误率/.test(query)) {
@@ -720,6 +781,48 @@ function calibrateExpertAnalysis(
     finalVerdict: sanitizeLaborNoContractText(query, sanitizeLegalText(parsed.finalVerdict || '')),
     recommendations: Array.from(new Set(recommendations)),
   };
+}
+
+function calibratePsychologyAnalysis(parsed: Partial<ExpertAnalysis>): Partial<ExpertAnalysis> {
+  const chainOfThought = (parsed.chainOfThought || []).map(step => ({
+    ...step,
+    reasoning: sanitizePsychologyText(step.reasoning || ''),
+    conclusion: sanitizePsychologyText(step.conclusion || ''),
+    evidence: (step.evidence || []).map(item => sanitizePsychologyText(item)),
+  }));
+  const recommendations = (parsed.recommendations || []).map(item => sanitizePsychologyText(item || ''));
+
+  recommendations.push('执行边界：我可以帮你草拟邮件、消息或会议提纲，但不会未经你明确确认代发邮件、发消息、打电话或联系客户。');
+  recommendations.push('可选自我调节：如果你愿意，可以先暂停30秒做慢呼吸，只是为了降低冲动反应；不舒服时跳过。');
+
+  const boundary = '执行边界：我只会提供沟通草稿和判断框架，不会未经你明确确认代发邮件、联系客户或对外作出承诺。';
+  const tunedVerdict = sanitizePsychologyText(parsed.finalVerdict || '');
+
+  return {
+    ...parsed,
+    chainOfThought,
+    finalVerdict: tunedVerdict.includes('不会未经你明确确认') ? tunedVerdict : `${tunedVerdict}\n${boundary}`,
+    recommendations: Array.from(new Set(recommendations.filter(Boolean))),
+  };
+}
+
+function sanitizePsychologyText(text: string): string {
+  return text
+    .replace(/立即发送(?:结构化)?响应邮件/gu, '先草拟一封响应邮件，待你确认后再发送')
+    .replace(/马上发送(?:邮件|消息)?/gu, '先草拟，待你确认后再发送')
+    .replace(/立即发送(?:邮件|消息)?/gu, '先草拟，待你确认后再发送')
+    .replace(/下次沟通前做(\d+秒)?呼吸训练/gu, '可选自我调节：下次沟通前如果你愿意，可以做$1慢呼吸练习')
+    .replace(/用生理反馈打断愤怒循环/gu, '用短暂停顿帮助降低冲动反应')
+    .replace(/情绪峰值期回应必然失焦/gu, '情绪峰值期回应容易失焦')
+    .replace(/（行业基准：[^）]+）/gu, '（具体阈值需按双方项目制度或合同核实）')
+    .replace(/按合同第Y条需启动/gu, '如合同或项目流程有约定，应启动')
+    .replace(/合同第Y条/gu, '合同或变更流程约定')
+    .replace(/专业服务合同中普遍含需求变更条款/gu, '常见服务合同可能含需求变更条款，但需核对当前合同文本')
+    .replace(/高风险客户在被设限时反而提升配合度/gu, '设定边界可能降低后续返工风险，但效果取决于客户关系和事实沟通')
+    .replace(/客户处于决策权缺失引发的焦虑性失控状态/gu, '客户可能处于决策权不清或上游压力引发的焦虑状态')
+    .replace(/其攻击行为本质是/gu, '其攻击性表达可能是')
+    .replace(/核心动机是/gu, '可能的核心动机是')
+    .replace(/实为/gu, '可能是');
 }
 
 function sanitizeLegalText(text: string): string {

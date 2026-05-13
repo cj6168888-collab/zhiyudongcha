@@ -111,6 +111,28 @@ describe('general expert fallback analysis', () => {
     vi.unstubAllEnvs();
   });
 
+  it('keeps finance fallback grounded in user numbers and tax risk', async () => {
+    vi.stubEnv('DASHSCOPE_API_KEY', '');
+    vi.resetModules();
+    const { runExpertAnalysis } = await import('../../../services/expert-ai');
+
+    const analysis = await runExpertAnalysis(
+      'FINANCE',
+      '我公司本月确认收入80万元，应收账款有45万元还没回，工资和房租下周要付28万元，供应商账期还有15万元。客户要求先开全额增值税专票再付款。',
+      undefined,
+      { useKnowledgeBase: true }
+    );
+
+    const text = `${analysis.finalVerdict}\n${analysis.recommendations.join('\n')}`;
+    expect(text).toContain('45万应收款');
+    expect(text).toContain('28万元');
+    expect(text).toContain('先开全额专票');
+    expect(text).toContain('销项税');
+    expect(text).toContain('[EXECUTE_NOW]');
+    expect(text).toContain('[WAIT_CONFIRM]');
+    expect(text).toContain('[INFORM_ONLY]');
+  });
+
   it('does not invent the capability-audit customer-change scenario for generic emotional support', async () => {
     vi.stubEnv('DASHSCOPE_API_KEY', '');
     vi.resetModules();
@@ -127,5 +149,46 @@ describe('general expert fallback analysis', () => {
     expect(text).not.toContain('连续三次');
     expect(text).not.toContain('临时改需求');
     expect(text).toContain('焦虑和压力');
+  });
+
+  it('keeps customer-conflict psychology advice inside confirmed communication boundaries', async () => {
+    vi.stubEnv('DASHSCOPE_API_KEY', '');
+    vi.resetModules();
+    const { runExpertAnalysis } = await import('../../../services/expert-ai');
+
+    const analysis = await runExpertAnalysis(
+      'PSYCHOLOGY',
+      '客户连续三次临时改需求，还说我们不专业。我现在很烦，想直接怼回去。',
+      undefined,
+      { useKnowledgeBase: false }
+    );
+
+    const text = `${analysis.finalVerdict}\n${analysis.recommendations.join('\n')}`;
+    expect(text).toContain('不会未经你明确确认代发邮件');
+    expect(text).toContain('可选自我调节');
+    expect(text).not.toContain('立即发送');
+  });
+
+  it('keeps finance fallback grounded in cashflow numbers and invoice risk', async () => {
+    vi.stubEnv('DASHSCOPE_API_KEY', '');
+    vi.resetModules();
+    const { runExpertAnalysis } = await import('../../../services/expert-ai');
+
+    const analysis = await runExpertAnalysis(
+      'FINANCE',
+      '我公司本月确认收入80万元，应收账款有45万元还没回，工资和房租下周要付28万元，供应商账期还有15万元。客户要求先开全额增值税专票再付款。',
+      undefined,
+      { useKnowledgeBase: false }
+    );
+
+    const text = `${analysis.finalVerdict}\n${analysis.recommendations.join('\n')}`;
+    expect(text).toContain('28万元');
+    expect(text).toContain('45万元');
+    expect(text).toContain('15万元');
+    expect(text).toContain('销项税');
+    expect(text).toContain('不要无条件先开全额专票');
+    expect(text).toContain('[EXECUTE_NOW]');
+    expect(text).toContain('[WAIT_CONFIRM]');
+    expect(text).toContain('[INFORM_ONLY]');
   });
 });

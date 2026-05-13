@@ -108,7 +108,7 @@ const serverConfig = {
         : process.env['NODE_ENV'] === 'production',
       httpOnly: process.env['COOKIE_HTTP_ONLY'] !== 'false',
       maxAge: parseInt(process.env['COOKIE_MAX_AGE'] || '86400000'),
-      sameSite: process.env['COOKIE_SAME_SITE'] || (process.env['NODE_ENV'] === 'production' ? 'strict' : 'lax')
+      sameSite: parseCookieSameSite(process.env['COOKIE_SAME_SITE'])
     }
   },
   api: {
@@ -123,6 +123,19 @@ const serverConfig = {
     alertCheckInterval: parseInt(process.env['MONITORING_ALERT_INTERVAL'] || '10000')
   }
 };
+
+function parseCookieSameSite(value: string | undefined): 'strict' | 'lax' | 'none' | boolean {
+  if (!value) {
+    return process.env['NODE_ENV'] === 'production' ? 'strict' : 'lax';
+  }
+
+  const normalized = value.toLowerCase();
+  if (normalized === 'false') return false;
+  if (normalized === 'true') return true;
+  if (normalized === 'strict' || normalized === 'lax' || normalized === 'none') return normalized;
+  logger.warn({ value }, 'Invalid COOKIE_SAME_SITE value, falling back to lax');
+  return 'lax';
+}
 
 function serveStaticAssets(app: express.Express): void {
   if (!serverConfig.static.enabled) {
