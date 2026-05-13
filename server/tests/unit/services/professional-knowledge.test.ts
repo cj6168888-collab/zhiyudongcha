@@ -104,6 +104,58 @@ describe('legal expert fallback analysis', () => {
     expect(text).not.toContain('5000元');
     expect(text).toContain('合同金额待核实');
   });
+
+  it('states penalty adjustment as request-driven and evidence-bound', async () => {
+    vi.stubEnv('DASHSCOPE_API_KEY', '');
+    vi.resetModules();
+    const { runExpertAnalysis } = await import('../../../services/expert-ai');
+
+    const analysis = await runExpertAnalysis(
+      'LEGAL',
+      '我是乙方。技术服务合同金额10万元，合同写乙方迟延一天按合同总价5%支付违约金，争议由甲方所在地法院管辖，甲方可单方验收并拒付尾款。请审查风险并给修改建议。',
+      undefined,
+      { useKnowledgeBase: true }
+    );
+
+    const text = `${analysis.chainOfThought.map(step => `${step.reasoning}\n${step.conclusion}`).join('\n')}\n${analysis.finalVerdict}\n${analysis.recommendations.join('\n')}`;
+    expect(text).toContain('主动请求');
+    expect(text).toContain('举证');
+    expect(text).toContain('实际损失');
+    expect(text).not.toContain('极可能');
+    expect(text).not.toContain('大幅调减');
+  });
+});
+
+describe('zero hallucination legal query calibration', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('does not state social insurance back payment as a definite arbitration scope rule without source text', async () => {
+    vi.resetModules();
+    const { calibrateZeroHallucinationAnswer } = await import('../../../services/zero-hallucination');
+
+    const answer = calibrateZeroHallucinationAnswer(
+      '风险提示：要求补缴社保不属于劳动仲裁受案范围，应向社保经办机构投诉处理。',
+      {
+        mode: 'LEGAL',
+        userRole: 'GUEST',
+        query: '公司拖欠工资两个月并且没有缴纳社保，我能否解除劳动合同并要求经济补偿？',
+      },
+      [
+        {
+          citation: '[来源1]',
+          title: '中华人民共和国劳动合同法 第三十八条',
+          content: '用人单位未及时足额支付劳动报酬或未依法缴纳社会保险费的，劳动者可以解除劳动合同。',
+          score: 98,
+        },
+      ]
+    );
+
+    expect(answer).toContain('知识库未覆盖');
+    expect(answer).toContain('社保经办机构');
+    expect(answer).not.toContain('不属于劳动仲裁受案范围');
+  });
 });
 
 describe('general expert fallback analysis', () => {
@@ -164,6 +216,9 @@ describe('general expert fallback analysis', () => {
     );
 
     const text = `${analysis.finalVerdict}\n${analysis.recommendations.join('\n')}`;
+    expect(text).toContain('可能动机');
+    expect(text).toContain('控制感');
+    expect(text).toContain('信任');
     expect(text).toContain('不会未经你明确确认代发邮件');
     expect(text).toContain('可选自我调节');
     expect(text).not.toContain('立即发送');

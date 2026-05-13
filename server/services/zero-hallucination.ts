@@ -558,7 +558,7 @@ ${sourceList}
 
 ## 风险提示
 - 以上结论以“确有拖欠工资、确未缴社保、用人单位无有效抗辩”为前提；若存在工资争议、考勤争议、社保补缴情形或地区裁审差异，需要进一步核验。
-- 社保补缴原则上通常不属劳动仲裁受案范围，个别地区裁审衔接实践可能存在差异；建议同步向社保经办机构或劳动监察渠道核实。
+- 社保补缴的程序边界当前知识库未覆盖到足够原文，不能仅凭本次来源断言其仲裁受案范围；建议同步向社保经办机构或劳动监察渠道核实，仲裁请求先聚焦本次来源可支持的工资、解除和经济补偿事项。
 - 当前来源足以支持解除事由、经济补偿、时效和程序主线，但未覆盖完整证据规则；证据要求属于待外部核验的实务清单。
 
 ## 下一步
@@ -571,7 +571,7 @@ ${sourceList}
   return null;
 }
 
-function calibrateZeroHallucinationAnswer(
+export function calibrateZeroHallucinationAnswer(
   answer: string,
   request: ZeroHallucinationRequest,
   sources: Array<{ citation: string; title: string; content: string; score: number }>
@@ -618,8 +618,9 @@ function calibrateZeroHallucinationAnswer(
   }
 
   calibrated = calibrated
-    .replace(/社保补缴争议是否适用该例外/gu, '社保补缴争议原则上是否适用该例外')
-    .replace(/通常不属劳动仲裁受案范围/gu, '原则上通常不属劳动仲裁受案范围，个别地区裁审衔接实践可能存在差异')
+    .replace(/社保补缴争议是否适用该例外/gu, '社保补缴争议是否适用该例外，当前知识库未覆盖到足够程序边界原文')
+    .replace(/(?:原则上)?通常不属劳动仲裁受案范围(?:，个别地区裁审衔接实践可能存在差异)?/gu, '当前知识库未覆盖社保补缴的仲裁受案范围原文，不能仅凭本次来源下确定结论；需同步向社保经办机构或劳动监察渠道核实')
+    .replace(/要求补缴社保不属于劳动仲裁受案范围/gu, '社保补缴的程序边界当前知识库未覆盖到足够原文，不能仅凭本次来源断言其仲裁受案范围')
     .replace(/公司拖欠工资两个月（违反“按月支付”强制性规定）/gu, '若公司无有效抗辩而拖欠工资两个月，通常违反“按月支付”强制性规定');
 
   return calibrated;

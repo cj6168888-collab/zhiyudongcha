@@ -8,6 +8,7 @@ const port = Number(process.env.PORT || 3998);
 const host = process.env.HOST || '127.0.0.1';
 const baseUrl = `http://${host}:${port}`;
 const logDir = path.join(root, '.local');
+const gateRunDir = path.join(logDir, `release-r1-gate-${port}`);
 const skipBuild = process.argv.includes('--skip-build');
 const skipMigrate = process.argv.includes('--skip-migrate');
 const skipUi = process.argv.includes('--skip-ui');
@@ -123,7 +124,7 @@ async function main() {
     REDIS_PORT: process.env.REDIS_PORT || dotEnv.REDIS_PORT || '6379',
     ASSISTANT_SMOKE_BASE_URL: baseUrl,
     ASSISTANT_QUALITY_BASE_URL: baseUrl,
-    ASSISTANT_QUALITY_OUTPUT_DIR: logDir,
+    ASSISTANT_QUALITY_OUTPUT_DIR: gateRunDir,
   };
 
   if (!env.DATABASE_URL && !skipMigrate) {
@@ -134,7 +135,7 @@ async function main() {
     throw new Error('At least one AI provider API key or LOCAL_MODEL_ENABLED=true is required for R1 assistant smoke.');
   }
 
-  await mkdir(logDir, { recursive: true });
+  await mkdir(gateRunDir, { recursive: true });
 
   if (!skipBuild) {
     await run('npm', ['run', 'build'], {
@@ -163,8 +164,8 @@ async function main() {
 
   async function stopServer() {
     await terminateProcessTree(server);
-    await writeFile(path.join(logDir, 'release-r1-gate.out.log'), Buffer.concat(stdout));
-    await writeFile(path.join(logDir, 'release-r1-gate.err.log'), Buffer.concat(stderr));
+    await writeFile(path.join(gateRunDir, 'release-r1-gate.out.log'), Buffer.concat(stdout));
+    await writeFile(path.join(gateRunDir, 'release-r1-gate.err.log'), Buffer.concat(stderr));
   }
 
   try {
@@ -187,6 +188,7 @@ async function main() {
       uiSmoke: skipUi ? 'skipped' : 'passed',
       lawyerQuality: skipQuality ? 'skipped' : 'passed',
       assistantQuality: skipQuality ? 'skipped' : 'passed',
+      reportDir: gateRunDir,
     }, null, 2));
   } finally {
     await stopServer();

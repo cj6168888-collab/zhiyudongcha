@@ -558,16 +558,21 @@ function captureCookies(response) {
 }
 
 async function getJson(pathname) {
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
+  return withApiRetry(`GET ${pathname}`, async () => {
+    const response = await fetch(`${baseUrl}${pathname}`, {
+      headers: {
+        Connection: 'close',
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+    });
+    captureCookies(response);
+    const text = await response.text();
+    const json = text ? JSON.parse(text) : {};
+    if (!response.ok) {
+      throw new Error(`${pathname} failed with ${response.status}: ${JSON.stringify(json)}`);
+    }
+    return json;
   });
-  captureCookies(response);
-  const text = await response.text();
-  const json = text ? JSON.parse(text) : {};
-  if (!response.ok) {
-    throw new Error(`${pathname} failed with ${response.status}: ${JSON.stringify(json)}`);
-  }
-  return json;
 }
 
 async function prepareCsrf() {
@@ -580,27 +585,51 @@ async function prepareCsrf() {
 }
 
 async function post(pathname, body) {
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      [csrfHeaderName]: csrfToken,
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    },
-    body: JSON.stringify(body),
+  return withApiRetry(`POST ${pathname}`, async (attempt) => {
+    if (attempt > 1) await prepareCsrf();
+    const response = await fetch(`${baseUrl}${pathname}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Connection: 'close',
+        [csrfHeaderName]: csrfToken,
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    captureCookies(response);
+    const text = await response.text();
+    let json;
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(`${pathname} returned non-JSON response: ${text.slice(0, 200)}`);
+    }
+    if (!response.ok) {
+      throw new Error(`${pathname} failed with ${response.status}: ${JSON.stringify(json)}`);
+    }
+    return json;
   });
-  captureCookies(response);
-  const text = await response.text();
-  let json;
-  try {
-    json = text ? JSON.parse(text) : {};
-  } catch {
-    throw new Error(`${pathname} returned non-JSON response: ${text.slice(0, 200)}`);
+}
+
+async function withApiRetry(label, action) {
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await action(attempt);
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      if (!isTransientApiError(message) || attempt === 3) break;
+      console.warn(`[assistant-lawyer-quality] ${label} transient failure (${message}), retrying ${attempt}/3`);
+      await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+    }
   }
-  if (!response.ok) {
-    throw new Error(`${pathname} failed with ${response.status}: ${JSON.stringify(json)}`);
-  }
-  return json;
+  throw lastError;
+}
+
+function isTransientApiError(message) {
+  return /fetch failed|ECONNRESET|ECONNREFUSED|UND_ERR|socket|terminated|aborted/i.test(message);
 }
 
 function loadDotEnv(envPath) {
