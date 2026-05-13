@@ -643,7 +643,13 @@ export default function ConversationHome() {
   useEffect(() => {
     const localState = readLocalConversationHomeState();
     const nextResumeContext = readResumeConversationContextFromUrl() ?? localState?.resumeContext ?? null;
-    if (localState?.inputText) setInputText(localState.inputText);
+    const ideaPrompt = window.sessionStorage.getItem("xiaozhi_resume_prompt");
+    if (ideaPrompt) window.sessionStorage.removeItem("xiaozhi_resume_prompt");
+    if (ideaPrompt) {
+      setInputText(ideaPrompt);
+    } else if (localState?.inputText) {
+      setInputText(localState.inputText);
+    }
     if (localState?.failedSend) setFailedSend(localState.failedSend);
     if (nextResumeContext) setResumeContext(nextResumeContext);
     retainedActiveDraftRef.current = localState?.activeDraft ?? null;

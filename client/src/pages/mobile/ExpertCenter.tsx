@@ -177,7 +177,7 @@ export default function ExpertCenter() {
             className="p-4 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center gap-2 active:bg-white/10"
           >
             <BrainCircuit className="w-4 h-4 text-purple-400" />
-            <span className="text-xs font-bold text-white">灵感广播</span>
+            <span className="text-xs font-bold text-white">想法暂存</span>
           </button>
         </div>
       </div>

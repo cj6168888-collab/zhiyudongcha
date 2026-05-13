@@ -31,6 +31,7 @@ const CommandCenter = lazy(() => import("@/pages/mobile/CommandCenter"));
 const InsightChamber = lazy(() => import("@/pages/mobile/InsightChamber"));
 const ScannerLab = lazy(() => import("@/pages/mobile/ScannerLab"));
 const ExpertCenter = lazy(() => import("@/pages/mobile/ExpertCenter"));
+const InspirationBroadcast = lazy(() => import("@/pages/mobile/InspirationBroadcast"));
 const ResourceManager = lazy(() => import("@/pages/mobile/ResourceManager"));
 const NavigatorSettings = lazy(() => import("@/pages/mobile/NavigatorSettings"));
 const RemotePCConsole = lazy(() => import("@/pages/mobile/RemotePCConsole"));
@@ -104,8 +105,9 @@ function AppContent() {
   }, [health, setDeviceHealth]);
 
   useEffect(() => {
-    const handleGlobalEvent = (e: any) => {
-      if (e.detail?.type === "MELTDOWN_TRIGGERED") {
+    const handleGlobalEvent = (event: Event) => {
+      const detail = (event as CustomEvent<{ type?: string }>).detail;
+      if (detail?.type === "MELTDOWN_TRIGGERED") {
         localStorage.clear();
         setLocation("/awakening");
         toast.error("安全协议执行：系统已进入静默态。");
@@ -135,6 +137,7 @@ function AppContent() {
             <Route path="/command" component={CommandCenter} />
             <Route path="/insight" component={InsightChamber} />
             <Route path="/scanner" component={ScannerLab} />
+            <Route path="/inspiration" component={InspirationBroadcast} />
             <Route path="/resources" component={ResourceManager} />
             <Route path="/navigator-settings" component={NavigatorSettings} />
             <Route path="/remote-pc" component={RemotePCConsole} />
