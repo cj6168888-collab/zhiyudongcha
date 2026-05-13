@@ -451,7 +451,7 @@ test.describe('Mobile conversation home', () => {
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByTestId('device-setup-card')).toHaveCount(0);
-    await expect(page.getByText('设备 未绑定')).toBeVisible();
+    await expect(page.getByText('设备 未绑定')).toHaveCount(0);
     await expect(page.getByText('PC 执行')).toHaveCount(0);
   });
 

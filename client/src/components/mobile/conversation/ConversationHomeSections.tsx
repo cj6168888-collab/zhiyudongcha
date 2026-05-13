@@ -73,7 +73,7 @@ export function XiaozhiStatusHeader({
 
         <button
           onClick={onOpenNavigator}
-          className="rounded-xl border border-white/10 bg-white/[0.04] p-2.5 text-slate-300 active:bg-white/10"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 active:bg-white/10"
           aria-label="打开领航"
         >
           <Sparkles className="h-5 w-5" />
@@ -84,14 +84,16 @@ export function XiaozhiStatusHeader({
         <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-bold text-slate-300">
           {role === "MASTER" ? "主控" : "受限"}
         </span>
-        <span className={cn(
-          "rounded-full border px-2.5 py-1 text-[11px] font-bold",
-          deviceHealthy
-            ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
-            : "border-amber-300/20 bg-amber-300/10 text-amber-100"
-        )}>
-          设备 {deviceLabel}
-        </span>
+        {deviceLabel !== "未绑定" && (
+          <span className={cn(
+            "rounded-full border px-2.5 py-1 text-[11px] font-bold",
+            deviceHealthy
+              ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+              : "border-amber-300/20 bg-amber-300/10 text-amber-100"
+          )}>
+            设备 {deviceLabel}
+          </span>
+        )}
       </div>
     </header>
   );
