@@ -1,6 +1,6 @@
 ﻿import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import request from 'supertest';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hybridAssistantMock = vi.hoisted(() => ({
   processMessage: vi.fn(),
@@ -23,6 +23,26 @@ const conversationActionExecutorMock = vi.hoisted(() => ({
 
 const conversationExecutionEventRecorderMock = vi.hoisted(() => ({
   record: vi.fn(),
+}));
+
+const conversationServiceMock = vi.hoisted(() => ({
+  get: vi.fn(),
+  getSegments: vi.fn(),
+  appendSegment: vi.fn(),
+  finish: vi.fn(),
+}));
+
+const conversationProcessorMock = vi.hoisted(() => ({
+  process: vi.fn(),
+}));
+
+const perceptionGatewayMock = vi.hoisted(() => ({
+  start: vi.fn(),
+}));
+
+const avatarServiceMock = vi.hoisted(() => ({
+  createChatMessage: vi.fn(),
+  getRecentChatContext: vi.fn(),
 }));
 
 vi.mock('../../server/services/assistant/HybridAssistant', () => ({
@@ -63,6 +83,22 @@ vi.mock('../../server/services/assistant/ConversationExecutionEventRecorder', ()
   conversationExecutionEventRecorder: conversationExecutionEventRecorderMock,
 }));
 
+vi.mock('../../server/services/conversation/ConversationService', () => ({
+  conversationService: conversationServiceMock,
+}));
+
+vi.mock('../../server/services/conversation/ConversationProcessor', () => ({
+  conversationProcessor: conversationProcessorMock,
+}));
+
+vi.mock('../../server/services/perception/PerceptionGateway', () => ({
+  perceptionGateway: perceptionGatewayMock,
+}));
+
+vi.mock('../../server/services/AvatarService', () => ({
+  avatarService: avatarServiceMock,
+}));
+
 vi.mock('../../server/middleware/auth', () => ({
   attachRole: (req: Request, _res: Response, next: NextFunction) => {
     (req as any).user = { id: 'user-1' };
@@ -88,6 +124,10 @@ function assistantResponse(overrides: Record<string, unknown> = {}) {
     message: 'Done',
     ...overrides,
   };
+}
+
+function flushAsyncRecorder() {
+  return new Promise<void>((resolve) => setImmediate(resolve));
 }
 
 describe('Hybrid Assistant API Routes', () => {
@@ -119,6 +159,18 @@ describe('Hybrid Assistant API Routes', () => {
       entityType: 'TASK',
       entityId: 'task-1',
     });
+    conversationServiceMock.get.mockResolvedValue(null);
+    conversationServiceMock.getSegments.mockResolvedValue([]);
+    conversationServiceMock.appendSegment.mockResolvedValue({ id: 'seg-1' });
+    conversationServiceMock.finish.mockResolvedValue({ id: 'conv-new' });
+    conversationProcessorMock.process.mockResolvedValue({ summary: 'ok', taskCount: 0, memoryCount: 0, eventCount: 0 });
+    perceptionGatewayMock.start.mockResolvedValue({ id: 'conv-new' });
+    avatarServiceMock.createChatMessage.mockResolvedValue({ id: 'chat-1' });
+    avatarServiceMock.getRecentChatContext.mockResolvedValue([]);
+  });
+
+  afterEach(async () => {
+    await flushAsyncRecorder();
   });
 
   it('validates chat messages and forwards valid messages to the assistant', async () => {
@@ -174,6 +226,81 @@ describe('Hybrid Assistant API Routes', () => {
       'user-1',
     );
     expect(conversationActionExecutorMock.execute).not.toHaveBeenCalled();
+  });
+
+  it('continues a resumed conversation and records the turn in that conversation', async () => {
+    conversationServiceMock.get.mockResolvedValueOnce({
+      id: 'conv-pc',
+      ownerId: 'user-1',
+      title: 'PC 执行回流',
+      summary: 'PC 已经整理过重点',
+    });
+    conversationServiceMock.getSegments.mockResolvedValueOnce([
+      {
+        id: 'seg-1',
+        conversationId: 'conv-pc',
+        sequence: 1,
+        segmentType: 'transcript',
+        text: '帮我让 PC 整理今天最该推进的重点',
+        speaker: 'user',
+        speakerType: 'user',
+        source: 'mobile',
+        createdAt: new Date('2026-05-12T06:00:00.000Z'),
+      },
+      {
+        id: 'seg-2',
+        conversationId: 'conv-pc',
+        sequence: 2,
+        segmentType: 'transcript',
+        text: '我会让桌面端整理',
+        speaker: 'navigator',
+        speakerType: 'navigator',
+        source: 'mobile',
+        createdAt: new Date('2026-05-12T06:01:00.000Z'),
+      },
+    ]);
+
+    const response = await request(app)
+      .post('/api/assistant')
+      .send({
+        message: '接着刚才那段继续',
+        type: 'text',
+        source: 'app',
+        resumeConversationId: 'conv-pc',
+        resumeConversationTitle: 'PC 执行回流',
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.conversation).toEqual({ id: 'conv-pc', resumed: true });
+    expect(hybridAssistantMock.processMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: '接着刚才那段继续',
+        context: {
+          recentMessages: [
+            expect.objectContaining({ content: '用户：帮我让 PC 整理今天最该推进的重点' }),
+            expect.objectContaining({ content: '小智：我会让桌面端整理' }),
+          ],
+        },
+      }),
+      'user-1',
+    );
+
+    await flushAsyncRecorder();
+
+    expect(perceptionGatewayMock.start).not.toHaveBeenCalled();
+    expect(conversationServiceMock.appendSegment).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      conversationId: 'conv-pc',
+      sequence: 3,
+      text: '接着刚才那段继续',
+      speakerType: 'user',
+    }));
+    expect(conversationServiceMock.appendSegment).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      conversationId: 'conv-pc',
+      sequence: 4,
+      text: 'Done',
+      speakerType: 'navigator',
+    }));
+    expect(conversationServiceMock.finish).toHaveBeenCalledWith('conv-pc', 'user-1');
   });
 
   it('returns intent and permission metadata and updates thresholds', async () => {

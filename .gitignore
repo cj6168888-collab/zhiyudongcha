@@ -50,3 +50,6 @@ android/.idea/
 .opencode/
 .cursor/
 .codex-server-*.log
+
+# Local reference materials
+领航者宣传资料/

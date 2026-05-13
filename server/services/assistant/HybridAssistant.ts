@@ -841,6 +841,17 @@ class HybridAssistant {
     this.handlers.set(category, handler);
   }
 
+  private formatRecentConversationContext(message: UserMessage): string {
+    const recentMessages = message.context?.recentMessages
+      ?.filter((item) => typeof item.content === 'string' && item.content.trim().length > 0)
+      .slice(-8);
+    if (!recentMessages?.length) return '';
+
+    return recentMessages
+      .map((item) => `- ${item.content.trim().slice(0, 300)}`)
+      .join('\n');
+  }
+
   /**
    * 处理消息
    */
@@ -1474,6 +1485,7 @@ class HybridAssistant {
     userId: string,
   ): Promise<AssistantResponse> {
     // 完整 AI 处理流程
+    const recentConversationContext = this.formatRecentConversationContext(message);
     const systemPrompt = `你是生语助手，用户的个人AI助手。
 
 你的能力：
@@ -1490,6 +1502,9 @@ class HybridAssistant {
 - 尊重用户决策
 - 敏感操作（删除、支付、外发）必须请用户确认
 
+${recentConversationContext ? `正在延续的历史会话（用于理解上下文，不要逐字复述）：
+${recentConversationContext}
+` : ''}
 用户消息： "${message.content}"
 
 请判断用户意图，用 JSON 回复：

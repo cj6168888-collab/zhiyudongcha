@@ -10,7 +10,7 @@ import { AuthorizationType, AuthorizationScope } from '../services/assistant/Aut
 import { conversationActionExecutor } from '../services/assistant/ConversationActionExecutor';
 import { conversationExecutionEventRecorder } from '../services/assistant/ConversationExecutionEventRecorder';
 import { perceptionGateway } from '../services/perception/PerceptionGateway';
-import { conversationService } from '../services/conversation/ConversationService';
+import { conversationService, type ConversationSegmentRecord } from '../services/conversation/ConversationService';
 import { conversationProcessor } from '../services/conversation/ConversationProcessor';
 import { avatarService } from '../services/AvatarService';
 import { createServiceLogger } from '../lib/logger';
@@ -44,6 +44,12 @@ interface AssistantHistoryScope {
   source?: string;
 }
 
+interface AssistantResumeConversation {
+  id: string;
+  title?: string;
+  segments: ConversationSegmentRecord[];
+}
+
 const fallbackAssistantHistory: AssistantHistoryItem[] = [];
 const FALLBACK_HISTORY_LIMIT = 100;
 
@@ -66,6 +72,86 @@ function assistantHistoryScopeFromRequest(req: Request, body?: Record<string, un
     deviceId: optionalText(body?.deviceId ?? req.query.deviceId),
     source: optionalText(body?.source ?? req.query.source),
   };
+}
+
+function speakerLabel(segment: ConversationSegmentRecord) {
+  if (segment.speakerType === 'user' || segment.speaker === 'user') return '用户';
+  if (segment.speakerType === 'navigator' || segment.speakerType === 'assistant') return '小智';
+  if (segment.speakerType === 'device') return '设备';
+  return segment.speaker ?? segment.speakerType ?? '记录';
+}
+
+function recentMessagesFromSegments(segments: ConversationSegmentRecord[]) {
+  return segments
+    .filter((segment) => typeof segment.text === 'string' && segment.text.trim().length > 0)
+    .slice(-8)
+    .map((segment) => ({
+      id: segment.id,
+      content: `${speakerLabel(segment)}：${segment.text?.trim() ?? ''}`,
+      type: 'text' as const,
+      source: 'app' as const,
+      timestamp: segment.createdAt instanceof Date ? segment.createdAt : new Date(segment.createdAt),
+    }));
+}
+
+async function resolveResumeConversation(body: Record<string, unknown>, userId: string): Promise<AssistantResumeConversation | null> {
+  const resumeConversationId = optionalText(body.resumeConversationId);
+  if (!resumeConversationId) return null;
+
+  try {
+    const conversation = await conversationService.get(resumeConversationId, userId);
+    if (!conversation) {
+      logger.warn({ resumeConversationId, userId }, 'Resume conversation not found; recording a new conversation turn');
+      return null;
+    }
+
+    const segments = await conversationService.getSegments(conversation.id);
+    return {
+      id: conversation.id,
+      title: optionalText(body.resumeConversationTitle) ?? optionalText(conversation.title) ?? optionalText(conversation.summary),
+      segments,
+    };
+  } catch (error) {
+    logger.warn({ err: error, resumeConversationId, userId }, 'Failed to load resume conversation context');
+    return null;
+  }
+}
+
+async function recordAssistantConversationTurn(input: {
+  userId: string;
+  message: string;
+  responseMessage: string;
+  convMode: string;
+  resumeConversation: AssistantResumeConversation | null;
+}) {
+  const conversationId = input.resumeConversation?.id
+    ?? (await perceptionGateway.start({ ownerId: input.userId, source: 'mobile', mode: input.convMode })).id;
+  const lastSequence = input.resumeConversation?.segments.reduce((max, segment) => Math.max(max, Number(segment.sequence) || 0), 0) ?? 0;
+  const nextSequence = lastSequence + 1;
+
+  await conversationService.appendSegment({
+    conversationId,
+    sequence: nextSequence,
+    segmentType: 'transcript',
+    text: input.message,
+    speaker: 'user',
+    speakerType: 'user',
+    source: 'mobile',
+  });
+  await conversationService.appendSegment({
+    conversationId,
+    sequence: nextSequence + 1,
+    segmentType: 'transcript',
+    text: input.responseMessage,
+    speaker: 'navigator',
+    speakerType: 'navigator',
+    source: 'mobile',
+  });
+  await conversationService.finish(conversationId, input.userId);
+
+  if (input.convMode === 'task_request') {
+    await conversationProcessor.process(conversationId, input.userId);
+  }
 }
 
 function scopeMatches(item: AssistantHistoryItem, scope: AssistantHistoryScope) {
@@ -287,10 +373,11 @@ router.get('/pending', async (req: Request, res: Response) => {
  */
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { message, type = 'text', source = 'app' } = req.body;
-    const historyScope = assistantHistoryScopeFromRequest(req, req.body);
+    const body = req.body as Record<string, unknown>;
+    const { message, type = 'text', source = 'app' } = body;
+    const historyScope = assistantHistoryScopeFromRequest(req, body);
 
-    if (!message) {
+    if (typeof message !== 'string' || !message.trim()) {
       res.status(400).json({
         success: false,
         error: '消息内容不能为空'
@@ -299,11 +386,14 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const userId = (req as unknown as { user?: { id?: string } }).user?.id || 'default';
+    const resumeConversation = await resolveResumeConversation(body, userId);
+    const recentMessages = resumeConversation ? recentMessagesFromSegments(resumeConversation.segments) : [];
 
     logger.info({
       messageLength: message.length,
       source,
-      userId
+      userId,
+      resumeConversationId: resumeConversation?.id,
     }, 'User message received');
 
     // 构建用户消息
@@ -313,6 +403,7 @@ router.post('/', async (req: Request, res: Response) => {
       type: type as 'text' | 'voice' | 'image',
       source: source as 'app' | 'wechat' | 'phone' | 'watch',
       timestamp: new Date(),
+      ...(recentMessages.length > 0 ? { context: { recentMessages } } : {}),
     };
 
     // 小星处理（传入 userId）
@@ -364,14 +455,13 @@ router.post('/', async (req: Request, res: Response) => {
     const convMode = response.action ? 'task_request' : 'casual_chat';
     setImmediate(async () => {
       try {
-        const conv = await perceptionGateway.start({ ownerId: userId, source: 'mobile', mode: convMode });
-        await conversationService.appendSegment({ conversationId: conv.id, sequence: 1, segmentType: 'transcript', text: message, speaker: 'user', speakerType: 'user', source: 'mobile' });
-        await conversationService.appendSegment({ conversationId: conv.id, sequence: 2, segmentType: 'transcript', text: response.message, speaker: 'navigator', speakerType: 'navigator', source: 'mobile' });
-        await conversationService.finish(conv.id, userId);
-        // task_request 模式：自动处理提取候选项，供用户在 Inbox 确认
-        if (convMode === 'task_request') {
-          await conversationProcessor.process(conv.id, userId);
-        }
+        await recordAssistantConversationTurn({
+          userId,
+          message,
+          responseMessage: response.message,
+          convMode,
+          resumeConversation,
+        });
       } catch (_) { /* non-critical */ }
     });
 
@@ -379,6 +469,7 @@ router.post('/', async (req: Request, res: Response) => {
     res.json({
       success: true,
       response,
+      ...(resumeConversation ? { conversation: { id: resumeConversation.id, resumed: true } } : {}),
       ...(executionResult ? { execution: executionResult } : {}),
     });
 
