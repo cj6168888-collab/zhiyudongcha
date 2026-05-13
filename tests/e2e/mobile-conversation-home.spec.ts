@@ -3,6 +3,7 @@ import { expect, type Page, test } from '@playwright/test';
 const mobileViewport = { width: 390, height: 844 };
 const appUrl = 'http://localhost:5173/';
 const localStateKey = 'navigator.mobile.conversation-home.local-state.v1';
+const ideaCaptureKey = 'xiaozhi_idea_capture_notes';
 
 async function mockConversationShell(page: Page, options?: {
   pendingSummary?: Record<string, unknown>;
@@ -271,6 +272,63 @@ test.describe('Mobile conversation home', () => {
     await expect(page.getByText('材料已加入本次对话')).toBeVisible();
     await expect(page.getByTestId('conversation-send')).toBeEnabled();
     expect(page.url()).toBe(appUrl);
+  });
+
+  test('captures an idea locally without leaving the conversation flow', async ({ page }) => {
+    await mockConversationShell(page, { preserveLocalState: true });
+
+    await page.goto(`${appUrl}inspiration`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate((key) => window.localStorage.removeItem(key), ideaCaptureKey);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByRole('heading', { name: '想法暂存' })).toBeVisible();
+    await expect(page.getByText('这里不广播、不自动立项')).toBeVisible();
+    await expect(page.getByText('广播至全舰队')).toHaveCount(0);
+    await expect(page.getByText('语义血缘')).toHaveCount(0);
+
+    const idea = '把首页继续收敛成真实沟通，不展示假能力卡片';
+    await page.getByRole('textbox').fill(idea);
+    await page.getByRole('button', { name: '暂存' }).click();
+
+    await expect(page.getByText('已暂存的想法')).toHaveCount(0);
+    await expect(page.getByText('暂存列表')).toBeVisible();
+    await expect(page.getByText(idea)).toBeVisible();
+    await expect.poll(() => page.evaluate(
+      ({ key, expected }) => window.localStorage.getItem(key)?.includes(expected) ?? false,
+      { key: ideaCaptureKey, expected: idea }
+    )).toBe(true);
+
+    await page.getByRole('button', { name: '移除想法' }).click();
+
+    await expect(page.getByText(idea)).toHaveCount(0);
+    await expect(page.getByText('暂无想法')).toBeVisible();
+    await expect.poll(() => page.evaluate(
+      ({ key, expected }) => window.localStorage.getItem(key)?.includes(expected) ?? false,
+      { key: ideaCaptureKey, expected: idea }
+    )).toBe(false);
+  });
+
+  test('brings a captured idea back into the unified chat composer', async ({ page }) => {
+    await mockConversationShell(page, { preserveLocalState: true });
+
+    await page.goto(`${appUrl}inspiration`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(({ ideaKey, stateKey }) => {
+      window.localStorage.removeItem(ideaKey);
+      window.localStorage.removeItem(stateKey);
+      window.sessionStorage.removeItem('xiaozhi_resume_prompt');
+    }, { ideaKey: ideaCaptureKey, stateKey: localStateKey });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    const idea = '让小智把这段产品反馈整理成下一轮 UI 修改任务';
+    await page.getByRole('textbox').fill(idea);
+    await page.getByRole('button', { name: '暂存' }).click();
+    await page.getByRole('button', { name: '带回对话' }).click();
+
+    await expect(page).toHaveURL(appUrl);
+    await expect(page.getByTestId('conversation-live-surface')).toContainText('和小智说话');
+    await expect(page.getByTestId('conversation-input')).toHaveValue(`帮我继续展开这个想法：${idea}`);
+    await expect(page.getByTestId('conversation-send')).toBeEnabled();
+    await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem('xiaozhi_resume_prompt'))).toBeNull();
   });
 
   test('shows model source on AI assistant replies', async ({ page }) => {
