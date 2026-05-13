@@ -10,6 +10,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
+const WAVE_BARS = [34, 58, 82, 46, 72, 52, 38];
+
 interface XiaozhiStatusHeaderProps {
   avatarName: string;
   brainLabel: string;
@@ -52,9 +54,9 @@ export function XiaozhiStatusHeader({
   }
 
   return (
-    <header className="flex-shrink-0 border-b border-white/10 bg-[#050817]/95 px-4 pb-3 pt-3 backdrop-blur-xl">
+    <header className="flex-shrink-0 border-b border-white/10 bg-[#050817]/96 px-4 pb-3 pt-3 shadow-[0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-xl">
       <div className="flex items-center gap-3">
-        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-violet-300/30 bg-white/5 shadow-[0_0_22px_rgba(139,92,246,0.22)]">
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-cyan-200/20 bg-white/5 shadow-[0_0_24px_rgba(34,211,238,0.16)]">
           <img src="/xiaoji-avatar.png" alt="小智" className="h-full w-full object-cover" />
           <span className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border border-[#050817] bg-emerald-400" />
         </div>
@@ -73,7 +75,7 @@ export function XiaozhiStatusHeader({
 
         <button
           onClick={onOpenNavigator}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 active:bg-white/10"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:bg-white/10"
           aria-label="打开领航"
         >
           <Sparkles className="h-5 w-5" />
@@ -81,7 +83,7 @@ export function XiaozhiStatusHeader({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-bold text-slate-300">
+        <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[11px] font-bold text-slate-300">
           {role === "MASTER" ? "主控" : "受限"}
         </span>
         {deviceLabel !== "未绑定" && (
@@ -201,6 +203,7 @@ export function ConversationLiveSurface({
   onToggleVoice,
 }: ConversationLiveSurfaceProps) {
   const voiceLevelWidth = `${Math.max(8, Math.min(100, Math.round(voiceAudioLevel * 100)))}%`;
+  const voiceLevel = Math.max(0.18, Math.min(1, voiceAudioLevel || 0.36));
   const voiceProblem = voiceNotice || (!voiceSupported ? "当前环境暂不能直接语音，可以先打字；如果刚拒绝了麦克风权限，请在浏览器或系统设置里重新允许。" : null);
   const statusText = voiceActive
     ? (voiceInterimText || "正在听你说")
@@ -217,60 +220,92 @@ export function ConversationLiveSurface({
     <section
       data-testid="conversation-live-surface"
       className={cn(
-        "rounded-xl border border-white/10 bg-white/[0.035] transition-colors",
+        "relative overflow-hidden rounded-xl border transition-colors",
         hasHistory
-          ? "mb-3 flex items-center gap-3 px-3 py-3 text-left"
-          : "flex min-h-[38vh] flex-col items-center justify-center px-4 py-8 text-center"
+          ? "mb-3 flex items-center gap-3 border-white/10 bg-[#0a1020]/82 px-3 py-3 text-left shadow-[0_18px_52px_rgba(0,0,0,0.22)]"
+          : "flex min-h-[40vh] flex-col items-center justify-center border-cyan-200/12 bg-[#070c18]/90 px-4 py-8 text-center shadow-[0_26px_80px_rgba(0,0,0,0.34)]"
       )}
     >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/25 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-cyan-200/[0.055] via-transparent to-transparent" />
       {hasHistory ? (
-        <div
-          className={cn(
-            "flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-white shadow-[0_0_34px_rgba(139,92,246,0.22)]",
-            voiceActive
-              ? "border-red-200/50 bg-red-400/20"
-              : "border-violet-200/25 bg-violet-400/15"
-          )}
-          aria-hidden="true"
-        >
-          <Mic className="h-5 w-5" />
-        </div>
-      ) : (
         <button
-          data-testid="conversation-voice-toggle"
+          data-testid="conversation-live-compact-toggle"
+          type="button"
           onClick={onToggleVoice}
           disabled={!voiceSupported}
           className={cn(
-            "flex h-28 w-28 shrink-0 items-center justify-center rounded-full border text-white shadow-[0_0_42px_rgba(139,92,246,0.25)] transition active:scale-95 disabled:text-slate-600",
+            "relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-white shadow-[0_0_34px_rgba(34,211,238,0.18)] active:scale-95 disabled:text-slate-600",
             voiceActive
-              ? "border-red-200/50 bg-red-400/20"
-              : "border-violet-200/25 bg-violet-400/15"
+              ? "border-rose-200/50 bg-rose-400/20"
+              : "border-cyan-200/25 bg-cyan-300/10"
           )}
           aria-label={voiceActive ? "停止语音输入" : "语音输入"}
         >
-          <Mic className="h-12 w-12" />
+          <Mic className="h-5 w-5" />
         </button>
+      ) : (
+        <div className="relative z-10 flex h-36 w-36 items-center justify-center">
+          <div className={cn(
+            "absolute inset-0 rounded-full border",
+            voiceActive ? "border-rose-200/18" : "border-cyan-200/14"
+          )} />
+          <div className={cn(
+            "absolute inset-4 rounded-full border",
+            voiceActive ? "border-rose-200/22 bg-rose-300/[0.03]" : "border-violet-200/18 bg-cyan-300/[0.03]"
+          )} />
+          <button
+            data-testid="conversation-voice-toggle"
+            onClick={onToggleVoice}
+            disabled={!voiceSupported}
+            className={cn(
+              "relative flex h-28 w-28 shrink-0 items-center justify-center rounded-full border text-white transition active:scale-95 disabled:text-slate-600",
+              voiceActive
+                ? "border-rose-100/55 bg-rose-400/18 shadow-[0_0_52px_rgba(251,113,133,0.24)]"
+                : "border-cyan-100/30 bg-cyan-300/10 shadow-[0_0_52px_rgba(34,211,238,0.18)]"
+            )}
+            aria-label={voiceActive ? "停止语音输入" : "语音输入"}
+          >
+            <Mic className="h-12 w-12" />
+          </button>
+        </div>
       )}
 
-      <div className={cn("min-w-0", hasHistory ? "flex-1" : "mt-5 w-full max-w-[18rem]")}>
+      <div className={cn("relative z-10 min-w-0", hasHistory ? "flex-1" : "mt-4 w-full max-w-[19rem]")}>
         <p className={cn("font-black text-slate-100", hasHistory ? "truncate text-sm" : "text-base")}>
           {statusText}
         </p>
-        <p className={cn("mt-1 text-slate-500", hasHistory ? "truncate text-[10px]" : "text-xs")}>
+        <p className={cn("mt-1 text-slate-400", hasHistory ? "truncate text-[10px]" : "text-xs")}>
           {statusDetail}
         </p>
-        <div className={cn("h-1.5 overflow-hidden rounded-full bg-white/10", hasHistory ? "mt-2 w-full" : "mx-auto mt-4 w-44")}>
-          <div
-            className={cn("h-full rounded-full transition-all", voiceActive ? "bg-red-200" : "bg-violet-300")}
-            style={{ width: voiceActive ? voiceLevelWidth : "36%" }}
-          />
+        <div className={cn("overflow-hidden", hasHistory ? "mt-2 w-full" : "mx-auto mt-4 w-52")}>
+          <div className="flex h-8 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-black/18 px-3">
+            {WAVE_BARS.map((height, index) => (
+              <span
+                key={index}
+                className={cn(
+                  "w-1.5 rounded-full transition-all",
+                  voiceActive ? "bg-rose-200" : "bg-cyan-200/70"
+                )}
+                style={{
+                  height: `${Math.max(18, Math.round(height * (voiceActive ? voiceLevel : 0.42)))}%`,
+                }}
+              />
+            ))}
+          </div>
+          <div className={cn("mt-2 h-1 overflow-hidden rounded-full bg-white/10", hasHistory ? "w-full" : "mx-auto w-44")}>
+            <div
+              className={cn("h-full rounded-full transition-all", voiceActive ? "bg-rose-200" : "bg-cyan-200")}
+              style={{ width: voiceActive ? voiceLevelWidth : "36%" }}
+            />
+          </div>
         </div>
         {!hasHistory && (
           <div className={cn(
-            "mt-8 rounded-2xl rounded-tl-md border px-4 py-3 text-left",
+            "mt-7 rounded-xl border px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
             voiceActive
-              ? "border-red-200/20 bg-red-300/10"
-              : "border-white/10 bg-white/[0.06]"
+              ? "border-rose-200/20 bg-rose-300/10"
+              : "border-white/10 bg-white/[0.055]"
           )}>
             <p className={cn("text-sm font-bold leading-relaxed", voiceActive ? "text-red-50" : "text-slate-100")}>
               {voiceActive
@@ -303,7 +338,7 @@ export function CommandComposer({
   const voiceLevelWidth = `${Math.max(8, Math.min(100, Math.round(voiceAudioLevel * 100)))}%`;
 
   return (
-    <footer className="flex-shrink-0 border-t border-white/10 bg-[#050817]/95 px-3 pb-3 pt-2 backdrop-blur-xl">
+    <footer className="flex-shrink-0 border-t border-white/10 bg-[#050817]/96 px-3 pb-3 pt-2 shadow-[0_-16px_44px_rgba(0,0,0,0.28)] backdrop-blur-xl">
       {attachments.length > 0 && (
         <div className="mx-auto mb-2 flex max-w-lg flex-wrap gap-2">
           <p className="basis-full text-[10px] font-bold text-slate-500">材料已加入本次对话</p>
@@ -330,21 +365,21 @@ export function CommandComposer({
         </div>
       )}
       {(voiceActive || voiceInterimText || voiceNotice) && (
-        <div className="mx-auto mb-2 max-w-lg rounded-lg border border-violet-300/20 bg-violet-300/10 px-3 py-2">
+        <div className="mx-auto mb-2 max-w-lg rounded-lg border border-cyan-300/20 bg-cyan-300/10 px-3 py-2">
           <div className="flex items-center gap-2">
             <span
               className={cn(
                 "h-2 w-2 shrink-0 rounded-full",
-                voiceActive ? "animate-pulse bg-red-300" : "bg-violet-300"
+                voiceActive ? "animate-pulse bg-rose-300" : "bg-cyan-300"
               )}
             />
-            <p className="min-w-0 flex-1 truncate text-xs font-bold text-violet-100">
+            <p className="min-w-0 flex-1 truncate text-xs font-bold text-cyan-100">
               {voiceInterimText || voiceNotice || "正在听..."}
             </p>
           </div>
           {voiceActive && (
             <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-violet-300 transition-all" style={{ width: voiceLevelWidth }} />
+              <div className="h-full rounded-full bg-cyan-300 transition-all" style={{ width: voiceLevelWidth }} />
             </div>
           )}
         </div>
@@ -362,8 +397,8 @@ export function CommandComposer({
             data-testid="conversation-voice-toggle"
             onClick={onToggleVoice}
             className={cn(
-              "inline-flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-200",
-              voiceActive && "border-red-300/50 bg-red-400/15 text-red-100",
+              "inline-flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+              voiceActive && "border-rose-300/50 bg-rose-400/15 text-rose-100",
               !voiceSupported && "text-slate-600"
             )}
             aria-label={voiceActive ? "停止语音输入" : "语音输入"}
@@ -371,7 +406,7 @@ export function CommandComposer({
             <Mic className="h-5 w-5" />
           </button>
         )}
-        <label className="inline-flex h-[52px] min-h-[52px] w-full shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] p-0 text-slate-300 active:bg-white/10" aria-label="添加材料">
+        <label className="inline-flex h-[52px] min-h-[52px] w-full shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] p-0 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:bg-white/10" aria-label="添加材料">
           <Paperclip className="h-5 w-5" />
           <input
             data-testid="conversation-file-input"
@@ -384,7 +419,7 @@ export function CommandComposer({
             }}
           />
         </label>
-        <div className="flex min-h-[52px] min-w-0 items-center rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 focus-within:border-violet-300/40">
+        <div className="flex min-h-[52px] min-w-0 items-center rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] focus-within:border-cyan-300/40">
           <textarea
             data-testid="conversation-input"
             value={inputText}
@@ -404,7 +439,7 @@ export function CommandComposer({
           data-testid="conversation-send"
           onClick={onSend}
           disabled={(!inputText.trim() && attachments.length === 0) || isProcessing}
-          className="inline-flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white disabled:bg-white/10 disabled:text-slate-600"
+          className="inline-flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center rounded-xl bg-cyan-500 text-[#041018] shadow-[0_10px_28px_rgba(34,211,238,0.18)] disabled:bg-white/10 disabled:text-slate-600 disabled:shadow-none"
           aria-label="发送"
         >
           {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
