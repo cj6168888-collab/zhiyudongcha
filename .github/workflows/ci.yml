@@ -16,9 +16,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-          set-safe-directory: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -67,9 +64,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-          set-safe-directory: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -108,9 +102,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-          set-safe-directory: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
