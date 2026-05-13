@@ -186,6 +186,7 @@ interface ConversationLiveSurfaceProps {
   voiceActive: boolean;
   voiceSupported: boolean;
   voiceInterimText: string;
+  voiceNotice: string | null;
   voiceAudioLevel: number;
   onToggleVoice: () => void;
 }
@@ -195,10 +196,12 @@ export function ConversationLiveSurface({
   voiceActive,
   voiceSupported,
   voiceInterimText,
+  voiceNotice,
   voiceAudioLevel,
   onToggleVoice,
 }: ConversationLiveSurfaceProps) {
   const voiceLevelWidth = `${Math.max(8, Math.min(100, Math.round(voiceAudioLevel * 100)))}%`;
+  const voiceProblem = voiceNotice || (!voiceSupported ? "当前环境暂不能直接语音，可以先打字；如果刚拒绝了麦克风权限，请在浏览器或系统设置里重新允许。" : null);
   const statusText = voiceActive
     ? (voiceInterimText || "正在听你说")
     : voiceSupported
@@ -207,8 +210,8 @@ export function ConversationLiveSurface({
   const statusDetail = voiceActive
     ? (voiceInterimText ? "实时转写中" : "保持说话，我会自动接住这次指令")
     : voiceSupported
-      ? "语音、文字和材料会进入同一次对话"
-      : "当前环境没有可用语音识别";
+      ? (voiceNotice || "语音、文字和材料会进入同一次对话")
+      : (voiceProblem || "当前环境没有可用语音识别");
 
   return (
     <section
@@ -272,7 +275,7 @@ export function ConversationLiveSurface({
             <p className={cn("text-sm font-bold leading-relaxed", voiceActive ? "text-red-50" : "text-slate-100")}>
               {voiceActive
                 ? (voiceInterimText || "我在听，直接说完整指令。")
-                : "点按麦克风直接说，也可以在下面打字；需要材料就先加到这次对话里。"}
+                : (voiceProblem || "点按麦克风直接说，也可以在下面打字；需要材料就先加到这次对话里。")}
             </p>
           </div>
         )}

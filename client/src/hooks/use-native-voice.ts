@@ -4,6 +4,46 @@ import { VoicePlugin } from '../plugins';
 import type { SpeechResultEvent, SpeechStatusEvent, SpeechRmsEvent, SpeechErrorEvent } from '../plugins/definitions';
 import { createServiceLogger } from '../lib/logger';
 
+const VOICE_UNSUPPORTED_MESSAGE = '当前环境没有可用语音识别，可以先用文字输入。';
+
+function normalizeVoiceError(error: unknown) {
+  const rawMessage = typeof error === 'string'
+    ? error
+    : error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error && 'message' in error
+        ? String((error as { message?: unknown }).message ?? '')
+        : '';
+  const normalized = rawMessage.toLowerCase();
+
+  if (
+    normalized.includes('not-allowed') ||
+    normalized.includes('permission') ||
+    normalized.includes('denied') ||
+    normalized.includes('service-not-allowed')
+  ) {
+    return '麦克风权限被拒绝。请在浏览器或系统设置里允许麦克风，然后再点语音。';
+  }
+
+  if (normalized.includes('audio-capture')) {
+    return '没有检测到可用麦克风。请检查设备麦克风后再试，或先用文字输入。';
+  }
+
+  if (normalized.includes('no-speech')) {
+    return '没有听到声音，可以再点一次麦克风重新说。';
+  }
+
+  if (normalized.includes('network')) {
+    return '语音识别服务连接失败，可以先用文字输入，稍后再试语音。';
+  }
+
+  if (normalized.includes('stt_not_available') || normalized.includes('not available')) {
+    return VOICE_UNSUPPORTED_MESSAGE;
+  }
+
+  return rawMessage || '语音输入启动失败，可以先用文字输入。';
+}
+
 export interface UseNativeVoiceResult {
   isListening: boolean;
   transcript: string;
@@ -56,7 +96,7 @@ export function useNativeVoice(): UseNativeVoiceResult {
 
         await VoicePlugin.addListener('speechError', (ev: SpeechErrorEvent) => {
           setIsListening(false);
-          setError(ev.message);
+          setError(normalizeVoiceError(ev.message));
           logRef.current.warn('STT error', ev);
         }),
       );
@@ -85,6 +125,7 @@ export function useNativeVoice(): UseNativeVoiceResult {
       } catch (err) {
         if (disposed) return;
         setIsSupported(false);
+        setError(normalizeVoiceError(err));
         logRef.current.error('Failed to initialize voice plugin', err);
       }
     };
@@ -100,7 +141,10 @@ export function useNativeVoice(): UseNativeVoiceResult {
   }, [ensureListenerRegistration]);
 
   const startListening = useCallback(async () => {
-    if (!isSupported) return;
+    if (!isSupported) {
+      setError(VOICE_UNSUPPORTED_MESSAGE);
+      return;
+    }
     try {
       await ensureListenerRegistration();
       setError(null);
@@ -108,8 +152,7 @@ export function useNativeVoice(): UseNativeVoiceResult {
       setPartialTranscript('');
       await VoicePlugin.startListening();
     } catch (err) {
-      const msg = (err as Error).message;
-      setError(msg);
+      setError(normalizeVoiceError(err));
       logRef.current.error('Failed to start listening', err);
     }
   }, [ensureListenerRegistration, isSupported]);

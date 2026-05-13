@@ -317,6 +317,7 @@ test.describe('Mobile conversation home', () => {
         maxAlternatives = 1;
         onstart: (() => void) | null = null;
         onresult: ((event: unknown) => void) | null = null;
+        onerror: ((event: unknown) => void) | null = null;
         onend: (() => void) | null = null;
         started = false;
 
@@ -374,6 +375,43 @@ test.describe('Mobile conversation home', () => {
     expect(await page.evaluate(() =>
       (window as unknown as { __assistantCalls?: number }).__assistantCalls ?? 0
     )).toBe(1);
+  });
+
+  test('shows recoverable microphone permission guidance', async ({ page }) => {
+    await page.addInitScript(() => {
+      class DeniedSpeechRecognition {
+        continuous = false;
+        interimResults = false;
+        lang = 'zh-CN';
+        maxAlternatives = 1;
+        onstart: (() => void) | null = null;
+        onerror: ((event: unknown) => void) | null = null;
+        onend: (() => void) | null = null;
+
+        start() {
+          this.onstart?.();
+          window.setTimeout(() => {
+            this.onerror?.({ error: 'not-allowed' });
+            this.onend?.();
+          }, 0);
+        }
+
+        stop() {
+          this.onend?.();
+        }
+      }
+
+      (window as unknown as { SpeechRecognition: typeof DeniedSpeechRecognition }).SpeechRecognition = DeniedSpeechRecognition;
+      (window as unknown as { webkitSpeechRecognition: typeof DeniedSpeechRecognition }).webkitSpeechRecognition = DeniedSpeechRecognition;
+    });
+    await mockConversationShell(page);
+
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('conversation-voice-toggle')).toBeEnabled();
+    await page.getByTestId('conversation-voice-toggle').click();
+
+    await expect(page.getByTestId('conversation-live-surface')).toContainText('麦克风权限被拒绝');
+    await expect(page.getByTestId('conversation-live-surface')).toContainText('请在浏览器或系统设置里允许麦克风');
   });
 
   test('restores unsent composer text after reload', async ({ page }) => {

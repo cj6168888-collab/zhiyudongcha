@@ -1243,6 +1243,7 @@ export default function ConversationHome() {
           voiceActive={voiceListening}
           voiceSupported={voiceSupported}
           voiceInterimText={voicePartialTranscript}
+          voiceNotice={voiceError || voiceNotice}
           voiceAudioLevel={voiceAudioLevel}
           onToggleVoice={() => void handleToggleVoice()}
         />
