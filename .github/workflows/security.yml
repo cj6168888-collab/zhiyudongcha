@@ -11,10 +11,15 @@ permissions:
   contents: read
   security-events: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   dependency-scan:
     name: Dependency Scan
     runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     steps:
       - name: Checkout code
@@ -31,17 +36,19 @@ jobs:
 
       - name: Run npm audit
         run: npm audit --audit-level=moderate
-        continue-on-error: true
 
       - name: Run Snyk vulnerability scan
+        if: ${{ env.SNYK_TOKEN != '' }}
         uses: snyk/actions/node@master
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
         continue-on-error: true
 
   code-security:
     name: Code Security
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     steps:
       - name: Checkout code
@@ -64,11 +71,12 @@ jobs:
       - name: Run CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:javascript"
+          category: "/language:javascript-typescript"
 
       - name: Run SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@master
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: sonarsource/sonarqube-scan-action@v6
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
