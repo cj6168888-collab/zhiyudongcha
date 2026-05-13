@@ -9,9 +9,9 @@ import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  Shield, ShieldCheck, Users, Building2, Sparkles,
-  ChevronRight, Check, Smartphone, Mic, FileText,
-  BrainCircuit, Lock, Eye, Globe
+  Shield, Users, Building2, Sparkles,
+  Check, Smartphone, Mic, FileText,
+  BrainCircuit, Lock, Globe
 } from "lucide-react";
 
 // 用户模式类型
@@ -30,7 +30,7 @@ const MODE_CONFIG: Record<UserMode, {
     icon: Shield,
     color: 'text-blue-400',
     description: '专注个人效率提升，AI助手全程陪伴',
-    features: ['AI专家顾问', '项目管理', '成果智库', '远程控制']
+    features: ['AI专家顾问', '项目管理', '成果智库', 'PC代理执行']
   },
   ENTERPRISE: {
     name: '企业模式',
@@ -52,7 +52,7 @@ const MODE_CONFIG: Record<UserMode, {
 const FEATURE_PREVIEW = [
   { id: 'expert', name: 'AI专家', icon: BrainCircuit, desc: '5位领域专家随时待命', color: 'bg-blue-500' },
   { id: 'project', name: '项目管理', icon: FileText, desc: '智能化项目全生命周期管理', color: 'bg-purple-500' },
-  { id: 'control', name: '远程控制', icon: Smartphone, desc: '手机远程操控电脑', color: 'bg-green-500' },
+  { id: 'control', name: 'PC代理', icon: Smartphone, desc: '用指令让电脑替你工作', color: 'bg-green-500' },
   { id: 'vault', name: '成果智库', icon: Sparkles, desc: 'AI自动整理归档', color: 'bg-amber-500' },
 ];
 
@@ -61,7 +61,7 @@ const PERMISSIONS = [
   { icon: Mic, name: '麦克风权限', desc: '用于语音指令和语音输入', required: true },
   { icon: Globe, name: '网络访问', desc: '连接AI服务和同步数据', required: true },
   { icon: FileText, name: '存储权限', desc: '保存和读取项目文件', required: false },
-  { icon: Smartphone, name: '设备控制', desc: '远程控制已配对的设备', required: false },
+  { icon: Smartphone, name: '设备代理', desc: '把执行指令分派给已配对电脑', required: false },
 ];
 
 interface ScriptStep {

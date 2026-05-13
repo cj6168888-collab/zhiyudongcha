@@ -10,8 +10,7 @@ import {
   ArrowRight, FileBarChart, Scan, ListTodo, Monitor, Sparkles, Layers
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useGlobalStore } from "@/store/globalStore";
@@ -218,7 +217,7 @@ export default function BusinessHub() {
         <section>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: '远程', desc: 'PC 控制', icon: Monitor, path: '/remote-pc', color: 'text-blue-300' },
+              { label: 'PC 代理', desc: '指令执行', icon: Monitor, path: '/remote-pc', color: 'text-blue-300' },
               { label: '技能', desc: '能力库', icon: Sparkles, path: '/skills', color: 'text-violet-300' },
               { label: '工作流', desc: '自动化', icon: Layers, path: '/workflow', color: 'text-cyan-300' },
             ].map((item) => (
