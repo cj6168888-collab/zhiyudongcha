@@ -72,7 +72,6 @@ class MainActivity : BridgeActivity(), SensorEventListener {
 
     private fun checkAndRequestPermissions() {
         val permissions = mutableListOf(
-            Manifest.permission.RECORD_AUDIO,
             Manifest.permission.CAMERA,
             Manifest.permission.WRITE_CALENDAR,
             Manifest.permission.READ_CALENDAR

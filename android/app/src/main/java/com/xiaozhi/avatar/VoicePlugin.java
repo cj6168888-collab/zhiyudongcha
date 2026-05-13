@@ -1,5 +1,6 @@
 package com.xiaozhi.avatar;
 
+import android.Manifest;
 import android.content.Intent;
 import android.os.Bundle;
 import android.speech.RecognitionListener;
@@ -7,15 +8,25 @@ import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import java.util.ArrayList;
 
-@CapacitorPlugin(name = "VoicePlugin")
+@CapacitorPlugin(
+    name = "VoicePlugin",
+    permissions = {
+        @Permission(strings = { Manifest.permission.RECORD_AUDIO }, alias = VoicePlugin.MICROPHONE_PERMISSION)
+    }
+)
 public class VoicePlugin extends Plugin {
+
+    static final String MICROPHONE_PERMISSION = "microphone";
 
     private SpeechRecognizer speechRecognizer;
     private boolean isListening = false;
@@ -42,6 +53,26 @@ public class VoicePlugin extends Plugin {
 
     @PluginMethod
     public void startListening(PluginCall call) {
+        if (getPermissionState(MICROPHONE_PERMISSION) != PermissionState.GRANTED) {
+            requestPermissionForAlias(MICROPHONE_PERMISSION, call, "startListeningAfterPermission");
+            return;
+        }
+
+        startListeningWithPermission(call);
+    }
+
+    @PermissionCallback
+    private void startListeningAfterPermission(PluginCall call) {
+        if (getPermissionState(MICROPHONE_PERMISSION) != PermissionState.GRANTED) {
+            emitSpeechError(SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS, "permission_denied");
+            call.reject("PERMISSION_DENIED", "permission_denied");
+            return;
+        }
+
+        startListeningWithPermission(call);
+    }
+
+    private void startListeningWithPermission(PluginCall call) {
         getBridge().executeOnMainThread(() -> {
             try {
                 if (isListening) {
@@ -170,6 +201,7 @@ public class VoicePlugin extends Plugin {
 
             } catch (Exception e) {
                 isListening = false;
+                destroySpeechRecognizer();
                 call.reject("START_FAILED", e.getMessage());
             }
         });
@@ -205,6 +237,13 @@ public class VoicePlugin extends Plugin {
             speechRecognizer.destroy();
             speechRecognizer = null;
         }
+    }
+
+    private void emitSpeechError(int code, String message) {
+        JSObject event = new JSObject();
+        event.put("code", code);
+        event.put("message", message);
+        notifyListeners("speechError", event);
     }
 
     private String mapErrorCode(int error) {
