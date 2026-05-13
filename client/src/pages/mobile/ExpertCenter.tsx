@@ -14,7 +14,6 @@ import {
   ArrowRight, Sparkles, TrendingUp, Clock, CheckCircle2
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const expertServices = [
@@ -171,7 +170,7 @@ export default function ExpertCenter() {
             className="p-4 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center gap-2 active:bg-white/10"
           >
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-xs font-bold text-white">一键仲裁</span>
+            <span className="text-xs font-bold text-white">待确认</span>
           </button>
           <button
             onClick={() => setLocation('/inspiration')}
