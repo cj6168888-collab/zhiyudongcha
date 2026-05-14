@@ -19,6 +19,7 @@ import { Server } from 'http';
 import { randomUUID } from 'crypto';
 import pcExecutorService from '../mobile/PCExecutorService';
 import { pcDeviceRepository, pcSessionRepository } from '../../repositories';
+import { createPathWebSocketServer } from '../../lib/websocket-path';
 
 const logger = createServiceLogger('RemoteControl');
 
@@ -125,9 +126,7 @@ export class RemoteControlService {
       return;
     }
 
-    this.wss = new WebSocketServer({
-      server,
-      path: '/ws/remote-control',
+    this.wss = createPathWebSocketServer(server, '/ws/remote-control', {
       maxPayload: 10 * 1024 * 1024,
     });
 

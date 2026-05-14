@@ -19,6 +19,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { realtimeVoiceService, type RealtimeSessionConfig } from '../services/realtime-voice';
 import { getVoiceProfiles, getVoicesByAge } from '../services/voice-synthesis';
 import type { RegisterRouteFn } from './types';
+import { createPathWebSocketServer } from '../lib/websocket-path';
 
 let wss: WebSocketServer | null = null;
 
@@ -186,10 +187,7 @@ export const registerRealtimeVoiceRoutes: RegisterRouteFn = (app, storage, conte
 
 // WebSocket服务器初始化
 export function initRealtimeVoiceWebSocket(server: Server): WebSocketServer {
-  wss = new WebSocketServer({ 
-    server,
-    path: '/ws/realtime-voice',
-  });
+  wss = createPathWebSocketServer(server, '/ws/realtime-voice');
 
   wss.on('connection', (ws: WebSocket, req) => {
     logger.info('[RealtimeVoice] 新的WebSocket连接');

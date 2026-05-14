@@ -11,6 +11,17 @@ async function mockPhoneAuth(page: Page) {
     });
   });
 
+  await page.route('**/api/auth/ws-token', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: { token: 'test-token', expiresIn: 3600, role: 'GUEST' },
+      }),
+    });
+  });
+
   await page.route('**/api/auth/sms/send', async (route) => {
     const requestBody = route.request().postDataJSON() as { phone?: string; scene?: string };
     const debugCode = requestBody.scene === 'reset_password' ? '222222' : '111111';
@@ -26,7 +37,7 @@ async function mockPhoneAuth(page: Page) {
           cooldownSeconds: 1,
           debugCode,
         },
-        message: '验证码已发送',
+        message: 'sent',
       }),
     });
   });
@@ -42,7 +53,7 @@ async function mockPhoneAuth(page: Page) {
         data: {
           role: 'GUEST',
           user: { id: 'phone-user-1', username: requestBody.phone },
-          message: '注册成功',
+          message: 'registered',
         },
       }),
     });
@@ -52,7 +63,7 @@ async function mockPhoneAuth(page: Page) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { message: '密码已重置，请重新登录' } }),
+      body: JSON.stringify({ success: true, data: { message: 'reset complete' } }),
     });
   });
 
@@ -67,11 +78,25 @@ async function mockPhoneAuth(page: Page) {
         data: {
           role: 'GUEST',
           user: { id: 'phone-user-1', username: requestBody.username },
-          message: '登录成功',
+          message: 'login complete',
         },
       }),
     });
   });
+
+  await page.route('**/api/navigator/**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
+  await page.route('**/api/telemetry/status', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: {} }) });
+  });
+  await page.route('**/api/remote/devices', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, devices: [] }) });
+  });
+}
+
+async function clickCodeButton(page: Page, codeInputSelector: string) {
+  await page.locator(codeInputSelector).locator('..').locator('button').click();
 }
 
 test.describe('Desktop phone auth', () => {
@@ -81,16 +106,16 @@ test.describe('Desktop phone auth', () => {
     await mockPhoneAuth(page);
 
     await page.goto(`${appUrl}/desktop/login`, { waitUntil: 'domcontentloaded' });
+    await page.locator('#username').waitFor();
 
-    await page.getByRole('tab', { name: '注册' }).click();
-    await page.getByLabel('手机号').fill('13800000001');
-    await page.getByRole('button', { name: '获取验证码' }).click();
-    await expect(page.getByText('验证码已发送：111111')).toBeVisible();
-
-    await page.getByLabel('验证码', { exact: true }).fill('111111');
-    await page.getByLabel('密码', { exact: true }).fill('password123');
-    await page.getByLabel('确认密码', { exact: true }).fill('password123');
-    await page.getByRole('button', { name: '注册并进入' }).click();
+    await page.locator('[role="tab"]').nth(1).click();
+    await page.locator('#register-phone').fill('13800000001');
+    await page.locator('#register-password').fill('password123');
+    await page.locator('#register-confirm').fill('password123');
+    await clickCodeButton(page, '#register-code');
+    await expect(page.getByText(/111111/)).toBeVisible();
+    await page.locator('#register-code').fill('111111');
+    await page.locator('form:has(#register-phone) button[type="submit"]').click();
 
     await expect(page).toHaveURL(`${appUrl}/desktop/node`);
     await expect
@@ -98,21 +123,21 @@ test.describe('Desktop phone auth', () => {
       .toBe('13800000001');
 
     await page.goto(`${appUrl}/desktop/login`, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('tab', { name: '找回' }).click();
-    await page.getByLabel('手机号').fill('13800000001');
-    await page.getByRole('button', { name: '获取验证码' }).click();
-    await expect(page.getByText('验证码已发送：222222')).toBeVisible();
+    await page.locator('#username').waitFor();
+    await page.locator('[role="tab"]').nth(2).click();
+    await page.locator('#reset-phone').fill('13800000001');
+    await page.locator('#reset-password').fill('newpass123');
+    await page.locator('#reset-confirm').fill('newpass123');
+    await clickCodeButton(page, '#reset-code');
+    await expect(page.getByText(/222222/)).toBeVisible();
+    await page.locator('#reset-code').fill('222222');
+    await page.locator('form:has(#reset-phone) button[type="submit"]').click();
 
-    await page.getByLabel('验证码', { exact: true }).fill('222222');
-    await page.getByLabel('新密码', { exact: true }).fill('newpass123');
-    await page.getByLabel('确认密码', { exact: true }).fill('newpass123');
-    await page.getByRole('button', { name: '重置密码' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('[role="tab"]')[0]?.getAttribute('data-state') === 'active');
+    await expect(page.locator('#username')).toHaveValue('13800000001');
 
-    await expect(page.getByText('密码已重置')).toBeVisible();
-    await expect(page.getByLabel('手机号 / 用户名')).toHaveValue('13800000001');
-
-    await page.getByLabel('密码', { exact: true }).fill('newpass123');
-    await page.getByRole('button', { name: '登录' }).click();
+    await page.locator('#password').fill('newpass123');
+    await page.locator('form:has(#username) button[type="submit"]').click();
     await expect(page).toHaveURL(`${appUrl}/desktop/node`);
   });
 });

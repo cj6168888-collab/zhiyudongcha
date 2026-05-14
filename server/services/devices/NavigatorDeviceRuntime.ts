@@ -14,6 +14,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
 import { createServiceLogger } from '../../lib/logger';
+import { createPathWebSocketServer } from '../../lib/websocket-path';
 import { deviceBindingService } from './DeviceBindingService';
 import { perceptionGateway } from '../perception/PerceptionGateway';
 import { randomUUID } from 'crypto';
@@ -46,7 +47,7 @@ class NavigatorDeviceRuntime {
   // ── WebSocket 初始化 ──────────────────────────────────
 
   init(httpServer: Server): WebSocketServer {
-    const wss = new WebSocketServer({ server: httpServer, path: '/ws/devices/esp32' });
+    const wss = createPathWebSocketServer(httpServer, '/ws/devices/esp32');
 
     wss.on('connection', (ws, req) => {
       const url = new URL(req.url ?? '', `http://${req.headers.host}`);

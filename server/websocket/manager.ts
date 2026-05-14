@@ -1,9 +1,9 @@
 ﻿import { WebSocketServer, WebSocket, type Data } from 'ws';
 import { IncomingMessage } from 'http';
 import { createServiceLogger } from '../lib/logger';
-import { sessionMiddleware } from '../index';
 import { validateWsToken } from '../routes/auth';
 import { handleASRConnection } from '../services/alibaba-asr';
+import { createPathWebSocketServer } from '../lib/websocket-path';
 import type { ChatMessage } from '../services/dashscope';
 import type { ConnectedUser, WebSocketContext, WebSocketManager } from './types';
 
@@ -79,15 +79,17 @@ export class WebSocketManagerImpl implements WebSocketManager {
   }
 
   private setupWebSocketServers(httpServer: import('http').Server): void {
-    this.wss = new WebSocketServer({ noServer: true });
+    this.wss = createPathWebSocketServer(httpServer, '/ws/z3');
     const wsSessionMap = new WeakMap<WebSocket, { authenticated: boolean; role: 'MASTER' | 'GUEST'; sessionRole?: 'MASTER' | 'GUEST' }>();
 
-    this.wss.on('connection', (ws, request: IncomingMessage & { session?: { userRole?: 'MASTER' | 'GUEST' }; wsAuthFromUrl?: 'MASTER' | null }) => {
+    this.wss.on('connection', (ws, request: IncomingMessage & { session?: { userRole?: 'MASTER' | 'GUEST' } }) => {
       logger.info('[Z3] New WebSocket client connected');
       this.z3Clients.add(ws);
 
       const sessionRole = request.session?.userRole;
-      const urlAuthRole = request.wsAuthFromUrl;
+      const url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`);
+      const tokenParam = url.searchParams.get('token');
+      const urlAuthRole = tokenParam ? validateWsToken(tokenParam) : null;
       const effectiveRole = urlAuthRole || sessionRole;
       const isAuthenticated = effectiveRole === 'MASTER';
       wsSessionMap.set(ws, { authenticated: isAuthenticated, role: isAuthenticated ? 'MASTER' : 'GUEST', sessionRole: effectiveRole });
@@ -113,41 +115,10 @@ export class WebSocketManagerImpl implements WebSocketManager {
       }));
     });
 
-    this.asrWss = new WebSocketServer({ noServer: true });
+    this.asrWss = createPathWebSocketServer(httpServer, '/ws/asr');
     this.asrWss.on('connection', (ws) => {
       logger.info('[ASR] New WebSocket client connected');
       handleASRConnection(ws);
-    });
-
-    httpServer.on('upgrade', (request, socket, head) => {
-      const url = new URL(request.url || '/', `http://${request.headers.host}`);
-      const pathname = url.pathname;
-
-      const tokenParam = url.searchParams.get('token');
-      const tokenRole = tokenParam ? validateWsToken(tokenParam) : null;
-
-      (request as unknown as { wsAuthFromUrl: 'MASTER' | 'GUEST' | null }).wsAuthFromUrl = tokenRole;
-
-      const mockRes = {
-        setHeader: () => mockRes,
-        end: () => {},
-      };
-
-      sessionMiddleware(request as Parameters<typeof sessionMiddleware>[0], mockRes as Parameters<typeof sessionMiddleware>[1], () => {
-        if (pathname === '/ws/z3') {
-          this.wss!.handleUpgrade(request, socket, head, (ws) => {
-            this.wss!.emit('connection', ws, request);
-          });
-        } else if (pathname === '/ws/asr') {
-          this.asrWss!.handleUpgrade(request, socket, head, (ws) => {
-            this.asrWss!.emit('connection', ws, request);
-          });
-        } else {
-          // Other WebSocket servers are registered on the same HTTP server with
-          // their own path filters. Leave those upgrades alone.
-          return;
-        }
-      });
     });
 
     logger.info('WebSocket servers initialized');

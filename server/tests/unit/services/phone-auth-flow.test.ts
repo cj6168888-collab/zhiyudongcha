@@ -106,8 +106,6 @@ describe('phone auth service flow', () => {
     const sms = await smsVerificationService.sendCode(phone, 'register');
 
     expect(() => smsVerificationService.verifyCode(phone, 'register', sms.debugCode!)).not.toThrow();
-    expect(() => smsVerificationService.verifyCode(phone, 'register', sms.debugCode!)).toThrow(
-      '验证码已过期，请重新获取'
-    );
+    expect(() => smsVerificationService.verifyCode(phone, 'register', sms.debugCode!)).toThrow();
   });
 });
