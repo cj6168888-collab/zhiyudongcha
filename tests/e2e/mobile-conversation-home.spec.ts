@@ -365,6 +365,9 @@ test.describe('Mobile conversation home', () => {
     await expect(page.getByTestId('conversation-history-heading')).toContainText('语音和文字会连续保留在这里');
     await expect(page.getByTestId('conversation-inbox-link')).toContainText('全部会话');
     await expect(page.getByTestId('assistant-ai-source')).toContainText('通义 qwen-plus');
+    await expect(page.getByTestId('conversation-live-compact-status')).toBeVisible();
+    await expect(page.getByTestId('conversation-live-compact-toggle')).toHaveCount(0);
+    await expect(page.getByTestId('conversation-voice-toggle')).toHaveCount(1);
 
     await page.getByTestId('conversation-inbox-link').click();
     await expect(page).toHaveURL(/\/inbox$/);

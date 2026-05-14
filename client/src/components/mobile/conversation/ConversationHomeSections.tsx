@@ -230,21 +230,18 @@ export function ConversationLiveSurface({
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/25 to-transparent" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-cyan-200/[0.055] via-transparent to-transparent" />
       {hasHistory ? (
-        <button
-          data-testid="conversation-live-compact-toggle"
-          type="button"
-          onClick={onToggleVoice}
-          disabled={!voiceSupported}
+        <div
+          data-testid="conversation-live-compact-status"
           className={cn(
-            "relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-white shadow-[0_0_34px_rgba(34,211,238,0.18)] active:scale-95 disabled:text-slate-600",
+            "relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-white shadow-[0_0_34px_rgba(34,211,238,0.18)]",
             voiceActive
               ? "border-rose-200/50 bg-rose-400/20"
               : "border-cyan-200/25 bg-cyan-300/10"
           )}
-          aria-label={voiceActive ? "停止语音输入" : "语音输入"}
+          aria-hidden="true"
         >
           <Mic className="h-5 w-5" />
-        </button>
+        </div>
       ) : (
         <div className="relative z-10 flex h-36 w-36 items-center justify-center">
           <div className={cn(
