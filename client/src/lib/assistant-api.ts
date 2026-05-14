@@ -1,4 +1,4 @@
-﻿import { apiRequest } from "@/lib/queryClient";
+﻿import { apiRequest, parseApiJson } from "@/lib/queryClient";
 
 export interface AssistantExecution {
   success: boolean;
@@ -142,7 +142,7 @@ export async function sendAssistantMessage(
     source: "app",
     ...contextParams(context),
   });
-  return await res.json();
+  return await parseApiJson<AssistantChatResult>(res, "助手消息接口");
 }
 
 export async function getAssistantHistory(
@@ -154,7 +154,7 @@ export async function getAssistantHistory(
     ...contextParams(context),
   });
   const res = await apiRequest("GET", `/api/assistant/history?${params.toString()}`);
-  return await res.json();
+  return await parseApiJson<AssistantHistoryResult>(res, "助手历史接口");
 }
 
 export async function approveAssistantAction(
@@ -166,7 +166,7 @@ export async function approveAssistantAction(
     action: "approve_once",
     ...contextParams(context),
   });
-  return await res.json();
+  return await parseApiJson<AssistantAuthorizeResult>(res, "助手授权接口");
 }
 
 export async function denyAssistantAction(
@@ -178,7 +178,7 @@ export async function denyAssistantAction(
     action: "deny",
     ...contextParams(context),
   });
-  return await res.json();
+  return await parseApiJson<AssistantAuthorizeResult>(res, "助手取消接口");
 }
 
 export async function confirmAssistantDraft(
@@ -189,22 +189,22 @@ export async function confirmAssistantDraft(
     responseId,
     ...contextParams(context),
   });
-  return await res.json();
+  return await parseApiJson<DraftConfirmResult>(res, "草案确认接口");
 }
 
 export async function updateAssistantDraft(responseId: string, items: DraftItem[]): Promise<DraftUpdateResult> {
   const res = await apiRequest("POST", "/api/assistant/draft/update", { responseId, items });
-  return await res.json();
+  return await parseApiJson<DraftUpdateResult>(res, "草案保存接口");
 }
 
 export async function discardAssistantPending(responseId: string): Promise<AssistantDiscardResult> {
   const res = await apiRequest("POST", "/api/assistant/pending/discard", { responseId });
-  return await res.json();
+  return await parseApiJson<AssistantDiscardResult>(res, "暂存动作取消接口");
 }
 
 export async function getAssistantPendingSummary(): Promise<AssistantPendingSummary> {
   const res = await apiRequest("GET", "/api/assistant/pending");
-  return await res.json();
+  return await parseApiJson<AssistantPendingSummary>(res, "待确认动作接口");
 }
 
 export function formatExecutionSummary(execution?: AssistantExecution): string | null {

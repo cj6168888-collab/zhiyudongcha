@@ -70,6 +70,40 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+function compactSnippet(text: string) {
+  return text.replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+function nonJsonApiError(context: string, res: Response, body: string) {
+  const contentType = res.headers.get("content-type") || "unknown";
+  const snippet = compactSnippet(body);
+  const lowerSnippet = snippet.toLowerCase();
+
+  if (lowerSnippet.includes("<!doctype") || lowerSnippet.includes("<html")) {
+    return new Error(`${context} 返回了前端页面，不是 API JSON；请检查后端服务或 /api 代理端口。`);
+  }
+
+  return new Error(`${context} 返回了非 JSON 内容（${contentType}）${snippet ? `：${snippet}` : ""}`);
+}
+
+export async function parseApiJson<T = unknown>(res: Response, context = "API"): Promise<T> {
+  const contentType = res.headers.get("content-type") || "";
+  const clone = res.clone();
+
+  if (!contentType.toLowerCase().includes("application/json")) {
+    const body = await clone.text().catch(() => "");
+    throw nonJsonApiError(context, res, body);
+  }
+
+  try {
+    return await res.json() as T;
+  } catch (error) {
+    const body = await clone.text().catch(() => "");
+    const snippet = compactSnippet(body);
+    throw new Error(`${context} JSON 解析失败${snippet ? `：${snippet}` : ""}`);
+  }
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
 
@@ -107,7 +141,7 @@ async function getCsrfHeader(): Promise<Record<string, string>> {
   }, 1);
 
   await throwIfResNotOk(response);
-  const data = await response.json();
+  const data = await parseApiJson<{ token?: string; headerName?: string }>(response, "CSRF 接口");
   if (!data?.token) return {};
 
   cachedCsrf = {
@@ -127,7 +161,7 @@ export async function getWsToken(): Promise<string | null> {
 
   try {
     const res = await apiRequest('POST', '/api/auth/ws-token', {});
-    const data = await res.json();
+    const data = await parseApiJson<Record<string, any>>(res, "WebSocket token 接口");
     const token = data?.data?.token ?? data?.token;
     const expiresIn = data?.data?.expiresIn ?? data?.expiresIn ?? 30;
     if (token) {
@@ -216,11 +250,11 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
+export const getQueryFn = <T,>(options: {
   on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
+}): QueryFunction<T> =>
   async ({ queryKey }) => {
+    const unauthorizedBehavior = options.on401;
     let res: Response;
     try {
       res = await fetchWithRetry(queryKey.join("/") as string, {
@@ -233,11 +267,11 @@ export const getQueryFn: <T>(options: {
     }
 
     if (unauthorizedBehavior === "returnNull" && (res.status === 401 || res.status === 403)) {
-      return null;
+      return null as T;
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    return await parseApiJson<T>(res, "查询接口");
   };
 
 export const queryClient = new QueryClient({

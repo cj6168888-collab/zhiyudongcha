@@ -16,7 +16,7 @@ export class TongyiProvider implements LLMProvider {
   name = 'TONGYI';
   
   private get apiKey(): string | undefined {
-    return getSyncApiKey('DASHSCOPE') || process.env.DASHSCOPE_API_KEY;
+    return getSyncApiKey('DASHSCOPE') || undefined;
   }
   
   async getApiKeyAsync(): Promise<string | null> {

@@ -1,5 +1,6 @@
 import { createServiceLogger } from './logger';
 import { AIServiceError, TimeoutError } from './errors';
+import { getSyncApiKey, isUsableApiKey } from '../services/api-key-resolver';
 
 const log = createServiceLogger('AIProvider');
 
@@ -63,20 +64,20 @@ function getProviderConfig(name: AIProviderName): ProviderConfig {
   
   switch (name) {
     case 'dashscope':
-      apiKey = process.env.DASHSCOPE_API_KEY;
+      apiKey = getSyncApiKey('DASHSCOPE');
       break;
     case 'deepseek':
-      apiKey = process.env.DEEPSEEK_API_KEY;
+      apiKey = getSyncApiKey('DEEPSEEK');
       break;
     case 'doubao':
-      apiKey = process.env.DOUBAO_API_KEY;
+      apiKey = getSyncApiKey('DOUBAO');
       break;
   }
   
   return {
     ...base,
     apiKey,
-    available: !!apiKey,
+    available: isUsableApiKey(apiKey),
   };
 }
 
@@ -288,15 +289,17 @@ export class AIProviderChain {
     return this.providers.filter(p => this.isProviderHealthy(p));
   }
 
-  getProviderStatus(): Record<AIProviderName, { available: boolean; healthy: boolean; failures: number }> {
+  getProviderStatus(): Record<AIProviderName, { configured: boolean; available: boolean; healthy: boolean; failures: number }> {
     const providerNames: AIProviderName[] = ['dashscope', 'deepseek', 'doubao'];
-    const status = {} as Record<AIProviderName, { available: boolean; healthy: boolean; failures: number }>;
+    const status = {} as Record<AIProviderName, { configured: boolean; available: boolean; healthy: boolean; failures: number }>;
     
     for (const name of providerNames) {
       const config = getProviderConfig(name);
+      const healthy = this.isProviderHealthy(name);
       status[name] = {
-        available: config.available,
-        healthy: this.isProviderHealthy(name),
+        configured: config.available,
+        available: config.available && healthy,
+        healthy,
         failures: this.failureCount.get(name) || 0,
       };
     }

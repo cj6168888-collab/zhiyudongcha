@@ -32,6 +32,48 @@ const SECRET_KEY_MAPPING: Record<ApiKeyProvider, SecretKeyType> = {
 const apiKeyCache: Map<ApiKeyProvider, { key: string; timestamp: number }> = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+export function isUsableApiKey(value: string | null | undefined): value is string {
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+
+  const normalized = trimmed.toLowerCase();
+  const placeholderPatterns = [
+    /^your[_-]?(api[_-]?)?key$/,
+    /^your.*key$/,
+    /^replace[_-]?me$/,
+    /^changeme$/,
+    /^example/,
+    /^xxx+$/,
+    /xxxxx/,
+    /placeholder/,
+  ];
+
+  return !placeholderPatterns.some((pattern) => pattern.test(normalized));
+}
+
+function envCandidates(provider: ApiKeyProvider): string[] {
+  switch (provider) {
+    case 'DASHSCOPE':
+      return ['DASHSCOPE_API_KEY', 'QWEN_API_KEY', 'TONGYI_API_KEY', 'ALIYUN_DASHSCOPE_API_KEY'];
+    case 'DEEPSEEK':
+      return ['DEEPSEEK_API_KEY'];
+    case 'DOUBAO':
+      return ['DOUBAO_API_KEY'];
+    case 'CUSTOM':
+      return [];
+  }
+}
+
+export function getEnvApiKey(provider: ApiKeyProvider): string | null {
+  for (const envVar of envCandidates(provider)) {
+    const envValue = process.env[envVar];
+    if (isUsableApiKey(envValue)) {
+      return envValue.trim();
+    }
+  }
+  return null;
+}
+
 export async function getApiKey(provider: ApiKeyProvider): Promise<string | null> {
   const cached = apiKeyCache.get(provider);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -41,18 +83,19 @@ export async function getApiKey(provider: ApiKeyProvider): Promise<string | null
   try {
     const secretKey = SECRET_KEY_MAPPING[provider];
     const vaultValue = await secretVault.getSecret(secretKey);
-    if (vaultValue) {
-      apiKeyCache.set(provider, { key: vaultValue, timestamp: Date.now() });
-      return vaultValue;
+    if (isUsableApiKey(vaultValue)) {
+      const key = vaultValue.trim();
+      apiKeyCache.set(provider, { key, timestamp: Date.now() });
+      return key;
     }
   } catch (error) {
     logger.error({ error, provider }, '从 SecretVault 获取失败');
   }
 
   const envVar = ENV_VAR_MAPPING[provider];
-  const envValue = envVar ? process.env[envVar] : null;
+  const envValue = getEnvApiKey(provider);
   if (envValue) {
-    logger.warn(`[ApiKeyResolver] ⚠️ ${provider} 使用环境变量，建议迁移至 SecretVault 加密存储`);
+    logger.warn(`[ApiKeyResolver] ⚠️ ${provider} 使用环境变量${envVar ? ` (${envVar})` : ''}，建议迁移至 SecretVault 加密存储`);
     apiKeyCache.set(provider, { key: envValue, timestamp: Date.now() });
     return envValue;
   }
@@ -89,8 +132,7 @@ export function getSyncApiKey(provider: ApiKeyProvider): string | null {
     return cached.key;
   }
 
-  const envVar = ENV_VAR_MAPPING[provider];
-  return envVar ? process.env[envVar] || null : null;
+  return getEnvApiKey(provider);
 }
 
 export type { ApiKeyProvider };

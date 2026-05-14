@@ -16,7 +16,7 @@ export class DeepSeekProvider implements LLMProvider {
   name = 'DEEPSEEK';
   
   private get apiKey(): string | undefined {
-    return getSyncApiKey('DEEPSEEK') || process.env.DEEPSEEK_API_KEY;
+    return getSyncApiKey('DEEPSEEK') || undefined;
   }
   
   async getApiKeyAsync(): Promise<string | null> {

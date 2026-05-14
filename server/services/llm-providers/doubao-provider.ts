@@ -17,7 +17,7 @@ export class DoubaoProvider implements LLMProvider {
   name = 'DOUBAO';
   
   private get apiKey(): string | undefined {
-    return getSyncApiKey('DOUBAO') || process.env.DOUBAO_API_KEY;
+    return getSyncApiKey('DOUBAO') || undefined;
   }
   
   async getApiKeyAsync(): Promise<string | null> {

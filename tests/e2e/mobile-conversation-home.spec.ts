@@ -9,6 +9,7 @@ async function mockConversationShell(page: Page, options?: {
   pendingSummary?: Record<string, unknown>;
   assistantFailure?: boolean;
   assistantFailureCount?: number;
+  assistantHtmlResponse?: boolean;
   assistantResult?: Record<string, unknown>;
   preserveLocalState?: boolean;
   offline?: boolean;
@@ -195,6 +196,12 @@ async function mockConversationShell(page: Page, options?: {
         const failureCount = typeof mockOptions.assistantFailureCount === 'number'
           ? mockOptions.assistantFailureCount
           : 0;
+        if (mockOptions.assistantHtmlResponse) {
+          return new Response('<!DOCTYPE html><html><body>Vite fallback</body></html>', {
+            status: 200,
+            headers: { 'Content-Type': 'text/html' },
+          });
+        }
         if (mockOptions.assistantFailure || assistantCallCount <= failureCount) {
           return jsonResponse({ success: false, error: 'assistant unavailable' }, 400);
         }
@@ -223,6 +230,7 @@ async function mockConversationShell(page: Page, options?: {
     pendingSummary: options?.pendingSummary,
     assistantFailure: options?.assistantFailure,
     assistantFailureCount: options?.assistantFailureCount,
+    assistantHtmlResponse: options?.assistantHtmlResponse,
     assistantResult: options?.assistantResult,
     preserveLocalState: options?.preserveLocalState,
     offline: options?.offline,
@@ -586,6 +594,18 @@ test.describe('Mobile conversation home', () => {
     await expect(page.getByTestId('failed-send-retry')).toBeVisible();
     await expect(page.getByTestId('failed-send-restore')).toBeVisible();
     await expect(page.getByTestId('failed-send-dismiss')).toBeVisible();
+  });
+
+  test('explains when the assistant endpoint returns an HTML fallback', async ({ page }) => {
+    await mockConversationShell(page, { assistantHtmlResponse: true });
+
+    const message = 'html fallback should explain proxy issue';
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+    await sendConversationMessage(page, message);
+
+    await expect(page.getByTestId('failed-send-card')).toContainText(message);
+    await expect(page.getByTestId('failed-send-card')).toContainText('不是 API JSON');
+    await expect(page.getByTestId('failed-send-card')).toContainText('/api 代理端口');
   });
 
   test('clears a retained failed send after a successful retry', async ({ page }) => {
