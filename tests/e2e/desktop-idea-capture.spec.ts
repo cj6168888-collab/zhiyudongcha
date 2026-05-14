@@ -60,7 +60,7 @@ test.describe('Desktop idea capture', () => {
     await mockDesktopShell(page);
 
     await page.goto(`${appUrl}/desktop/login`, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('button', { name: 'SOVEREIGN 老板账号：admin' }).click();
+    await page.getByRole('button', { name: 'SOVEREIGN admin / admin' }).click();
     await page.getByRole('button', { name: '登录' }).click();
 
     await expect(page).toHaveURL(`${appUrl}/desktop`);

@@ -113,6 +113,8 @@ declare module 'express-serve-static-core' {
     sessionId?: string;
     session: Express.Session & {
       userRole?: 'MASTER' | 'ADMIN' | 'USER' | 'GUEST';
+      userId?: string;
+      username?: string;
       authenticatedAt?: number;
       regenerate(callback: (err?: Error) => void): void;
       destroy(callback: (err?: Error) => void): void;

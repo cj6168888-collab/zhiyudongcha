@@ -11,6 +11,7 @@ declare module 'express-session' {
     authenticatedAt?: number
     /** 绑定到业务用户 UUID 时，合并加载 USER 主体授权（见 effective-grants） */
     userId?: string
+    username?: string
   }
 }
 

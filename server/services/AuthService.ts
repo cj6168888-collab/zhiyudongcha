@@ -44,8 +44,7 @@ export class AuthService {
         'session',
         'temp-session-id',
         { reason: 'invalid_secret' },
-        'DENIED',
-        { ip: 'unknown' } as AuditData
+        'DENIED'
       );
 
       return { success: false, error: '密钥不正确', code: 'INVALID_SECRET' };
@@ -63,6 +62,26 @@ export class AuthService {
     sessionId?: string;
     role?: 'MASTER' | 'GUEST';
     error?: string;
+  }>;
+  async createUserSession(
+    req: Request,
+    role: 'MASTER' | 'GUEST',
+    metadata?: { userId?: string; username?: string; method?: string }
+  ): Promise<{
+    success: boolean;
+    sessionId?: string;
+    role?: 'MASTER' | 'GUEST';
+    error?: string;
+  }>;
+  async createUserSession(
+    req: Request,
+    role: 'MASTER' | 'GUEST' = 'MASTER',
+    metadata: { userId?: string; username?: string; method?: string } = {}
+  ): Promise<{
+    success: boolean;
+    sessionId?: string;
+    role?: 'MASTER' | 'GUEST';
+    error?: string;
   }> {
     return new Promise((resolve) => {
       req.session.regenerate((err: Error | undefined) => {
@@ -72,24 +91,27 @@ export class AuthService {
           return;
         }
 
-        req.session.userRole = 'MASTER';
+        req.session.userRole = role;
+        req.session.userId = metadata.userId;
+        req.session.username = metadata.username;
         req.session.authenticatedAt = Date.now();
-        req.userRole = 'MASTER';
+        req.userRole = role;
+        const sessionId = (req as Request & { sessionID?: string }).sessionID || req.sessionId || 'session';
 
         auditAction(
           'LOGIN',
-          'MASTER',
+          role,
           'session',
-          req.sessionID,
-          { method: 'secret' },
+          sessionId,
+          { method: metadata.method || 'secret', userId: metadata.userId, username: metadata.username },
           'SUCCESS',
           req
         );
 
         resolve({
           success: true,
-          sessionId: req.sessionID,
-          role: 'MASTER',
+          sessionId,
+          role,
         });
       });
     });
@@ -101,6 +123,7 @@ export class AuthService {
   async destroyUserSession(req: Request): Promise<{ success: boolean; error?: string }> {
     return new Promise((resolve) => {
       const previousRole = req.session.userRole;
+      const wasAuthenticated = !!req.session.authenticatedAt;
 
       req.session.destroy((err: Error | undefined) => {
         if (err) {
@@ -109,10 +132,10 @@ export class AuthService {
           return;
         }
 
-        if (previousRole === 'MASTER') {
+        if (wasAuthenticated) {
           auditAction(
             'LOGOUT',
-            'MASTER',
+            previousRole || 'GUEST',
             'session',
             'destroyed',
             {},
@@ -133,11 +156,16 @@ export class AuthService {
     authenticated: boolean;
     role: 'MASTER' | 'GUEST';
     authenticatedAt: number | null;
+    user?: { id?: string; username?: string };
   } {
+    const role = req.userRole === 'MASTER' ? 'MASTER' : 'GUEST';
     return {
-      authenticated: req.userRole === 'MASTER',
-      role: req.userRole || 'GUEST',
+      authenticated: Boolean(req.session?.authenticatedAt) || req.userRole === 'MASTER',
+      role,
       authenticatedAt: req.session?.authenticatedAt || null,
+      user: req.session?.userId || req.session?.username
+        ? { id: req.session.userId, username: req.session.username }
+        : undefined,
     };
   }
 

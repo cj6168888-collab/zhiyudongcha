@@ -17,6 +17,8 @@ import type {
   InsertVoiceAuthorization,
 } from '@shared/schema';
 import { BusinessError, ErrorCode } from '../lib/errors';
+import crypto from 'crypto';
+import { promisify } from 'util';
 
 // 延迟导入以避免循环依赖
 let cozeAPI: unknown = null;
@@ -32,6 +34,33 @@ const getCozeAPI = () => {
 };
 
 const logger = createServiceLogger('UserService');
+const scryptAsync = promisify(crypto.scrypt);
+const PASSWORD_HASH_PREFIX = 'scrypt';
+
+async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derivedKey = await scryptAsync(password, salt, 64) as Buffer;
+  return `${PASSWORD_HASH_PREFIX}:${salt}:${derivedKey.toString('hex')}`;
+}
+
+async function verifyPassword(password: string, storedPassword: string): Promise<boolean> {
+  if (!storedPassword.startsWith(`${PASSWORD_HASH_PREFIX}:`)) {
+    return storedPassword === password;
+  }
+
+  const [, salt, hash] = storedPassword.split(':');
+  if (!salt || !hash) return false;
+
+  const derivedKey = await scryptAsync(password, salt, 64) as Buffer;
+  const expected = Buffer.from(hash, 'hex');
+  return expected.length === derivedKey.length && crypto.timingSafeEqual(expected, derivedKey);
+}
+
+function validatePasswordPolicy(password: string): void {
+  if (typeof password !== 'string' || password.length < 8 || password.length > 72) {
+    throw new BusinessError('密码长度需为 8-72 位', ErrorCode.VALIDATION_ERROR, 400);
+  }
+}
 
 export class UserService {
   /**
@@ -84,6 +113,60 @@ export class UserService {
   }
 
   /**
+   * 创建账号密码用户。手机号注册时 username 使用规范化手机号。
+   */
+  async createUserWithPassword(username: string, password: string): Promise<User> {
+    const normalizedUsername = username.trim();
+    if (!normalizedUsername) {
+      throw new BusinessError('用户名不能为空', ErrorCode.VALIDATION_ERROR, 400);
+    }
+    validatePasswordPolicy(password);
+
+    return await this.createUser(({
+      username: normalizedUsername,
+      password: await hashPassword(password),
+    } as unknown) as InsertUser);
+  }
+
+  /**
+   * 验证账号密码，兼容旧明文密码数据并优先使用 scrypt 哈希。
+   */
+  async validatePassword(username: string, password: string): Promise<User | null> {
+    const normalizedUsername = username.trim();
+    if (!normalizedUsername || !password) {
+      return null;
+    }
+
+    const user = await userStorage.getUserByUsername(normalizedUsername);
+    if (!user) {
+      return null;
+    }
+
+    const valid = await verifyPassword(password, user.password);
+    return valid ? user : null;
+  }
+
+  async resetPassword(username: string, newPassword: string): Promise<User> {
+    const normalizedUsername = username.trim();
+    validatePasswordPolicy(newPassword);
+
+    const user = await userStorage.getUserByUsername(normalizedUsername);
+    if (!user) {
+      throw new BusinessError('账号不存在', ErrorCode.NOT_FOUND, 404);
+    }
+
+    const updated = await userStorage.updateUser(user.id, ({
+      password: await hashPassword(newPassword),
+    } as unknown) as Partial<InsertUser>);
+    if (!updated) {
+      throw new BusinessError('密码更新失败', ErrorCode.INTERNAL_ERROR, 500);
+    }
+
+    logger.info({ userId: user.id, username: normalizedUsername }, '用户密码已重置');
+    return updated;
+  }
+
+  /**
    * 更新用户信息
    */
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User> {
@@ -115,7 +198,7 @@ export class UserService {
     const settings = await userStorage.getUserSettings(userId);
     if (!settings) {
       // 返回默认设置
-      return {
+      return ({
         id: userId,
         userId,
         realName: null,
@@ -139,7 +222,7 @@ export class UserService {
         hpLastRechargeAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
+      } as unknown) as UserSettings;
     }
     return settings;
   }
@@ -166,8 +249,8 @@ export class UserService {
 
       // 同步Coze API配置（如果是master用户更新了Coze相关设置）
       if (userId === 'master') {
-        const coze = getCozeAPI();
-        if (coze && this.hasCozeUpdates(updates)) {
+        const coze = getCozeAPI() as { updateFromSettings?: (settings: Record<string, string>) => void } | null;
+        if (coze?.updateFromSettings && this.hasCozeUpdates(updates)) {
           coze.updateFromSettings(updates as Record<string, string>);
           logger.info('Coze API settings synced from user settings');
         }
@@ -176,7 +259,7 @@ export class UserService {
       return updated;
     } else {
       // 创建新设置
-      const defaultInsertSettings: InsertUserSettings = {
+      const defaultInsertSettings = ({
         userId,
         realName: null,
         avatarName: '小智',
@@ -197,7 +280,7 @@ export class UserService {
         hpTotalConsumed: 0,
         hpTotalRecharged: 0,
         hpLastRechargeAt: null,
-      };
+      } as unknown) as InsertUserSettings;
 
       // 合并更新，过滤掉undefined
       const filteredUpdates = Object.fromEntries(
@@ -228,8 +311,8 @@ export class UserService {
     try {
       const settings = await userStorage.getUserSettings('master');
       if (settings) {
-        const coze = getCozeAPI();
-        if (coze) {
+        const coze = getCozeAPI() as { updateFromSettings?: (settings: Record<string, string>) => void } | null;
+        if (coze?.updateFromSettings) {
           coze.updateFromSettings(settings as unknown as Record<string, string>);
           logger.info('Coze API synced from master settings on startup');
         }

@@ -29,6 +29,20 @@ const envSchema = z.object({
   COZE_WORKFLOW_SUMMARIZE: z.string().optional(),
   COZE_WORKFLOW_PPT: z.string().optional(),
   COZE_WORKFLOW_REPORT: z.string().optional(),
+
+  // Aliyun SMS
+  ALIYUN_ACCESS_KEY_ID: z.string().optional(),
+  ALIYUN_ACCESS_KEY_SECRET: z.string().optional(),
+  ALIYUN_SMS_SIGN_NAME: z.string().optional(),
+  ALIYUN_SMS_TEMPLATE_CODE: z.string().optional(),
+  ALIYUN_SMS_REGISTER_TEMPLATE_CODE: z.string().optional(),
+  ALIYUN_SMS_RESET_TEMPLATE_CODE: z.string().optional(),
+  ALIYUN_SMS_ENDPOINT: z.string().default("dysmsapi.aliyuncs.com"),
+  ALIYUN_SMS_DRY_RUN: z.string().transform(val => val === "true").default("false"),
+  SMS_CODE_TTL_SECONDS: z.string().transform(Number).default("300"),
+  SMS_SEND_COOLDOWN_SECONDS: z.string().transform(Number).default("60"),
+  SMS_HOURLY_SEND_LIMIT: z.string().transform(Number).default("5"),
+  SMS_MAX_VERIFY_ATTEMPTS: z.string().transform(Number).default("5"),
   
   // 本地AI配置
   LOCAL_MODEL_ENABLED: z.string().transform(val => val === "true").default("false"),

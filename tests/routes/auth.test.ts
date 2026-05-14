@@ -11,8 +11,29 @@ const authServiceMock = vi.hoisted(() => ({
   validateWsToken: vi.fn(),
 }));
 
+const userServiceMock = vi.hoisted(() => ({
+  validatePassword: vi.fn(),
+  getUserByUsername: vi.fn(),
+  createUserWithPassword: vi.fn(),
+  resetPassword: vi.fn(),
+}));
+
+const smsVerificationServiceMock = vi.hoisted(() => ({
+  sendCode: vi.fn(),
+  normalizePhone: vi.fn(),
+  verifyCode: vi.fn(),
+}));
+
 vi.mock('../../server/services/AuthService', () => ({
   authService: authServiceMock,
+}));
+
+vi.mock('../../server/services/UserService', () => ({
+  userService: userServiceMock,
+}));
+
+vi.mock('../../server/services/sms-verification', () => ({
+  smsVerificationService: smsVerificationServiceMock,
 }));
 
 import { registerAuthRoutes, validateWsToken } from '../../server/routes/auth';
@@ -48,6 +69,30 @@ describe('Auth API Routes', () => {
       expiresAt: '2026-04-30T12:00:00Z',
     });
     authServiceMock.validateWsToken.mockReturnValue('MASTER');
+    userServiceMock.validatePassword.mockResolvedValue({
+      id: 'user-1',
+      username: '13800000000',
+      password: 'hash',
+    });
+    userServiceMock.getUserByUsername.mockResolvedValue(undefined);
+    userServiceMock.createUserWithPassword.mockResolvedValue({
+      id: 'user-2',
+      username: '13800000001',
+      password: 'hash',
+    });
+    userServiceMock.resetPassword.mockResolvedValue({
+      id: 'user-1',
+      username: '13800000000',
+      password: 'hash2',
+    });
+    smsVerificationServiceMock.sendCode.mockResolvedValue({
+      phone: '13800000000',
+      expiresIn: 300,
+      cooldownSeconds: 60,
+      debugCode: '123456',
+    });
+    smsVerificationServiceMock.normalizePhone.mockImplementation((phone: string) => phone);
+    smsVerificationServiceMock.verifyCode.mockReturnValue({ phone: '13800000000' });
   });
 
   it('validates login input, rejects invalid secrets, and creates sessions for valid secrets', async () => {
@@ -73,6 +118,58 @@ describe('Auth API Routes', () => {
     });
     expect(authServiceMock.validateCredentials).toHaveBeenCalledWith('correct');
     expect(authServiceMock.createUserSession).toHaveBeenCalledWith(expect.any(Object));
+  });
+
+  it('logs in normal users with username and password', async () => {
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({ username: '13800000000', password: 'password123' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      success: true,
+      data: {
+        role: 'GUEST',
+        user: { id: 'user-1', username: '13800000000' },
+      },
+    });
+    expect(userServiceMock.validatePassword).toHaveBeenCalledWith('13800000000', 'password123');
+    expect(authServiceMock.createUserSession).toHaveBeenCalledWith(
+      expect.any(Object),
+      'GUEST',
+      expect.objectContaining({ userId: 'user-1', username: '13800000000', method: 'password' }),
+    );
+  });
+
+  it('sends sms codes, registers phone users, and resets passwords', async () => {
+    const sms = await request(app)
+      .post('/api/auth/sms/send')
+      .send({ phone: '13800000000', scene: 'register' });
+
+    const register = await request(app)
+      .post('/api/auth/register')
+      .send({ phone: '13800000001', password: 'password123', code: '123456' });
+
+    userServiceMock.getUserByUsername.mockResolvedValueOnce({
+      id: 'user-1',
+      username: '13800000000',
+      password: 'hash',
+    });
+    const reset = await request(app)
+      .post('/api/auth/password/reset')
+      .send({ phone: '13800000000', code: '123456', newPassword: 'newpass123' });
+
+    expect(sms.status).toBe(200);
+    expect(sms.body.data.debugCode).toBe('123456');
+    expect(smsVerificationServiceMock.sendCode).toHaveBeenCalledWith('13800000000', 'register');
+
+    expect(register.status).toBe(201);
+    expect(register.body.data.user).toMatchObject({ id: 'user-2', username: '13800000001' });
+    expect(smsVerificationServiceMock.verifyCode).toHaveBeenCalledWith('13800000001', 'register', '123456');
+    expect(userServiceMock.createUserWithPassword).toHaveBeenCalledWith('13800000001', 'password123');
+
+    expect(reset.status).toBe(200);
+    expect(userServiceMock.resetPassword).toHaveBeenCalledWith('13800000000', 'newpass123');
   });
 
   it('returns session creation failures from login', async () => {
