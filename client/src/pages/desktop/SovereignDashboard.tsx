@@ -5,7 +5,7 @@
  * 1. 舰队总览 - 所有节点状态
  * 2. 汇报审批 - 待审批汇报
  * 3. 预警监控 - 红线预警
- * 4. 灵感广播 - 捕捉并分发灵感
+ * 4. 想法暂存 - 捕捉想法并带回对话展开
  */
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
@@ -18,15 +18,30 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  Ship, Activity, AlertTriangle, TrendingUp, Zap,
-  CheckCircle, XCircle, Radio, RefreshCw,
-  Plus, Eye, Users, Clock, Target, Sparkles
+  Ship, Activity, AlertTriangle, TrendingUp,
+  CheckCircle, XCircle,
+  Plus, MessageCircle, Sparkles
 } from "lucide-react";
 
 interface DesktopUser {
   id: string;
   username: string;
   role: 'SOVEREIGN' | 'NODE';
+}
+
+const ideaCaptureKey = 'xiaozhi_idea_capture_notes';
+
+function saveIdeaLocally(content: string) {
+  let ideas: unknown[] = [];
+  try {
+    const raw = localStorage.getItem(ideaCaptureKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+    ideas = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    ideas = [];
+  }
+  const next = [{ id: `${Date.now()}`, content, createdAt: Date.now() }, ...ideas].slice(0, 20);
+  localStorage.setItem(ideaCaptureKey, JSON.stringify(next));
 }
 
 // 获取用户信息
@@ -99,19 +114,13 @@ export default function SovereignDashboard() {
     },
   });
 
-  const broadcastMutation = useMutation({
-    mutationFn: async (text: string) => {
-      await fetch('/api/navigator/inspiration/broadcast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-    },
-    onSuccess: () => {
-      toast({ title: '灵感已广播至全舰队' });
-      setInspirationText('');
-    },
-  });
+  const handleSaveIdea = () => {
+    const content = inspirationText.trim();
+    if (!content) return;
+    saveIdeaLocally(content);
+    toast({ title: '想法已暂存', description: '回到和小智的对话里继续展开，不会自动分发或立项。' });
+    setInspirationText('');
+  };
 
   // 统计数据
   const activeNodes = nodes.filter((n: any) => n.status === 'ACTIVE').length;
@@ -191,39 +200,39 @@ export default function SovereignDashboard() {
 
         {/* 主要内容区 */}
         <div className="grid grid-cols-3 gap-6">
-          {/* 灵感广播 */}
+          {/* 想法暂存 */}
           <Card className="bg-white/5 border-white/10">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-400" />
-                灵感广播
+                想法暂存
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <Textarea
                 value={inspirationText}
                 onChange={(e) => setInspirationText(e.target.value)}
-                placeholder="捕捉灵感，自动分发给所有节点..."
+                placeholder="先记下这个想法，再回到和小智的对话里继续展开..."
                 className="min-h-[100px] bg-white/5 border-white/10"
               />
               {inspirationText && (
                 <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
                   <div className="flex items-center gap-2 text-indigo-400 text-xs mb-2">
-                    <Target className="w-4 h-4" />
-                    语义血缘预览
+                    <MessageCircle className="w-4 h-4" />
+                    对话入口
                   </div>
                   <p className="text-xs text-gray-400">
-                    正在分析"{inspirationText.slice(0, 30)}..."的语义血缘...
+                    这条想法只会本机暂存，不会自动广播、立项或生成假分析。
                   </p>
                 </div>
               )}
               <Button
                 className="w-full bg-indigo-500 hover:bg-indigo-600 gap-2"
-                disabled={!inspirationText}
-                onClick={() => broadcastMutation.mutate(inspirationText)}
+                disabled={!inspirationText.trim()}
+                onClick={handleSaveIdea}
               >
-                <Radio className="w-4 h-4" />
-                广播至全舰队
+                <Sparkles className="w-4 h-4" />
+                暂存想法
               </Button>
             </CardContent>
           </Card>

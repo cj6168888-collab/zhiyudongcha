@@ -7,25 +7,24 @@
  * 2. 汇报审批 - 审批节点提交的汇报
  * 3. 红线预警 - 异常监控面板
  * 4. 五大专家 - High Council 快速访问
- * 5. 灵感广播 - 灵感捕捉与分派
+ * 5. 想法暂存 - 想法捕捉并回到对话展开
  */
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Compass, Ship, Users, AlertTriangle, Activity,
-  TrendingUp, Zap, Clock, CheckCircle, XCircle,
-  FileText, Shield, Key, Plus, RefreshCw,
+  TrendingUp, Zap, CheckCircle, XCircle,
+  Shield, Plus,
   BrainCircuit, Wallet, HeartPulse, FileEdit,
-  Mic, Send, Radio, Target, Sparkles
+  MessageCircle, Sparkles
 } from "lucide-react";
 
 // ============ 类型定义 ============
@@ -66,6 +65,21 @@ interface RedAlert {
   acknowledged: boolean;
 }
 
+const ideaCaptureKey = 'xiaozhi_idea_capture_notes';
+
+function saveIdeaLocally(content: string) {
+  let ideas: unknown[] = [];
+  try {
+    const raw = localStorage.getItem(ideaCaptureKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+    ideas = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    ideas = [];
+  }
+  const next = [{ id: `${Date.now()}`, content, createdAt: Date.now() }, ...ideas].slice(0, 20);
+  localStorage.setItem(ideaCaptureKey, JSON.stringify(next));
+}
+
 // ============ 专家配置 ============
 
 const EXPERTS = [
@@ -83,7 +97,6 @@ export default function SovereignConsole() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'fleet' | 'reports' | 'alerts' | 'experts' | 'inspiration'>('fleet');
   const [inspirationText, setInspirationText] = useState('');
-  const [isBroadcasting, setIsBroadcasting] = useState(false);
 
   // ============ 数据获取 ============
 
@@ -145,22 +158,13 @@ export default function SovereignConsole() {
     },
   });
 
-  const broadcastMutation = useMutation({
-    mutationFn: async (text: string) => {
-      const res = await fetch('/api/navigator/inspiration/broadcast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error('广播失败');
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: '灵感已广播至全舰队' });
-      setInspirationText('');
-      setIsBroadcasting(false);
-    },
-  });
+  const handleSaveIdea = () => {
+    const content = inspirationText.trim();
+    if (!content) return;
+    saveIdeaLocally(content);
+    toast({ title: '想法已暂存', description: '不会自动广播或立项，请回到对话里继续和小智确认。' });
+    setInspirationText('');
+  };
 
   const emergencyRecallMutation = useMutation({
     mutationFn: async () => {
@@ -246,7 +250,7 @@ export default function SovereignConsole() {
               { id: 'reports', label: '汇报', icon: Activity, count: reports.length },
               { id: 'alerts', label: '预警', icon: AlertTriangle, count: criticalAlerts, critical: true },
               { id: 'experts', label: '专家', icon: Users },
-              { id: 'inspiration', label: '灵感', icon: Sparkles },
+              { id: 'inspiration', label: '想法', icon: Sparkles },
             ].map((tab) => (
               <TabsTrigger
                 key={tab.id}
@@ -550,59 +554,46 @@ export default function SovereignConsole() {
           </div>
         )}
 
-        {/* 灵感广播 */}
+        {/* 想法暂存 */}
         {activeTab === 'inspiration' && (
           <div className="space-y-4 max-w-2xl">
-            <h2 className="text-lg font-black uppercase tracking-wider">Inspiration Broadcast</h2>
+            <h2 className="text-lg font-black uppercase tracking-wider">Idea Capture</h2>
             <Card className="bg-white/5 border-white/10">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center gap-3 text-indigo-400">
                   <Sparkles className="w-5 h-5" />
-                  <span className="text-sm font-bold">捕捉灵感</span>
+                  <span className="text-sm font-bold">暂存想法</span>
                 </div>
                 <Textarea
                   value={inspirationText}
                   onChange={(e) => setInspirationText(e.target.value)}
-                  placeholder="洗澡时的灵感、对领航者耳语..."
+                  placeholder="先把想法记下来，再回到和小智的对话里继续推敲..."
                   className="bg-white/5 border-white/10 min-h-[120px]"
                 />
 
-                {/* 语义血缘预览 */}
                 {inspirationText && (
                   <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-2">
                     <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold">
-                      <Target className="w-4 h-4" />
-                      语义血缘预览
+                      <MessageCircle className="w-4 h-4" />
+                      回到对话确认
                     </div>
                     <p className="text-[10px] text-gray-400">
-                      正在分析"{inspirationText.slice(0, 30)}..."的语义血缘...
+                      这条想法只保存在本机，不会自动分发、立项或生成假分析。
                     </p>
                     <div className="flex flex-wrap gap-1">
-                      <span className="px-2 py-0.5 rounded-full bg-white/5 text-[8px] text-gray-400">背景资料生成中</span>
-                      <span className="px-2 py-0.5 rounded-full bg-white/5 text-[8px] text-gray-400">KPI生成中</span>
+                      <span className="px-2 py-0.5 rounded-full bg-white/5 text-[8px] text-gray-400">本机暂存</span>
+                      <span className="px-2 py-0.5 rounded-full bg-white/5 text-[8px] text-gray-400">对话展开</span>
                     </div>
                   </div>
                 )}
 
                 <Button
                   className="w-full gap-2 bg-indigo-500 hover:bg-indigo-600"
-                  disabled={!inspirationText || isBroadcasting}
-                  onClick={() => {
-                    setIsBroadcasting(true);
-                    broadcastMutation.mutate(inspirationText);
-                  }}
+                  disabled={!inspirationText.trim()}
+                  onClick={handleSaveIdea}
                 >
-                  {isBroadcasting ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      广播中...
-                    </>
-                  ) : (
-                    <>
-                      <Radio className="w-4 h-4" />
-                      广播至全舰队
-                    </>
-                  )}
+                  <Sparkles className="w-4 h-4" />
+                  暂存想法
                 </Button>
               </CardContent>
             </Card>

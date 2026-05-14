@@ -107,7 +107,7 @@ interface SystemStatus {
 }
 
 export default function DesktopHome() {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const [user] = useState<DesktopUser | null>(getUser());
 
   // 如果未登录，跳转到登录页
@@ -425,19 +425,19 @@ export default function DesktopHome() {
                     </Card>
                   )}
 
-                  {/* 灵感广播 */}
+                  {/* 想法暂存 */}
                   <Card className="bg-amber-500/5 border-amber-500/20">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm flex items-center gap-2 text-amber-400">
                         <Sparkles className="w-4 h-4" />
-                        灵感广播
+                        想法暂存
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-gray-400 mb-3">捕捉灵感，瞬间同步至全舰队</p>
+                      <p className="text-sm text-gray-400 mb-3">先把想法留住，再回到对话里和小智展开</p>
                       <Button className="w-full bg-amber-500 hover:bg-amber-600" onClick={() => setLocation('/desktop/inspiration')}>
                         <Sparkles className="w-4 h-4 mr-2" />
-                        广播灵感
+                        暂存想法
                       </Button>
                     </CardContent>
                   </Card>

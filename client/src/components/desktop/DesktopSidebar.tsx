@@ -9,8 +9,8 @@ import { useZ1Store, MAX_HP, ACADEMIC_LEVELS, type AcademicLevel } from "@/lib/z
 import {
   Home, MessageCircle, Monitor, Ship, FileText, Users,
   FolderKanban, Network, HardDrive, Settings, Zap, Terminal,
-  CheckCircle, Lightbulb, Compass, Activity, AlertTriangle,
-  BrainCircuit, Sparkles, ListTodo, Send, LogOut, User
+  CheckCircle, Lightbulb, Compass,
+  Sparkles, LogOut, User
 } from "lucide-react";
 
 const LEVEL_LABELS: Record<AcademicLevel, string> = {
@@ -99,7 +99,7 @@ const allNavItems = [
   // Navigator-X功能 (SOVEREIGN专有)
   { id: 'fleet', icon: Ship, label: '舰队管理', path: '/desktop/fleet', sovereignOnly: true },
   { id: 'reports', icon: FileText, label: '汇报审批', path: '/desktop/reports', sovereignOnly: true },
-  { id: 'inspiration', icon: Sparkles, label: '灵感广播', path: '/desktop/inspiration', sovereignOnly: true },
+  { id: 'inspiration', icon: Sparkles, label: '想法暂存', path: '/desktop/inspiration', sovereignOnly: true },
 
   // 五大专家
   { id: 'experts', icon: Users, label: '专家咨询', path: '/desktop/experts' },
