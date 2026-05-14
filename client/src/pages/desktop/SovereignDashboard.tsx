@@ -44,6 +44,15 @@ function saveIdeaLocally(content: string) {
   localStorage.setItem(ideaCaptureKey, JSON.stringify(next));
 }
 
+function readList<T>(value: unknown, key?: string): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (key && value && typeof value === 'object') {
+    const nested = (value as Record<string, unknown>)[key];
+    return Array.isArray(nested) ? nested as T[] : [];
+  }
+  return [];
+}
+
 // 获取用户信息
 function getUser(): DesktopUser | null {
   const stored = localStorage.getItem('desktop_user');
@@ -73,17 +82,17 @@ export default function SovereignDashboard() {
   }, [user, setLocation, toast]);
 
   // 数据获取
-  const { data: nodes = [], isLoading: nodesLoading } = useQuery<any[]>({
+  const { data: nodesResponse, isLoading: nodesLoading } = useQuery<unknown>({
     queryKey: ['/api/navigator/nodes'],
     refetchInterval: 5000,
   });
 
-  const { data: reports = [] } = useQuery<any[]>({
+  const { data: reportsResponse } = useQuery<unknown>({
     queryKey: ['/api/navigator/pending-reports'],
     refetchInterval: 3000,
   });
 
-  const { data: alerts = [] } = useQuery<any[]>({
+  const { data: alertsResponse } = useQuery<unknown>({
     queryKey: ['/api/navigator/alerts'],
     refetchInterval: 2000,
   });
@@ -123,6 +132,9 @@ export default function SovereignDashboard() {
   };
 
   // 统计数据
+  const nodes = readList<any>(nodesResponse, 'nodes');
+  const reports = readList<any>(reportsResponse);
+  const alerts = readList<any>(alertsResponse);
   const activeNodes = nodes.filter((n: any) => n.status === 'ACTIVE').length;
   const pendingReports = reports.length;
   const criticalAlerts = alerts.filter((a: any) => a.severity === 'CRITICAL' && !a.acknowledged).length;

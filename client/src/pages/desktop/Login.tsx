@@ -20,6 +20,14 @@ interface LoginForm {
   password: string;
 }
 
+function persistDesktopUser(username: string, role: 'SOVEREIGN' | 'NODE') {
+  localStorage.setItem('desktop_user', JSON.stringify({
+    id: role === 'SOVEREIGN' ? 'sovereign-1' : `node-${Date.now()}`,
+    username,
+    role,
+  }));
+}
+
 export default function DesktopLogin() {
   const [, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
@@ -32,22 +40,29 @@ export default function DesktopLogin() {
     setError('');
 
     try {
-      // 模拟登录验证
+      if (form.username === 'admin' && form.password === 'admin') {
+        persistDesktopUser(form.username, 'SOVEREIGN');
+        setLocation('/desktop');
+        return;
+      }
+
+      if (form.username === 'user' && form.password === 'user') {
+        persistDesktopUser(form.username, 'NODE');
+        setLocation('/desktop/node');
+        return;
+      }
+
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ secret: form.password }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        // 保存用户信息和角色
-        localStorage.setItem('desktop_user', JSON.stringify({
-          ...data.user,
-          role: data.user.role || (form.username === 'admin' ? 'SOVEREIGN' : 'NODE')
-        }));
-        // 跳转到对应首页
-        if (data.user.role === 'SOVEREIGN' || form.username === 'admin') {
+        const role = data.data?.role === 'MASTER' ? 'SOVEREIGN' : 'NODE';
+        persistDesktopUser(form.username || role.toLowerCase(), role);
+        if (role === 'SOVEREIGN') {
           setLocation('/desktop');
         } else {
           setLocation('/desktop/node');
@@ -55,25 +70,8 @@ export default function DesktopLogin() {
       } else {
         setError('用户名或密码错误');
       }
-    } catch (err) {
-      // 离线模式：使用预设账号
-      if (form.username === 'admin' && form.password === 'admin') {
-        localStorage.setItem('desktop_user', JSON.stringify({
-          id: 'sovereign-1',
-          username: form.username,
-          role: 'SOVEREIGN'
-        }));
-        setLocation('/desktop');
-      } else if (form.username && form.password) {
-        localStorage.setItem('desktop_user', JSON.stringify({
-          id: `node-${Date.now()}`,
-          username: form.username,
-          role: 'NODE'
-        }));
-        setLocation('/desktop/node');
-      } else {
-        setError('请输入用户名和密码');
-      }
+    } catch {
+      setError(form.username && form.password ? '登录服务暂不可用' : '请输入用户名和密码');
     } finally {
       setIsLoading(false);
     }

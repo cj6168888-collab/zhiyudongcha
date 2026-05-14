@@ -106,6 +106,15 @@ interface SystemStatus {
   };
 }
 
+function readList<T>(value: unknown, key?: string): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (key && value && typeof value === 'object') {
+    const nested = (value as Record<string, unknown>)[key];
+    return Array.isArray(nested) ? nested as T[] : [];
+  }
+  return [];
+}
+
 export default function DesktopHome() {
   const [, setLocation] = useLocation();
   const [user] = useState<DesktopUser | null>(getUser());
@@ -124,13 +133,13 @@ export default function DesktopHome() {
   });
 
   // 获取远程设备状态
-  const { data: devices = [] } = useQuery<Device[]>({
+  const { data: devicesResponse } = useQuery<unknown>({
     queryKey: ['/api/remote/devices'],
     refetchInterval: 5000,
   });
 
   // 获取任务统计
-  const { data: tasks = [] } = useQuery<Task[]>({
+  const { data: tasksResponse } = useQuery<unknown>({
     queryKey: ['/api/tasks'],
   });
 
@@ -141,16 +150,20 @@ export default function DesktopHome() {
   });
 
   // 获取待审批汇报
-  const { data: pendingReports = [] } = useQuery<Report[]>({
+  const { data: pendingReportsResponse } = useQuery<unknown>({
     queryKey: ['/api/navigator/pending-reports'],
   });
 
   // 获取预警
-  const { data: alerts = [] } = useQuery<Alert[]>({
+  const { data: alertsResponse } = useQuery<unknown>({
     queryKey: ['/api/navigator/alerts'],
   });
 
   // 在线设备数量
+  const devices = readList<Device>(devicesResponse, 'devices');
+  const tasks = readList<Task>(tasksResponse, 'data');
+  const pendingReports = readList<Report>(pendingReportsResponse);
+  const alerts = readList<Alert>(alertsResponse);
   const onlineDevices = devices.filter((d) => d.status === 'ONLINE').length;
   const activeTasks = tasks.filter((t) => t.status === 'ACTIVE').length;
   const criticalAlerts = alerts.filter((a) => a.severity === 'CRITICAL' && !a.acknowledged).length;

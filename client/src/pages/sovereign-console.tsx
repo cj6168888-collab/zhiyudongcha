@@ -80,6 +80,15 @@ function saveIdeaLocally(content: string) {
   localStorage.setItem(ideaCaptureKey, JSON.stringify(next));
 }
 
+function readList<T>(value: unknown, key?: string): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (key && value && typeof value === 'object') {
+    const nested = (value as Record<string, unknown>)[key];
+    return Array.isArray(nested) ? nested as T[] : [];
+  }
+  return [];
+}
+
 // ============ 专家配置 ============
 
 const EXPERTS = [
@@ -100,7 +109,7 @@ export default function SovereignConsole() {
 
   // ============ 数据获取 ============
 
-  const { data: nodes = [], isLoading: nodesLoading } = useQuery<NavigatorNode[]>({
+  const { data: nodesResponse, isLoading: nodesLoading } = useQuery<unknown>({
     queryKey: ['/api/navigator/nodes'],
     refetchInterval: 5000,
   });
@@ -110,12 +119,12 @@ export default function SovereignConsole() {
     refetchInterval: 5000,
   });
 
-  const { data: reports = [] } = useQuery<ReportCard[]>({
+  const { data: reportsResponse } = useQuery<unknown>({
     queryKey: ['/api/navigator/pending-reports'],
     refetchInterval: 3000,
   });
 
-  const { data: alerts = [] } = useQuery<RedAlert[]>({
+  const { data: alertsResponse } = useQuery<unknown>({
     queryKey: ['/api/navigator/alerts'],
     refetchInterval: 2000,
   });
@@ -202,6 +211,9 @@ export default function SovereignConsole() {
 
   // ============ 统计数据 ============
 
+  const nodes = readList<NavigatorNode>(nodesResponse, 'nodes');
+  const reports = readList<ReportCard>(reportsResponse);
+  const alerts = readList<RedAlert>(alertsResponse);
   const activeNodes = nodes.filter(n => n.status === 'ACTIVE').length;
   const criticalAlerts = alerts.filter(a => a.severity === 'CRITICAL' && !a.acknowledged).length;
 
