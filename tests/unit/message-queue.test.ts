@@ -1,5 +1,5 @@
 /**
- * 端到端测试 - 消息队列
+ * 单元测试 - 消息队列
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';

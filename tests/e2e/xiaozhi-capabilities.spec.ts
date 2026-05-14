@@ -6,7 +6,7 @@
 import { test, expect } from '@playwright/test';
 
 const API_BASE = process.env.API_URL || 'http://localhost:3000/api';
-const WEB_BASE = process.env.WEB_URL || 'http://localhost:5000';
+const WEB_BASE = process.env.WEB_URL || 'http://localhost:5173';
 
 test.describe('小智核心能力测试', () => {
   
@@ -18,7 +18,7 @@ test.describe('小智核心能力测试', () => {
       const title = await page.title();
       console.log('页面标题:', title);
       
-      const input = await page.locator('input, textarea').first();
+      const input = page.getByTestId('conversation-input');
       await expect(input).toBeVisible({ timeout: 10000 });
       
       console.log('✓ 页面加载正常');

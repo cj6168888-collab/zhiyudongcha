@@ -5,6 +5,15 @@
 
 import { test, expect, type Page } from '@playwright/test';
 
+const monitoringConfigured = Boolean(
+  process.env.VITE_SENTRY_DSN ||
+  process.env.NEXT_PUBLIC_SENTRY_DSN ||
+  process.env.VITE_OPENREPLAY_PROJECT_KEY ||
+  process.env.NEXT_PUBLIC_OPENREPLAY_PROJECT_KEY
+);
+
+test.skip(!monitoringConfigured, 'Monitoring SDK validation requires Sentry/OpenReplay environment configuration.');
+
 interface MonitoringConfig {
   sentry?: {
     dsn: string;

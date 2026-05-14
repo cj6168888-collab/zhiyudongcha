@@ -59,7 +59,7 @@ test.describe('UI组件测试 V2', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await test.step('检查main元素', async () => {
-      const main = page.locator('main, #root');
+      const main = page.locator('main').first();
       await expect(main).toBeVisible({ timeout: 5000 });
     });
   });

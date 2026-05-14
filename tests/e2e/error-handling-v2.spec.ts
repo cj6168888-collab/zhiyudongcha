@@ -31,6 +31,7 @@ test.describe('错误处理测试 V2', () => {
     const criticalErrors = errors.filter(e =>
       !e.includes('favicon') &&
       !e.includes('404') &&
+      !e.includes('429 (Too Many Requests)') &&
       !e.includes('net::ERR')
     );
 

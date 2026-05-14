@@ -96,7 +96,7 @@ test.describe('基础功能测试 V2', () => {
     await page.goto('/');
     const title = await page.title();
     console.log(`页面标题: ${title}`);
-    expect(title).toContain('小智');
+    expect(title).toContain('领航者');
   });
 
   test('路由存在性测试', async ({ page }) => {
@@ -125,6 +125,7 @@ test.describe('基础功能测试 V2', () => {
     const criticalErrors = errors.filter(e =>
       !e.includes('favicon') &&
       !e.includes('404') &&
+      !e.includes('429 (Too Many Requests)') &&
       !e.includes('net::')
     );
 

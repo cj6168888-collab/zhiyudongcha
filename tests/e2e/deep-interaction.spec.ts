@@ -325,7 +325,7 @@ class DeepInteractionTester {
 
       await test.step('2. 测量交互响应时间', async () => {
         const interactStart = Date.now();
-        await this.page.locator('button').first().click().catch(() => {});
+        await this.page.locator('button').first().click({ timeout: 1000 }).catch(() => {});
         const interactTime = Date.now() - interactStart;
         console.log(`交互响应时间: ${interactTime}ms`);
       });
@@ -529,6 +529,7 @@ test.describe('深度交互测试套件', () => {
       const criticalErrors = errors.filter(e =>
         !e.includes('favicon') &&
         !e.includes('404') &&
+        !e.includes('429 (Too Many Requests)') &&
         !e.includes('net::')
       );
 

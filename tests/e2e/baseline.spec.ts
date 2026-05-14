@@ -143,7 +143,7 @@ test.describe('前端交互基线测试', () => {
       await page.setViewportSize({ width: vp.width, height: 667 });
       await page.goto('/', { waitUntil: 'networkidle' });
       
-      const mainVisible = await page.locator('main').isVisible();
+      const mainVisible = await page.locator('main').first().isVisible();
       console.log(`${vp.name} (${vp.width}px): 主内容 ${mainVisible ? '可见' : '不可见'}`);
     }
     
