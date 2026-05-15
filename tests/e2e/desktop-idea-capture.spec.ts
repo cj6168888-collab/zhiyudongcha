@@ -66,10 +66,12 @@ test.describe('Desktop idea capture', () => {
     await expect(page).toHaveURL(`${appUrl}/desktop`);
     await expect(page.getByText('欢迎回来')).toBeVisible();
     await expect(page.getByRole('button', { name: '想法暂存' })).toBeVisible();
+    await expect(page.getByTestId('bottom-nav')).toHaveCount(0);
     await expect(page.getByText('出现错误')).toHaveCount(0);
 
     await page.goto(`${appUrl}/desktop/inspiration`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByPlaceholder('先记下这个想法，再回到和小智的对话里继续展开...')).toBeVisible();
+    await expect(page.getByTestId('bottom-nav')).toHaveCount(0);
     await expect(page.getByText('灵感广播')).toHaveCount(0);
     await expect(page.getByText('广播至全舰队')).toHaveCount(0);
     await expect(page.getByText('语义血缘')).toHaveCount(0);

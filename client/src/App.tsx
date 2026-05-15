@@ -95,6 +95,7 @@ function DesktopRoutes() {
 function AppContent() {
   const [location, setLocation] = useLocation();
   const realtimeSyncEnabled = location.startsWith("/desktop");
+  const isDesktopRoute = location.startsWith("/desktop");
   useRealtimeSync(realtimeSyncEnabled);
   useHpEvolutionSync(realtimeSyncEnabled);
 
@@ -161,8 +162,7 @@ function AppContent() {
           </Switch>
         </Suspense>
       </main>
-      {/* Persistent mobile bottom navigation */}
-      <BusinessBottomNav />
+      {!isDesktopRoute && <BusinessBottomNav />}
     </div>
   );
 }
