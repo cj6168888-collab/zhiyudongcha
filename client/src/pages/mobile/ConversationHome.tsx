@@ -1360,7 +1360,6 @@ export default function ConversationHome() {
           voiceInterimText={voicePartialTranscript}
           voiceNotice={voiceError || voiceNotice}
           voiceAudioLevel={voiceAudioLevel}
-          onToggleVoice={() => void handleToggleVoice()}
         />
 
         {resumeContext && (
@@ -1403,6 +1402,31 @@ export default function ConversationHome() {
                 全部会话
                 <span className="ml-1 text-slate-500">{messages.length}</span>
               </button>
+            </div>
+          )}
+
+          {messages.length === 0 && !isProcessing && !failedSend && !pendingConfirmation && !pendingDraft && pendingQueue.length === 0 && (
+            <div
+              data-testid="conversation-empty-state"
+              className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-3"
+            >
+              <div className="flex items-start gap-2.5">
+                <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black text-slate-100">本次会话还没有内容</p>
+                  <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                    你接下来说的话、打的字和添加的材料都会连续保留在这里。
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  data-testid="conversation-inbox-link"
+                  className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-black text-slate-200 active:bg-white/10"
+                  onClick={() => setLocation("/inbox")}
+                >
+                  全部会话
+                </button>
+              </div>
             </div>
           )}
 
@@ -1693,7 +1717,7 @@ export default function ConversationHome() {
         voiceAudioLevel={voiceAudioLevel}
         isProcessing={isBusy}
         attachments={attachments}
-        showVoiceButton={messages.length > 0}
+        showVoiceButton
         onInputChange={setInputText}
         onToggleVoice={() => void handleToggleVoice()}
         onAttachFiles={handleAttachFiles}

@@ -191,7 +191,6 @@ interface ConversationLiveSurfaceProps {
   voiceInterimText: string;
   voiceNotice: string | null;
   voiceAudioLevel: number;
-  onToggleVoice: () => void;
 }
 
 export function ConversationLiveSurface({
@@ -201,7 +200,6 @@ export function ConversationLiveSurface({
   voiceInterimText,
   voiceNotice,
   voiceAudioLevel,
-  onToggleVoice,
 }: ConversationLiveSurfaceProps) {
   const voiceLevelWidth = `${Math.max(8, Math.min(100, Math.round(voiceAudioLevel * 100)))}%`;
   const voiceLevel = Math.max(0.18, Math.min(1, voiceAudioLevel || 0.36));
@@ -214,75 +212,53 @@ export function ConversationLiveSurface({
   const statusDetail = voiceActive
     ? (voiceInterimText ? "实时转写中" : "保持说话，我会自动接住这次指令")
     : voiceSupported
-      ? (voiceNotice || "语音、文字和材料会进入同一次对话")
+      ? (voiceNotice || (hasHistory ? "语音、文字和材料会进入同一次对话" : "点按麦克风直接说，也可以打字；材料会进入同一次对话"))
       : (voiceProblem || "当前环境没有可用语音识别");
 
   return (
     <section
       data-testid="conversation-live-surface"
       className={cn(
-        "relative overflow-hidden rounded-xl border transition-colors",
-        hasHistory
-          ? "mb-3 flex items-center gap-3 border-white/10 bg-[#0a1020]/82 px-3 py-3 text-left shadow-[0_18px_52px_rgba(0,0,0,0.22)]"
-          : "flex min-h-[40vh] flex-col items-center justify-center border-cyan-200/12 bg-[#070c18]/90 px-4 py-8 text-center shadow-[0_26px_80px_rgba(0,0,0,0.34)]"
+        "relative mb-3 flex items-center gap-3 overflow-hidden rounded-xl border px-3 py-3 text-left shadow-[0_18px_52px_rgba(0,0,0,0.22)] transition-colors",
+        voiceActive
+          ? "border-rose-200/18 bg-rose-950/[0.18]"
+          : "border-cyan-200/12 bg-[#0a1020]/86",
+        !hasHistory && "py-4"
       )}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/25 to-transparent" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-cyan-200/[0.055] via-transparent to-transparent" />
-      {hasHistory ? (
-        <div
-          data-testid="conversation-live-compact-status"
-          className={cn(
-            "relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-white shadow-[0_0_34px_rgba(34,211,238,0.18)]",
-            voiceActive
-              ? "border-rose-200/50 bg-rose-400/20"
-              : "border-cyan-200/25 bg-cyan-300/10"
-          )}
-          aria-hidden="true"
-        >
-          <Mic className="h-5 w-5" />
-        </div>
-      ) : (
-        <div className="relative z-10 flex h-36 w-36 items-center justify-center">
-          <div className={cn(
-            "absolute inset-0 rounded-full border",
-            voiceActive ? "border-rose-200/18" : "border-cyan-200/14"
-          )} />
-          <div className={cn(
-            "absolute inset-4 rounded-full border",
-            voiceActive ? "border-rose-200/22 bg-rose-300/[0.03]" : "border-violet-200/18 bg-cyan-300/[0.03]"
-          )} />
-          <button
-            data-testid="conversation-voice-toggle"
-            onClick={onToggleVoice}
-            disabled={!voiceSupported}
-            className={cn(
-              "relative flex h-28 w-28 shrink-0 items-center justify-center rounded-full border text-white transition active:scale-95 disabled:text-slate-600",
-              voiceActive
-                ? "border-rose-100/55 bg-rose-400/18 shadow-[0_0_52px_rgba(251,113,133,0.24)]"
-                : "border-cyan-100/30 bg-cyan-300/10 shadow-[0_0_52px_rgba(34,211,238,0.18)]"
-            )}
-            aria-label={voiceActive ? "停止语音输入" : "语音输入"}
-          >
-            <Mic className="h-12 w-12" />
-          </button>
-        </div>
-      )}
+      <div
+        data-testid="conversation-live-compact-status"
+        className={cn(
+          "relative z-10 flex shrink-0 items-center justify-center rounded-full border text-white shadow-[0_0_34px_rgba(34,211,238,0.18)]",
+          hasHistory ? "h-12 w-12" : "h-14 w-14",
+          voiceActive
+            ? "border-rose-200/50 bg-rose-400/20"
+            : "border-cyan-200/25 bg-cyan-300/10"
+        )}
+        aria-hidden="true"
+      >
+        <Mic className={hasHistory ? "h-5 w-5" : "h-6 w-6"} />
+      </div>
 
-      <div className={cn("relative z-10 min-w-0", hasHistory ? "flex-1" : "mt-4 w-full max-w-[19rem]")}>
+      <div className="relative z-10 min-w-0 flex-1">
         <p className={cn("font-black text-slate-100", hasHistory ? "truncate text-sm" : "text-base")}>
           {statusText}
         </p>
         <p className={cn("mt-1 text-slate-400", hasHistory ? "truncate text-[10px]" : "text-xs")}>
           {statusDetail}
         </p>
-        <div className={cn("overflow-hidden", hasHistory ? "mt-2 w-full" : "mx-auto mt-4 w-52")}>
-          <div className="flex h-8 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-black/18 px-3">
+        <div className="mt-2 overflow-hidden">
+          <div className={cn(
+            "flex h-7 items-center justify-center gap-1.5 rounded-full border border-white/[0.08] bg-black/18 px-3",
+            !hasHistory && "max-w-56"
+          )}>
             {WAVE_BARS.map((height, index) => (
               <span
                 key={index}
                 className={cn(
-                  "w-1.5 rounded-full transition-all",
+                  "w-1 rounded-full transition-all",
                   voiceActive ? "bg-rose-200" : "bg-cyan-200/70"
                 )}
                 style={{
@@ -291,27 +267,13 @@ export function ConversationLiveSurface({
               />
             ))}
           </div>
-          <div className={cn("mt-2 h-1 overflow-hidden rounded-full bg-white/10", hasHistory ? "w-full" : "mx-auto w-44")}>
+          <div className={cn("mt-2 h-1 overflow-hidden rounded-full bg-white/10", !hasHistory && "max-w-52")}>
             <div
               className={cn("h-full rounded-full transition-all", voiceActive ? "bg-rose-200" : "bg-cyan-200")}
               style={{ width: voiceActive ? voiceLevelWidth : "36%" }}
             />
           </div>
         </div>
-        {!hasHistory && (
-          <div className={cn(
-            "mt-7 rounded-xl border px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
-            voiceActive
-              ? "border-rose-200/20 bg-rose-300/10"
-              : "border-white/10 bg-white/[0.055]"
-          )}>
-            <p className={cn("text-sm font-bold leading-relaxed", voiceActive ? "text-red-50" : "text-slate-100")}>
-              {voiceActive
-                ? (voiceInterimText || "我在听，直接说完整指令。")
-                : (voiceProblem || "点按麦克风直接说，也可以在下面打字；需要材料就先加到这次对话里。")}
-            </p>
-          </div>
-        )}
       </div>
     </section>
   );

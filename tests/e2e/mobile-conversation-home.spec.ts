@@ -291,6 +291,9 @@ test.describe('Mobile conversation home', () => {
     await expect(page.getByTestId('conversation-voice-toggle')).toBeVisible();
     await expect(page.getByTestId('conversation-voice-toggle')).toHaveCount(1);
     await expect(page.getByTestId('conversation-history-heading')).toHaveCount(0);
+    await expect(page.getByTestId('conversation-empty-state')).toContainText('本次会话还没有内容');
+    await expect(page.getByTestId('conversation-empty-state')).toContainText('添加的材料都会连续保留在这里');
+    await expect(page.getByTestId('conversation-inbox-link')).toContainText('全部会话');
     await expect(page.getByTestId('now-strip')).toHaveCount(0);
     await expect(page.getByText('PC 执行')).toHaveCount(0);
     await expect(page.getByTestId('conversation-input')).toBeVisible();
