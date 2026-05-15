@@ -21,10 +21,17 @@ vi.mock('../../server/lib/ai-provider', () => ({
 }));
 
 import modelRouter from '../../server/routes/model.routes';
+import { attachRole } from '../../server/middleware/auth';
+
+const masterHeaders = {
+  'x-avatar-role': 'MASTER',
+  'x-avatar-secret': 'unit-test-master-secret',
+};
 
 function createTestApp(): Express {
   const app = express();
   app.use(express.json());
+  app.use(attachRole);
   app.use('/api/models', modelRouter);
   return app;
 }
@@ -37,6 +44,8 @@ describe('Model API Routes', () => {
   });
 
   beforeEach(() => {
+    process.env.NODE_ENV = 'test';
+    process.env.AVATAR_MASTER_SECRET = 'unit-test-master-secret';
     vi.clearAllMocks();
     modelSyncServiceMock.getStatus.mockReturnValue({
       progress: 35,
@@ -54,7 +63,7 @@ describe('Model API Routes', () => {
   });
 
   it('returns model sync status combined with cloud provider availability', async () => {
-    const response = await request(app).get('/api/models/status');
+    const response = await request(app).get('/api/models/status').set(masterHeaders);
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
@@ -81,7 +90,7 @@ describe('Model API Routes', () => {
   it('reports cloud status as not ready when no cloud providers are available', async () => {
     aiProviderMock.getAvailableProviders.mockReturnValue([]);
 
-    const response = await request(app).get('/api/models/cloud-status');
+    const response = await request(app).get('/api/models/cloud-status').set(masterHeaders);
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
@@ -96,7 +105,7 @@ describe('Model API Routes', () => {
   });
 
   it('triggers model sync without waiting for background completion', async () => {
-    const response = await request(app).post('/api/models/sync');
+    const response = await request(app).post('/api/models/sync').set(masterHeaders);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -107,7 +116,7 @@ describe('Model API Routes', () => {
   it('logs background sync rejection while keeping the trigger response stable', async () => {
     modelSyncServiceMock.startSync.mockRejectedValueOnce(new Error('sync failed after response'));
 
-    const response = await request(app).post('/api/models/sync');
+    const response = await request(app).post('/api/models/sync').set(masterHeaders);
 
     await new Promise((resolve) => setImmediate(resolve));
 
@@ -121,7 +130,7 @@ describe('Model API Routes', () => {
       throw new Error('sync bootstrap failed');
     });
 
-    const response = await request(app).post('/api/models/sync');
+    const response = await request(app).post('/api/models/sync').set(masterHeaders);
 
     expect(response.status).toBe(500);
     expect(response.body).toMatchObject({

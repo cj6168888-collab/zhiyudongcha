@@ -7,6 +7,7 @@ import { createServiceLogger } from '../lib/logger';
 const logger = createServiceLogger('SecretVault');
 
 import { Router, Request, Response } from 'express';
+import { attachRole, requireMaster } from '../middleware/auth';
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -16,6 +17,8 @@ function getErrorMessage(error: unknown): string {
 import { secretVault, getDashScopeApiKey, getDeepSeekApiKey, getDoubaoApiKey, type SecretKeyType } from '../services/secret-vault';
 
 const router = Router();
+
+router.use(attachRole, requireMaster);
 
 router.post('/store', async (req: Request, res: Response) => {
   try {

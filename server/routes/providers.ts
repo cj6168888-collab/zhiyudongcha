@@ -7,14 +7,14 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { attachRole } from '../middleware/auth';
+import { attachRole, requireMaster } from '../middleware/auth';
 import { omiProvider, OmiExportPayload } from '../services/providers/OmiProvider';
 import { createServiceLogger } from '../lib/logger';
 
 const router = Router();
 const logger = createServiceLogger('ProviderRoutes');
 
-router.use(attachRole);
+router.use(attachRole, requireMaster);
 
 function getUserId(req: Request): string {
   return req.user?.id || 'default';

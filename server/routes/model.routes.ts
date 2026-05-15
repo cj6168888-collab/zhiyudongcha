@@ -5,9 +5,12 @@ import { Router } from 'express';
 import { aiProvider } from '../lib/ai-provider';
 import { createServiceLogger } from '../lib/logger';
 import { modelSyncService } from '../services/system/ModelSyncService';
+import { requireMaster } from '../middleware/auth';
 
 const router = Router();
 const logger = createServiceLogger('ModelRoutes');
+
+router.use(requireMaster);
 
 // 获取当前服务器模型同步状态
 router.get('/status', (req, res) => {

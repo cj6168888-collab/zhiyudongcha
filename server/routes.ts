@@ -43,11 +43,13 @@ import knowledgeRouter from "./routes/knowledge";
 import cozeRouter from "./routes/coze";
 import modelRouter from "./routes/model.routes";
 import telemetryRouter from "./routes/telemetry";
+import aiRouter from "./routes/ai";
 import { conversationRouter, conversationInboxRouter, conversationCandidateRouter } from "./routes/conversations";
 import { deviceBindingsRouter } from "./routes/device-bindings";
 import { providersRouter } from "./routes/providers";
 import { screenAwarenessRouter } from "./routes/screen-awareness";
 import { dreamReviewRouter } from "./routes/dream-review";
+import privacyRouter from "./routes/privacy";
 import { schedulerService } from "./services/scheduler";
 import { taskOrchestrator } from "./services/task-orchestrator/TaskOrchestrator";
 
@@ -110,12 +112,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.use('/api/knowledge', knowledgeRouter);
   app.use('/api/coze', cozeRouter);
   app.use('/api/models', modelRouter);
+  app.use('/api/ai', aiRouter);
   app.use('/api/telemetry', telemetryRouter);
   app.use('/api/conversations', conversationRouter);
   app.use('/api/conversation-inbox', conversationInboxRouter);
   app.use('/api/conversation-candidates', conversationCandidateRouter);
   app.use('/api/device-bindings', deviceBindingsRouter);
   app.use('/api/providers', providersRouter);
+  app.use('/api/privacy', privacyRouter);
   app.use('/api/screen-awareness', screenAwarenessRouter);
   app.use('/api/dream-review', dreamReviewRouter);
   registerRealtimeVoiceRoutes(app, storageAdapter, context);

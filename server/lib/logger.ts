@@ -1,4 +1,5 @@
 import pino from 'pino';
+import { sanitizeLogPayload } from './privacy-redaction';
 
 const isDevelopment = process.env['NODE_ENV'] === 'development';
 
@@ -18,53 +19,53 @@ export const logger = {
   info: (obj: string | Record<string, unknown>, dataOrMsg?: Record<string, unknown> | string): void => {
     if (typeof obj === 'string') {
       if (dataOrMsg && typeof dataOrMsg === 'object') {
-        baseLogger.info(dataOrMsg as Record<string, unknown>, obj);
+        baseLogger.info(sanitizeLogPayload(dataOrMsg as Record<string, unknown>), obj);
       } else {
         baseLogger.info(obj);
       }
     } else if (typeof dataOrMsg === 'string') {
-      baseLogger.info(obj, dataOrMsg);
+      baseLogger.info(sanitizeLogPayload(obj), dataOrMsg);
     } else {
-      baseLogger.info(obj);
+      baseLogger.info(sanitizeLogPayload(obj));
     }
   },
   warn: (obj: string | Record<string, unknown>, dataOrMsg?: Record<string, unknown> | string): void => {
     if (typeof obj === 'string') {
       if (dataOrMsg && typeof dataOrMsg === 'object') {
-        baseLogger.warn(dataOrMsg as Record<string, unknown>, obj);
+        baseLogger.warn(sanitizeLogPayload(dataOrMsg as Record<string, unknown>), obj);
       } else {
         baseLogger.warn(obj);
       }
     } else if (typeof dataOrMsg === 'string') {
-      baseLogger.warn(obj, dataOrMsg);
+      baseLogger.warn(sanitizeLogPayload(obj), dataOrMsg);
     } else {
-      baseLogger.warn(obj);
+      baseLogger.warn(sanitizeLogPayload(obj));
     }
   },
   error: (obj: string | Record<string, unknown>, dataOrMsg?: Record<string, unknown> | string): void => {
     if (typeof obj === 'string') {
       if (dataOrMsg && typeof dataOrMsg === 'object') {
-        baseLogger.error(dataOrMsg as Record<string, unknown>, obj);
+        baseLogger.error(sanitizeLogPayload(dataOrMsg as Record<string, unknown>), obj);
       } else {
         baseLogger.error(obj);
       }
     } else if (typeof dataOrMsg === 'string') {
-      baseLogger.error(obj, dataOrMsg);
+      baseLogger.error(sanitizeLogPayload(obj), dataOrMsg);
     } else {
-      baseLogger.error(obj);
+      baseLogger.error(sanitizeLogPayload(obj));
     }
   },
   debug: (obj: string | Record<string, unknown>, dataOrMsg?: Record<string, unknown> | string): void => {
     if (typeof obj === 'string') {
       if (dataOrMsg && typeof dataOrMsg === 'object') {
-        baseLogger.debug(dataOrMsg as Record<string, unknown>, obj);
+        baseLogger.debug(sanitizeLogPayload(dataOrMsg as Record<string, unknown>), obj);
       } else {
         baseLogger.debug(obj);
       }
     } else if (typeof dataOrMsg === 'string') {
-      baseLogger.debug(obj, dataOrMsg);
+      baseLogger.debug(sanitizeLogPayload(obj), dataOrMsg);
     } else {
-      baseLogger.debug(obj);
+      baseLogger.debug(sanitizeLogPayload(obj));
     }
   },
   child: (bindings: Record<string, unknown>) => {

@@ -36,6 +36,7 @@ import { taskClassifier, type ClassificationResult } from './task-classifier';
 import { getDatabase } from '../db';
 import { routingLogs, userRoutingPreferences } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import { redactSensitiveText } from '../lib/privacy-redaction';
 
 export interface Z1RouterConfig {
   primaryBrain: LLMProviderName;
@@ -201,7 +202,7 @@ async function logRoutingDecision(
     const [log] = await getDatabase().insert(routingLogs).values({
       userId: options.userId,
       sessionId: options.sessionId,
-      messagePreview: messagePreview.slice(0, 50),
+      messagePreview: redactSensitiveText(messagePreview).slice(0, 50),
       taskType: classification.taskType,
       sensitivityLevel: classification.sensitivityLevel,
       sensitiveCategories: classification.sensitiveCategories,

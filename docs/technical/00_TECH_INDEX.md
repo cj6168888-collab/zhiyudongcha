@@ -39,6 +39,7 @@
 | 18 | [18_EVALUATION_PROTOCOL.md](./18_EVALUATION_PROTOCOL.md) | AI 评测集、指标、阈值和 release gate |
 | 19 | [19_CURRENT_CODE_HEALTH.md](./19_CURRENT_CODE_HEALTH.md) | 代码健康快照：TypeScript、测试、架构边界、安全、数据库的实测指标 |
 | 20 | [20_PERCEPTION_DEVICE_IMPLEMENTATION_SPEC.md](./20_PERCEPTION_DEVICE_IMPLEMENTATION_SPEC.md) | 感知、外设与 Conversation 技术实施规格 |
+| 21 | [21_PRIVATE_ASSISTANT_PRIVACY_VAULT_UPGRADE.md](./21_PRIVATE_ASSISTANT_PRIVACY_VAULT_UPGRADE.md) | 私人助理保险箱、脱敏推理、本地回填、授权和审计升级设计 |
 
 ## 与产品文档的关系
 

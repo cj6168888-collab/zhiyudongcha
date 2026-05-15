@@ -1,6 +1,7 @@
 import { createServiceLogger } from './logger';
 import { AIServiceError, TimeoutError } from './errors';
 import { getSyncApiKey, isUsableApiKey } from '../services/api-key-resolver';
+import { classifyCloudPrivacy } from '../services/privacy/PrivacyGateway';
 
 const log = createServiceLogger('AIProvider');
 
@@ -215,6 +216,33 @@ export class AIProviderChain {
   }
 
   async complete(options: AICompletionOptions): Promise<AICompletionResult> {
+    const userContent = options.messages
+      .filter(message => message.role === 'user')
+      .map(message => message.content)
+      .join('\n');
+
+    if (userContent) {
+      const privacyDecision = classifyCloudPrivacy(userContent);
+      log.info({
+        decision: privacyDecision.decision,
+        sensitivity: privacyDecision.classification.sensitivityLevel,
+        categories: privacyDecision.classification.sensitiveCategories,
+        input: privacyDecision.safeLog,
+      }, 'AIProvider 隐私网关判定');
+
+      if (privacyDecision.decision === 'LOCAL_ONLY') {
+        throw new AIServiceError(
+          '高敏内容已被隐私网关阻断，未发送给云端模型',
+          'privacy-gateway',
+          false,
+          {
+            sensitivity: privacyDecision.classification.sensitivityLevel,
+            categories: privacyDecision.classification.sensitiveCategories,
+          },
+        );
+      }
+    }
+
     let healthyProviders = this.providers.filter(p => this.isProviderHealthy(p));
     
     if (healthyProviders.length === 0) {

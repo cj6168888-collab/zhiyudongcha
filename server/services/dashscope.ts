@@ -4,6 +4,7 @@ import { AVATAR_TOOLS, executeToolCall, type ToolCall } from './aiTools';
 import { ENHANCED_TOOLS, executeEnhancedToolCall, semanticSearch } from './dashscope-enhanced';
 import { classifyInputQuadrant, calculatePriorityScore, ActionQuadrant, parseCriticalActionIntent, generateExecutionResponse, type CriticalActionIntent } from '../core/constitution';
 import { personalityCoreService } from './personality-core';
+import { classifyCloudPrivacy, createLocalOnlyAssistantMessage } from './privacy/PrivacyGateway';
 import { 
   getSystemPrompt as getPersonaSystemPrompt, 
   RESPONSE_TEMPLATES, 
@@ -887,6 +888,21 @@ export async function chatWithDashScope(
   const inputQuadrant = classifyInputQuadrant(userMessage, { isFromMaster: true });
   const priorityScore = calculatePriorityScore(userMessage);
   log.info({ quadrant: inputQuadrant, priority: priorityScore.toFixed(2) }, '四象限分类完成');
+
+  const privacyDecision = classifyCloudPrivacy(userMessage);
+  log.info({
+    decision: privacyDecision.decision,
+    sensitivity: privacyDecision.classification.sensitivityLevel,
+    categories: privacyDecision.classification.sensitiveCategories,
+    input: privacyDecision.safeLog,
+  }, 'PrivacyGateway 云端调用判定');
+
+  if (privacyDecision.decision === 'LOCAL_ONLY') {
+    return {
+      action: 'chat',
+      message: createLocalOnlyAssistantMessage(privacyDecision),
+    };
+  }
   
   // CRITICAL_ACTION - 紧急关键词触发立即处理
   // 感知即执行：必须接入执行器，禁止返回纯文字分析
@@ -1511,6 +1527,19 @@ export async function* streamChatWithDashScope(
   messages: ChatMessage[],
   userMessage: string
 ): AsyncGenerator<string, void, unknown> {
+  const privacyDecision = classifyCloudPrivacy(userMessage);
+  log.info({
+    decision: privacyDecision.decision,
+    sensitivity: privacyDecision.classification.sensitivityLevel,
+    categories: privacyDecision.classification.sensitiveCategories,
+    input: privacyDecision.safeLog,
+  }, 'PrivacyGateway 流式云端调用判定');
+
+  if (privacyDecision.decision === 'LOCAL_ONLY') {
+    yield createLocalOnlyAssistantMessage(privacyDecision);
+    return;
+  }
+
   if (!DASHSCOPE_API_KEY) {
     yield '爸爸，DashScope API未配置，暂时无法使用AI功能呢';
     return;
@@ -1791,6 +1820,20 @@ export async function deepThinkingChat(
   userMessage: string,
   storage?: IStorage
 ): Promise<DeepChatResult> {
+  const privacyDecision = classifyCloudPrivacy(userMessage);
+  log.info({
+    decision: privacyDecision.decision,
+    sensitivity: privacyDecision.classification.sensitivityLevel,
+    categories: privacyDecision.classification.sensitiveCategories,
+    input: privacyDecision.safeLog,
+  }, 'PrivacyGateway 深度思考云端调用判定');
+
+  if (privacyDecision.decision === 'LOCAL_ONLY') {
+    return {
+      message: createLocalOnlyAssistantMessage(privacyDecision),
+    };
+  }
+
   if (!DASHSCOPE_API_KEY) {
     return { 
       message: '深度思考模式需要配置API密钥才能使用哦～',

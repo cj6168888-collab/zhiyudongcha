@@ -18,6 +18,7 @@ vi.mock('../../server/services/providers/OmiProvider', () => ({
 vi.mock('../../server/middleware/auth', () => ({
   attachRole: (_req: any, _res: any, next: any) => next(),
   requireAuth: (_req: any, _res: any, next: any) => next(),
+  requireMaster: (_req: any, _res: any, next: any) => next(),
 }));
 
 vi.mock('../../server/lib/logger', () => ({

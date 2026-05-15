@@ -8,6 +8,7 @@ import { useAIEngine } from './use-ai-engine';
 import { useNativeTTS } from './use-native-tts';
 import { useActionPlugin } from './use-action-plugin';
 import { createServiceLogger } from '../lib/logger';
+import { apiRequest, parseApiJson } from '../lib/queryClient';
 import type { AIMode } from '../plugins/definitions';
 
 const log = createServiceLogger('useChat');
@@ -37,7 +38,17 @@ interface UseChatReturn {
 
 interface ConversationAPIResponse {
   success: boolean;
-  response: string;
+  data?: {
+    response?: string;
+    cloudUsed?: boolean;
+    decision?: 'ALLOW_CLOUD' | 'REDACT_THEN_CLOUD' | 'LOCAL_ONLY';
+    redactionApplied?: boolean;
+    requiresConfirm?: boolean;
+    provider?: string;
+    model?: string;
+    blocked?: boolean;
+  };
+  response?: string;
   action?: string;
   entity?: string;
   toolsCalled?: string[];
@@ -49,31 +60,23 @@ async function callConversationAPI(
   message: string,
   _history: { role: string; content: string }[]
 ): Promise<ConversationAPIResponse> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  const response = await apiRequest('POST', '/api/ai/safe-chat', {
+    message,
+    purpose: 'conversation',
+    allowCloud: true,
+  });
 
-  try {
-    const response = await fetch('/api/conversation/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, useHistory: true }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Request timeout');
-    }
-    throw error;
+  const payload = await parseApiJson<ConversationAPIResponse>(response, '安全聊天接口');
+  if (payload?.success && payload?.data?.response) {
+    return {
+      success: true,
+      response: payload.data.response,
+      model: payload.data.model || payload.data.provider,
+      data: payload.data,
+    };
   }
+
+  return payload;
 }
 
 async function simulateChatResponse(
@@ -268,7 +271,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
               content.trim(),
               messages.map(m => ({ role: m.role, content: m.content }))
             );
-            response     = apiResponse.response;
+            response     = apiResponse.response || '请求已处理，但没有返回可显示的内容。';
             modelUsed    = apiResponse.model || config.primaryModel;
             responseTier = 3;
           } catch (apiError) {

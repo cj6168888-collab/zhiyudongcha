@@ -1,6 +1,7 @@
 ﻿import { createServiceLogger } from '../../lib/logger';
 import { AIProviderChain } from '../../lib/ai-provider';
 import { conversationService } from './ConversationService';
+import { classifyCloudPrivacy } from '../privacy/PrivacyGateway';
 
 const logger = createServiceLogger('ConversationProcessor');
 
@@ -52,6 +53,21 @@ class ConversationProcessor {
       .join('\n');
 
     await conversationService.updateStatus(conversationId, 'processing');
+
+    const privacyDecision = classifyCloudPrivacy(transcript);
+    logger.info('Conversation privacy decision', {
+      conversationId,
+      decision: privacyDecision.decision,
+      sensitivity: privacyDecision.classification.sensitivityLevel,
+      categories: privacyDecision.classification.sensitiveCategories,
+      transcript: privacyDecision.safeLog,
+    });
+
+    if (privacyDecision.decision === 'LOCAL_ONLY') {
+      const summary = '包含高敏内容，已阻断云端对话处理，等待本地模型或手工确认。';
+      await conversationService.updateStatus(conversationId, 'completed', { summary });
+      return { summary, taskCount: 0, memoryCount: 0, eventCount: 0 };
+    }
 
     let parsed: { summary?: string; tasks?: unknown[]; memories?: unknown[]; events?: unknown[] } = {};
 

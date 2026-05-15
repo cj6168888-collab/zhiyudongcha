@@ -10,6 +10,7 @@ const logger = createServiceLogger('ConversationAPI');
 import type { Express, Request, Response } from 'express';
 import type { IStorage } from '../storage';
 import type { RegisterRouteFn } from './types';
+import { requireMaster } from '../middleware/auth';
 import {
   processUserInput,
   processVoiceCommand,
@@ -18,6 +19,7 @@ import {
   getConversationStats
 } from '../services/smart-conversation';
 import { registerAvatarTools } from '../services/avatar-tools';
+import { createPrivacySafeTextMetadata } from '../lib/privacy-redaction';
 
 let toolsRegistered = false;
 
@@ -39,7 +41,7 @@ export const registerConversationRoutes: RegisterRouteFn = (app, storage, contex
         });
       }
 
-      logger.info({ userId, message: message.substring(0, 50) }, '收到对话请求');
+      logger.info({ userId, message: createPrivacySafeTextMetadata(message) }, '收到对话请求');
 
       const result = await processUserInput(userId, message, storage, {
         useHistory,
@@ -77,7 +79,7 @@ export const registerConversationRoutes: RegisterRouteFn = (app, storage, contex
         });
       }
 
-      logger.info({ userId, text: text.substring(0, 50) }, '收到语音命令');
+      logger.info({ userId, text: createPrivacySafeTextMetadata(text) }, '收到语音命令');
 
       const result = await processVoiceCommand(userId, text, storage);
 
@@ -101,7 +103,7 @@ export const registerConversationRoutes: RegisterRouteFn = (app, storage, contex
     }
   });
 
-  app.get('/api/conversation/history/:userId', async (req: Request, res: Response) => {
+  app.get('/api/conversation/history/:userId', requireMaster, async (req: Request, res: Response) => {
     try {
       const { userId } = req.params;
       const history = getConversationHistory(userId);
@@ -124,7 +126,7 @@ export const registerConversationRoutes: RegisterRouteFn = (app, storage, contex
     }
   });
 
-  app.delete('/api/conversation/history/:userId', async (req: Request, res: Response) => {
+  app.delete('/api/conversation/history/:userId', requireMaster, async (req: Request, res: Response) => {
     try {
       const { userId } = req.params;
       clearConversationHistory(userId);
@@ -143,7 +145,7 @@ export const registerConversationRoutes: RegisterRouteFn = (app, storage, contex
     }
   });
 
-  app.get('/api/conversation/stats', async (req: Request, res: Response) => {
+  app.get('/api/conversation/stats', requireMaster, async (req: Request, res: Response) => {
     try {
       const stats = getConversationStats();
 

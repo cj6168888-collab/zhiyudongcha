@@ -193,7 +193,7 @@ export function registerVaultRoutes(
 
   // ===== Z2: Shadow Memory Routes =====
 
-  app.get("/api/memories", async (req, res) => {
+  app.get("/api/memories", requireResourceGrant("MEMORY", "READ"), async (req, res) => {
     try {
       const memories = await memoryService.getAllMemories();
       return res.json({ success: true, data: memories });
@@ -206,7 +206,7 @@ export function registerVaultRoutes(
     }
   });
 
-  app.get("/api/shadow-memory", async (req, res) => {
+  app.get("/api/shadow-memory", requireResourceGrant("MEMORY", "READ"), async (req, res) => {
     try {
       const memories = await memoryService.getAllMemories();
       return res.json({ success: true, data: memories });
@@ -219,7 +219,7 @@ export function registerVaultRoutes(
     }
   });
 
-  app.post("/api/memories", async (req, res) => {
+  app.post("/api/memories", requireResourceGrant("MEMORY", "WRITE"), async (req, res) => {
     try {
       const validated = insertShadowMemorySchema.parse(req.body);
       const memory = await memoryService.createMemory(validated);

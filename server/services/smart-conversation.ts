@@ -8,6 +8,7 @@ import { chatWithDashScope, executeAvatarCommand, type ChatMessage, type AvatarC
 import { functionCallingService, type ToolCall } from './function-calling';
 import type { IStorage } from '../storage';
 import { createServiceLogger } from '../lib/logger';
+import { createPrivacySafeTextMetadata } from '../lib/privacy-redaction';
 
 const logger = createServiceLogger('SmartConversation');
 
@@ -41,7 +42,7 @@ export async function processUserInput(
   storage: IStorage,
   options: { useHistory?: boolean; executeCommand?: boolean } = {}
 ): Promise<ConversationResult> {
-  logger.info({ userId, input }, '处理用户输入');
+  logger.info({ userId, input: createPrivacySafeTextMetadata(input) }, '处理用户输入');
   
   let context = conversationContexts.get(userId);
   if (!context) {
@@ -134,7 +135,7 @@ export async function processVoiceCommand(
   voiceText: string,
   storage: IStorage
 ): Promise<ConversationResult> {
-  logger.info({ userId, voiceText }, '处理语音命令');
+  logger.info({ userId, voiceText: createPrivacySafeTextMetadata(voiceText) }, '处理语音命令');
   
   return processUserInput(userId, voiceText, storage, {
     useHistory: true,

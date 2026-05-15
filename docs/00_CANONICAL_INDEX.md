@@ -68,6 +68,7 @@
 | [AI_GOVERNANCE_STANDARDS_MAPPING.md](./AI_GOVERNANCE_STANDARDS_MAPPING.md) | NIST AI RMF、OWASP LLM、WCAG、OpenTelemetry 标准映射 |
 | [technical/17_LLM_SECURITY_AND_RED_TEAMING.md](./technical/17_LLM_SECURITY_AND_RED_TEAMING.md) | LLM 安全威胁模型、提示注入防护和红队测试 |
 | [technical/18_EVALUATION_PROTOCOL.md](./technical/18_EVALUATION_PROTOCOL.md) | 对话、记忆、安全、执行和蜂群能力评测协议 |
+| [technical/21_PRIVATE_ASSISTANT_PRIVACY_VAULT_UPGRADE.md](./technical/21_PRIVATE_ASSISTANT_PRIVACY_VAULT_UPGRADE.md) | 私人助理保险箱、脱敏推理、本地回填、授权和审计升级设计 |
 | [product/06_RELEASE_ACCEPTANCE_SCORECARD.md](./product/06_RELEASE_ACCEPTANCE_SCORECARD.md) | Release 绿/黄/红灯验收和一票否决项 |
 | [design/13_ACCESSIBILITY_PERFORMANCE_BASELINE.md](./design/13_ACCESSIBILITY_PERFORMANCE_BASELINE.md) | WCAG、ARIA、移动性能、实时状态和权限引导基线 |
 | [adr/README.md](./adr/README.md) | 架构决策记录（含 ADR 模板和 6 个已有决策） |
