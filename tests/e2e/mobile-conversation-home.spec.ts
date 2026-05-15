@@ -5,7 +5,7 @@ const appUrl = 'http://localhost:5173/';
 const localStateKey = 'navigator.mobile.conversation-home.local-state.v1';
 const ideaCaptureKey = 'xiaozhi_idea_capture_notes';
 
-async function mockConversationShell(page: Page, options?: {
+async function mockConversationShell(page: Page, options: {
   pendingSummary?: Record<string, unknown>;
   assistantFailure?: boolean;
   assistantFailureCount?: number;
@@ -13,7 +13,8 @@ async function mockConversationShell(page: Page, options?: {
   assistantResult?: Record<string, unknown>;
   preserveLocalState?: boolean;
   offline?: boolean;
-}) {
+  authRequired?: boolean;
+} = {}) {
   await page.addInitScript((mockOptions) => {
     const jsonResponse = (body: unknown, status = 200) =>
       new Response(JSON.stringify(body), {
@@ -30,10 +31,25 @@ async function mockConversationShell(page: Page, options?: {
       window.localStorage.removeItem(historyKey);
       window.localStorage.removeItem(sessionKey);
       window.localStorage.removeItem(deviceKey);
+      window.localStorage.removeItem('avatar_role');
+      window.localStorage.removeItem('avatar_master_secret');
+      window.localStorage.removeItem('xiaozhi_master_key');
     }
     (window as unknown as { __assistantCalls?: number }).__assistantCalls = 0;
     (window as unknown as { __assistantHistoryCalls?: number }).__assistantHistoryCalls = 0;
     let assistantCallCount = 0;
+
+    const getRequestHeader = (headers: HeadersInit | undefined, name: string): string | null => {
+      if (!headers) return null;
+      if (headers instanceof Headers) return headers.get(name);
+      if (Array.isArray(headers)) {
+        const entry = headers.find(([key]) => key.toLowerCase() === name.toLowerCase());
+        return entry?.[1] ?? null;
+      }
+      const entry = Object.entries(headers as Record<string, string>)
+        .find(([key]) => key.toLowerCase() === name.toLowerCase());
+      return entry?.[1] ?? null;
+    };
 
     const readHistory = (): Array<{ id: string; role: string; content: string; timestamp: string; ai?: unknown }> => {
       try {
@@ -74,6 +90,23 @@ async function mockConversationShell(page: Page, options?: {
           : input.url;
       const path = new URL(url, window.location.origin).pathname;
       const method = (init?.method ?? 'GET').toUpperCase();
+      const hasMasterSecret = Boolean(getRequestHeader(init?.headers, 'x-avatar-secret'));
+      const protectedPaths = new Set([
+        '/api/hp/balance',
+        '/api/models/status',
+        '/api/device-bindings',
+        '/api/assistant/pending',
+        '/api/assistant/history',
+        '/api/alerts/pending',
+      ]);
+
+      if (mockOptions.authRequired && protectedPaths.has(path) && !hasMasterSecret) {
+        return jsonResponse({
+          error: 'MASTER 权限不足',
+          code: 'FORBIDDEN',
+          requiredRole: 'MASTER',
+        }, 403);
+      }
 
       if (path === '/api/security/csrf-token') {
         return jsonResponse({ token: 'test-csrf', headerName: 'x-csrf-token' });
@@ -234,6 +267,7 @@ async function mockConversationShell(page: Page, options?: {
     assistantResult: options?.assistantResult,
     preserveLocalState: options?.preserveLocalState,
     offline: options?.offline,
+    authRequired: options?.authRequired,
   });
 }
 
@@ -560,6 +594,24 @@ test.describe('Mobile conversation home', () => {
     await expect(page.getByTestId('device-setup-card')).toHaveCount(0);
     await expect(page.getByText('设备 未绑定')).toHaveCount(0);
     await expect(page.getByText('PC 执行')).toHaveCount(0);
+  });
+
+  test('keeps master authorization as a compact home notice', async ({ page }) => {
+    await mockConversationShell(page, { authRequired: true });
+
+    await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByTestId('home-notice')).toContainText('主控待验证');
+    await expect(page.getByTestId('home-notice')).not.toContainText('服务同步异常');
+
+    await page.getByTestId('home-notice').click();
+    await expect(page.getByTestId('master-auth-card')).toContainText('验证主控密钥');
+
+    await page.getByTestId('master-secret-input').fill('unit-test-master-secret');
+    await page.getByTestId('master-secret-save').click();
+
+    await expect(page.getByTestId('master-auth-card')).toBeHidden();
+    await expect(page.getByTestId('home-notice')).toBeHidden();
   });
 
   test('shows offline guidance and retains a send without calling the assistant', async ({ page }) => {

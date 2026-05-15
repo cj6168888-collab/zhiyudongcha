@@ -46,6 +46,7 @@ import {
   type AssistantResponse,
   type DraftItem,
 } from "@/lib/assistant-api";
+import { cryptoStorage } from "@/lib/crypto-storage";
 
 interface HpBalanceResponse {
   success: boolean;
@@ -228,6 +229,14 @@ function errorDetail(error: unknown, fallback: string) {
   if (error instanceof Error && error.message.trim()) return error.message;
   if (typeof error === "string" && error.trim()) return error;
   return fallback;
+}
+
+function isAuthorizationError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  return error.message.startsWith("401:")
+    || error.message.startsWith("403:")
+    || error.message.includes('"code":"FORBIDDEN"')
+    || error.message.includes("MASTER 权限不足");
 }
 
 function cloneDraftItems(items: DraftItem[]) {
@@ -476,6 +485,7 @@ export default function ConversationHome() {
     data: hpStatus,
     isLoading: hpLoading,
     isError: hpError,
+    error: hpQueryError,
   } = useQuery<HpBalanceResponse>({
     queryKey: ["/api/hp/balance"],
     refetchInterval: 30000,
@@ -485,6 +495,7 @@ export default function ConversationHome() {
     data: modelStatus,
     isLoading: modelLoading,
     isError: modelError,
+    error: modelQueryError,
   } = useQuery<ModelStatusResponse>({
     queryKey: ["/api/models/status"],
     refetchInterval: 30000,
@@ -494,6 +505,7 @@ export default function ConversationHome() {
     data: deviceBindings,
     isLoading: deviceBindingsLoading,
     isError: deviceBindingsError,
+    error: deviceBindingsQueryError,
   } = useQuery<DeviceBindingsResponse>({
     queryKey: ["/api/device-bindings"],
     refetchInterval: 30000,
@@ -502,6 +514,7 @@ export default function ConversationHome() {
   const {
     data: assistantPending,
     isError: assistantPendingError,
+    error: assistantPendingQueryError,
   } = useQuery({
     queryKey: ["assistant-pending-summary"],
     queryFn: getAssistantPendingSummary,
@@ -519,6 +532,7 @@ export default function ConversationHome() {
     data: alertSummary,
     isLoading: alertsLoading,
     isError: alertsError,
+    error: alertsQueryError,
   } = useQuery<PendingAlertsResponse>({
     queryKey: ["conversation-home-alerts"],
     queryFn: async () => {
@@ -542,6 +556,10 @@ export default function ConversationHome() {
   const [attachments, setAttachments] = useState<ConversationAttachment[]>([]);
   const [latestExecutionReport, setLatestExecutionReport] = useState<ExecutionReport | null>(null);
   const [resumeContext, setResumeContext] = useState<ResumeConversationContext | null>(null);
+  const [authPanelOpen, setAuthPanelOpen] = useState(false);
+  const [masterSecretInput, setMasterSecretInput] = useState("");
+  const [authPanelMessage, setAuthPanelMessage] = useState<string | null>(null);
+  const [authSaving, setAuthSaving] = useState(false);
   const [localStateHydrated, setLocalStateHydrated] = useState(false);
   const streamEndRef = useRef<HTMLDivElement>(null);
   const lastVoiceTranscriptRef = useRef("");
@@ -572,7 +590,15 @@ export default function ConversationHome() {
   const deviceHealthy = onlineBoundDevices.length > 0 || hasNativeDeviceSignal;
   const headerLoading = !hpStatus && !modelStatus && !deviceBindings && (hpLoading || modelLoading || deviceBindingsLoading);
   const summaryLoading = alertsLoading && !alertSummary;
-  const backendDegraded = isOffline || hpError || modelError || deviceBindingsError || assistantPendingError || alertsError;
+  const authorizationBlocked = [
+    hpQueryError,
+    modelQueryError,
+    deviceBindingsQueryError,
+    assistantPendingQueryError,
+    alertsQueryError,
+  ].some(isAuthorizationError);
+  const backendSyncError = hpError || modelError || deviceBindingsError || assistantPendingError || alertsError;
+  const backendDegraded = isOffline || (!authorizationBlocked && backendSyncError);
   const rawPendingQueue = useMemo<PendingQueueItem[]>(() => {
     const pending = (assistantPending?.pending ?? []).map((item) => ({
       id: item.id,
@@ -601,7 +627,9 @@ export default function ConversationHome() {
   const localPendingCount = (pendingConfirmation ? 1 : 0) + (pendingDraft ? 1 : 0);
   const pendingCount = Math.max(pendingQueue.length, localPendingCount);
   const isBusy = isProcessing || activeAction !== null;
-  const homeNoticeTitle = backendDegraded
+  const homeNoticeTitle = authorizationBlocked
+    ? "主控待验证"
+    : backendDegraded
     ? isOffline
       ? "当前离线"
       : "服务同步异常"
@@ -610,7 +638,9 @@ export default function ConversationHome() {
       : pendingCount > 0
         ? `有 ${pendingCount} 项待确认`
         : null;
-  const homeNoticeDetail = backendDegraded
+  const homeNoticeDetail = authorizationBlocked
+    ? "验证后同步模型、设备和待确认动作；不影响继续输入。"
+    : backendDegraded
     ? isOffline
       ? "你的输入会保留，恢复连接后可继续发送。"
       : "部分状态暂未同步，不影响继续对话。"
@@ -619,13 +649,17 @@ export default function ConversationHome() {
       : pendingCount > 0
         ? "需要你确认后，小智才会继续执行。"
         : null;
-  const homeNoticeTone = backendDegraded
+  const homeNoticeTone = authorizationBlocked
+    ? "warning"
+    : backendDegraded
     ? "warning"
     : highestPendingAlert
       ? (highestPendingAlert.severity === "CRITICAL" || highestPendingAlert.severity === "HIGH" ? "danger" : "warning")
       : "info";
-  const homeNoticeActionLabel = backendDegraded ? "检查" : "处理";
-  const brainLabel = modelStatus?.cloud?.ready
+  const homeNoticeActionLabel = authorizationBlocked ? "验证" : backendDegraded ? "检查" : "处理";
+  const brainLabel = authorizationBlocked
+    ? "主控待验证"
+    : modelStatus?.cloud?.ready
     ? `云端就绪 · ${modelStatus.cloud.availableProviders.length} 源`
     : modelStatus?.syncing
       ? `模型同步中 ${Math.round(modelStatus.progress ?? 0)}%`
@@ -1209,6 +1243,36 @@ export default function ConversationHome() {
     }
   };
 
+  const handleSaveMasterSecret = async () => {
+    const secret = masterSecretInput.trim();
+    if (secret.length < 8) {
+      setAuthPanelMessage("主控密钥长度不足");
+      return;
+    }
+
+    setAuthSaving(true);
+    setAuthPanelMessage(null);
+    try {
+      await cryptoStorage.setItem("avatar_role", "MASTER");
+      await cryptoStorage.setItem("avatar_master_secret", secret);
+      setMasterSecretInput("");
+      setAuthPanelOpen(false);
+      setAuthPanelMessage(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/hp/balance"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/models/status"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/device-bindings"] }),
+        queryClient.invalidateQueries({ queryKey: ["assistant-pending-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["assistant-history"] }),
+        queryClient.invalidateQueries({ queryKey: ["conversation-home-alerts"] }),
+      ]);
+    } catch (error) {
+      setAuthPanelMessage(errorDetail(error, "主控验证保存失败"));
+    } finally {
+      setAuthSaving(false);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[#030712] text-white">
       <div className="h-[env(safe-area-inset-top,20px)] flex-shrink-0 bg-[#030712]" />
@@ -1232,6 +1296,10 @@ export default function ConversationHome() {
           actionLabel={homeNoticeActionLabel}
           loading={summaryLoading}
           onOpenNotice={() => {
+            if (authorizationBlocked) {
+              setAuthPanelOpen((open) => !open);
+              return;
+            }
             if (backendDegraded) {
               setLocation("/navigator-settings");
               return;
@@ -1243,6 +1311,47 @@ export default function ConversationHome() {
             setLocation("/tasks");
           }}
         />
+
+        {authPanelOpen && authorizationBlocked && (
+          <section
+            data-testid="master-auth-card"
+            className="mb-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.08] px-3 py-2.5"
+          >
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-100" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-black text-amber-50">验证主控密钥</p>
+                <p className="mt-0.5 text-[10px] leading-4 text-amber-100/75">
+                  只保存在本机加密存储，用来给受保护 API 附带主控凭据。
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    data-testid="master-secret-input"
+                    type="password"
+                    value={masterSecretInput}
+                    onChange={(event) => setMasterSecretInput(event.target.value)}
+                    placeholder="输入主控密钥"
+                    className="h-9 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 text-xs font-semibold text-white outline-none placeholder:text-amber-100/35 focus:border-amber-100/40"
+                  />
+                  <button
+                    type="button"
+                    data-testid="master-secret-save"
+                    disabled={authSaving}
+                    className="h-9 shrink-0 rounded-lg bg-amber-200 px-3 text-xs font-black text-slate-950 disabled:opacity-60"
+                    onClick={() => void handleSaveMasterSecret()}
+                  >
+                    {authSaving ? "验证中" : "保存"}
+                  </button>
+                </div>
+                {authPanelMessage && (
+                  <p data-testid="master-auth-message" className="mt-1.5 text-[10px] font-bold text-amber-100">
+                    {authPanelMessage}
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
 
         <ConversationLiveSurface
           hasHistory={messages.length > 0}

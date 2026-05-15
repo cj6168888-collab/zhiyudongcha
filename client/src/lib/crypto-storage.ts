@@ -66,19 +66,13 @@ function safeJsonParse<T>(json: string, fallback: T): T {
   try {
     const parsed = JSON.parse(json);
 
-    if (parsed === null || typeof parsed !== 'object') {
-      return fallback;
+    if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      Object.keys(parsed).forEach(key => {
+        if (['__proto__', 'constructor', 'prototype'].includes(key)) {
+          throw new Error('Prototype pollution attempt detected');
+        }
+      });
     }
-
-    if (Array.isArray(parsed)) {
-      return fallback;
-    }
-
-    Object.keys(parsed).forEach(key => {
-      if (['__proto__', 'constructor', 'prototype'].includes(key)) {
-        throw new Error('Prototype pollution attempt detected');
-      }
-    });
 
     return parsed as T;
   } catch {

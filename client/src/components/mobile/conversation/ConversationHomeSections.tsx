@@ -404,8 +404,8 @@ export function CommandComposer({
             <Mic className="h-5 w-5" />
           </button>
         )}
-        <label className="inline-flex h-[52px] min-h-[52px] w-full shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] p-0 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:bg-white/10" aria-label="添加材料">
-          <Paperclip className="h-5 w-5" />
+        <label className="relative block h-[52px] min-h-[52px] w-full shrink-0 cursor-pointer rounded-xl border border-white/10 bg-white/[0.045] p-0 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] active:bg-white/10" aria-label="添加材料">
+          <Paperclip className="pointer-events-none absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2" />
           <input
             data-testid="conversation-file-input"
             type="file"
