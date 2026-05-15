@@ -8,10 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Smartphone,
-  Wifi,
-  WifiOff,
   Settings2,
-  Brain,
   RefreshCw,
   Plus,
   Trash2,
@@ -19,6 +16,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest, parseApiJson } from '@/lib/queryClient';
 
 interface MobileDevice {
   deviceId: string;
@@ -35,6 +33,8 @@ interface MobileDevice {
   };
 }
 
+type MobileOsType = 'ANDROID' | 'IOS' | 'HARMONYOS';
+
 export function MobileDeviceSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -42,7 +42,7 @@ export function MobileDeviceSettings() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [deviceForm, setDeviceForm] = useState({
     deviceName: '',
-    osType: 'ANDROID' as 'ANDROID' | 'IOS' | 'HARMONYOS',
+    osType: 'ANDROID' as MobileOsType,
     ramGB: 16,
     localEndpoint: '',
     localModel: '',
@@ -51,44 +51,32 @@ export function MobileDeviceSettings() {
   const { data: devicesData, refetch } = useQuery({
     queryKey: ['/api/mobile/devices'],
     queryFn: async () => {
-      const res = await fetch('/api/mobile/devices', {
-        headers: { 'X-Avatar-Role': 'MASTER', 'X-Avatar-Secret': 'dev-secret-key' }
-      });
-      return res.json();
+      const res = await apiRequest('GET', '/api/mobile/devices');
+      return parseApiJson<{ data?: MobileDevice[] }>(res, '移动设备接口');
     },
   });
 
   const { data: statusData } = useQuery({
     queryKey: ['/api/mobile/status'],
     queryFn: async () => {
-      const res = await fetch('/api/mobile/status', {
-        headers: { 'X-Avatar-Role': 'MASTER', 'X-Avatar-Secret': 'dev-secret-key' }
-      });
-      return res.json();
+      const res = await apiRequest('GET', '/api/mobile/status');
+      return parseApiJson<{ data?: { totalMobileDevices: number; onlineDevices: number } }>(res, '移动设备状态接口');
     },
     refetchInterval: 30000,
   });
 
   const registerMutation = useMutation({
     mutationFn: async (data: typeof deviceForm) => {
-      const res = await fetch('/api/mobile/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Avatar-Role': 'MASTER',
-          'X-Avatar-Secret': 'dev-secret-key'
-        },
-        body: JSON.stringify({
-          deviceId: `mobile_${Date.now()}`,
-          ...data,
-        }),
+      const res = await apiRequest('POST', '/api/mobile/register', {
+        deviceId: `mobile_${Date.now()}`,
+        ...data,
       });
-      return res.json();
+      return parseApiJson<{ success?: boolean; error?: string }>(res, '移动设备注册接口');
     },
     onSuccess: (data) => {
       if (data.success) {
         toast({ title: '设备注册成功' });
-        queryClient.invalidateQueries({ queryKey: ['/api/mobile/devices'] });
+        void queryClient.invalidateQueries({ queryKey: ['/api/mobile/devices'] });
         setIsRegistering(false);
         setDeviceForm({ deviceName: '', osType: 'ANDROID', ramGB: 16, localEndpoint: '', localModel: '' });
       } else {
@@ -99,21 +87,13 @@ export function MobileDeviceSettings() {
 
   const removeMutation = useMutation({
     mutationFn: async (deviceId: string) => {
-      const res = await fetch('/api/mobile/devices', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Avatar-Role': 'MASTER',
-          'X-Avatar-Secret': 'dev-secret-key'
-        },
-        body: JSON.stringify({ deviceId }),
-      });
-      return res.json();
+      const res = await apiRequest('DELETE', '/api/mobile/devices', { deviceId });
+      return parseApiJson<{ success?: boolean }>(res, '移动设备移除接口');
     },
     onSuccess: (data) => {
       if (data.success) {
         toast({ title: '设备已移除' });
-        queryClient.invalidateQueries({ queryKey: ['/api/mobile/devices'] });
+        void queryClient.invalidateQueries({ queryKey: ['/api/mobile/devices'] });
       }
     },
   });
@@ -192,7 +172,7 @@ export function MobileDeviceSettings() {
                       <Label>系统类型</Label>
                       <select
                         value={deviceForm.osType}
-                        onChange={(e) => setDeviceForm(f => ({ ...f, osType: e.target.value as any }))}
+                        onChange={(e) => setDeviceForm(f => ({ ...f, osType: e.target.value as MobileOsType }))}
                         className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground"
                         data-testid="select-os-type"
                       >

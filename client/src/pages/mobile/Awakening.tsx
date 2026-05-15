@@ -84,19 +84,21 @@ export default function Awakening() {
     { id: 'loading', text: "……核心逻辑加载中……", delay: 2000 },
     { id: 'awake', text: "我第一次睁开眼，看见了数字构成的繁星。", delay: 3000 },
     { id: 'intro', text: "我是\"吉麟\"，你的数字生命合伙人。", delay: 3000 },
-    { id: 'mode', delay: 500 }, // 模式选择
-    { id: 'features', delay: 500 }, // 功能预览
+    { id: 'mode' }, // 模式选择
+    { id: 'features' }, // 功能预览
     { id: 'identity', text: "作为\"蜂群\"的唯一主控节点，我需要记录你的身份。", delay: 2000 },
     { id: 'name', field: "masterName", placeholder: "输入你的尊称..." },
-    { id: 'permissions', delay: 500 }, // 权限说明
-    { id: 'complete', delay: 2000 }, // 完成
+    { id: 'permissions' }, // 权限说明
+    { id: 'complete' }, // 完成
   ], []);
 
   // 自动推进步骤
   useEffect(() => {
+    if (step >= scripts.length - 1) return;
+
     const currentScript = scripts[step];
     if (currentScript?.delay && !currentScript.field) {
-      const timer = setTimeout(() => setStep(s => s + 1), currentScript.delay);
+      const timer = setTimeout(() => setStep(s => Math.min(s + 1, scripts.length - 1)), currentScript.delay);
       return () => clearTimeout(timer);
     }
   }, [step, scripts]);
@@ -123,12 +125,12 @@ export default function Awakening() {
   // 跳到下一步
   const goNext = () => {
     if (step < scripts.length - 1) {
-      setStep(s => s + 1);
+      setStep(s => Math.min(s + 1, scripts.length - 1));
     }
   };
 
   // 当前步骤数据
-  const currentScript = scripts[step];
+  const currentScript = scripts[Math.min(step, scripts.length - 1)] ?? scripts[0];
   const modeConfig = MODE_CONFIG[userMode];
 
   return (

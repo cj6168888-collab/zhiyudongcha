@@ -8,17 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Server, 
-  Cpu, 
-  HardDrive,
   Plus,
   Trash2,
   Settings2, 
-  Zap,
-  Brain,
   RefreshCw,
-  CheckCircle2,
-  AlertCircle,
-  Activity,
   TestTube,
   ChevronDown,
   ChevronRight,
@@ -28,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest, parseApiJson } from '@/lib/queryClient';
 
 interface ServerConfig {
   endpoint: string;
@@ -42,11 +36,22 @@ interface ServerConfig {
   taskType?: 'CHAT' | 'SCREEN_OPERATION' | 'COMPLEX_ANALYSIS' | 'EXPERT';
 }
 
-interface AutoGLMConfig {
-  endpoint: string;
-  model: string;
-  enabled: boolean;
-  gpuMemoryMB?: number;
+interface ServerListResponse {
+  servers?: ServerConfig[];
+  healthyCount?: number;
+}
+
+interface ModelStatusResponse {
+  status?: {
+    preferredProvider?: string;
+  };
+}
+
+interface MutationResponse {
+  success?: boolean;
+  error?: string;
+  hint?: string;
+  response?: string;
 }
 
 export function GpuServerSettings() {
@@ -83,10 +88,8 @@ export function GpuServerSettings() {
   const { data: serversData, refetch } = useQuery({
     queryKey: ['/api/servers'],
     queryFn: async () => {
-      const res = await fetch('/api/servers', {
-        headers: { 'X-Avatar-Role': 'MASTER', 'X-Avatar-Secret': 'dev-master-key-change-in-production' }
-      });
-      return res.json();
+      const res = await apiRequest('GET', '/api/servers');
+      return parseApiJson<ServerListResponse>(res, 'GPU 服务器列表接口');
     },
     refetchInterval: 30000,
   });
@@ -94,30 +97,22 @@ export function GpuServerSettings() {
   const { data: modelStatusData } = useQuery({
     queryKey: ['/api/model/status'],
     queryFn: async () => {
-      const res = await fetch('/api/model/status');
-      return res.json();
+      const res = await apiRequest('GET', '/api/model/status');
+      return parseApiJson<ModelStatusResponse>(res, '模型状态接口');
     },
     refetchInterval: 30000,
   });
 
   const addServerMutation = useMutation({
     mutationFn: async (data: typeof serverForm) => {
-      const res = await fetch('/api/servers', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Avatar-Role': 'MASTER', 
-          'X-Avatar-Secret': 'dev-master-key-change-in-production' 
-        },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+      const res = await apiRequest('POST', '/api/servers', data);
+      return parseApiJson<MutationResponse>(res, 'GPU 服务器添加接口');
     },
     onSuccess: (data) => {
       if (data.success) {
         toast({ title: '服务器添加成功', description: `${serverForm.name} 已连接` });
-        queryClient.invalidateQueries({ queryKey: ['/api/servers'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/model/status'] });
+        void queryClient.invalidateQueries({ queryKey: ['/api/servers'] });
+        void queryClient.invalidateQueries({ queryKey: ['/api/model/status'] });
         setIsAdding(false);
         setServerForm({
           endpoint: 'http://192.168.1.100:11434',
@@ -139,22 +134,14 @@ export function GpuServerSettings() {
 
   const removeServerMutation = useMutation({
     mutationFn: async (endpoint: string) => {
-      const res = await fetch('/api/servers', {
-        method: 'DELETE',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Avatar-Role': 'MASTER', 
-          'X-Avatar-Secret': 'dev-master-key-change-in-production' 
-        },
-        body: JSON.stringify({ endpoint }),
-      });
-      return res.json();
+      const res = await apiRequest('DELETE', '/api/servers', { endpoint });
+      return parseApiJson<MutationResponse>(res, 'GPU 服务器移除接口');
     },
     onSuccess: (data) => {
       if (data.success) {
         toast({ title: '服务器已移除' });
-        queryClient.invalidateQueries({ queryKey: ['/api/servers'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/model/status'] });
+        void queryClient.invalidateQueries({ queryKey: ['/api/servers'] });
+        void queryClient.invalidateQueries({ queryKey: ['/api/model/status'] });
       }
     },
   });
@@ -162,16 +149,12 @@ export function GpuServerSettings() {
   const testServerMutation = useMutation({
     mutationFn: async ({ endpoint, model }: { endpoint: string; model: string }) => {
       setIsTesting(endpoint);
-      const res = await fetch('/api/servers/test', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Avatar-Role': 'MASTER', 
-          'X-Avatar-Secret': 'dev-master-key-change-in-production' 
-        },
-        body: JSON.stringify({ endpoint, model, prompt: '你好，请用一句话介绍你自己。' }),
+      const res = await apiRequest('POST', '/api/servers/test', {
+        endpoint,
+        model,
+        prompt: '你好，请用一句话介绍你自己。',
       });
-      return res.json();
+      return parseApiJson<MutationResponse>(res, 'GPU 服务器测试接口');
     },
     onSuccess: (data) => {
       setIsTesting(null);
@@ -193,11 +176,6 @@ export function GpuServerSettings() {
   const servers: ServerConfig[] = serversData?.servers || [];
   const healthyCount = serversData?.healthyCount || 0;
   const preferredProvider = modelStatusData?.status?.preferredProvider;
-
-  const formatBytes = (mb: number) => {
-    if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
-    return `${mb} MB`;
-  };
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} data-testid="gpu-server-settings">

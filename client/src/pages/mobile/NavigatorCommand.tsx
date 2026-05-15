@@ -20,6 +20,7 @@ import {
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { isMobileMasterRole } from "@/lib/mobile-role";
 
 interface FleetTask {
   id: string;
@@ -74,7 +75,7 @@ export default function NavigatorCommand() {
     initialData: { role: "NODE", username: "Navigator-X" },
   });
 
-  const isSovereign = localStorage.getItem("jilin_user_role") === "SOVEREIGN";
+  const isSovereign = isMobileMasterRole(localStorage.getItem("jilin_user_role"));
 
   const { data: fleet } = useQuery<FleetStatus>({
     queryKey: ["/api/business/swarm/status"],

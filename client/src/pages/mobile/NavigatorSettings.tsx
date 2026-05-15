@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useGlobalStore } from "@/store/globalStore";
 import { useDiagnostics } from "@/hooks/use-diagnostics";
+import { isMobileMasterRole } from "@/lib/mobile-role";
 
 type ProviderId = "tongyi" | "deepseek" | "local";
 
@@ -60,7 +61,7 @@ export default function NavigatorSettings() {
   const deviceHealth = useGlobalStore((s) => s.deviceHealth);
   const { isChecking, checkHealth } = useDiagnostics(false);
   const userRole = localStorage.getItem("jilin_user_role");
-  const isSovereign = userRole === "SOVEREIGN";
+  const isSovereign = isMobileMasterRole(userRole);
 
   const configuredProviders = providers.filter((provider) => provider.status === "ready").length;
   const healthSummary = useMemo(() => {

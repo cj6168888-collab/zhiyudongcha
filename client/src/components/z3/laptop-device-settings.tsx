@@ -9,17 +9,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Laptop,
-  Cpu,
-  WifiOff,
-  HardDrive,
   Settings2,
-  Zap,
   Brain,
   RefreshCw,
   CheckCircle2,
   Plus,
   Trash2,
-  Activity,
   Gamepad2,
   Code,
   ChevronDown,
@@ -29,6 +24,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest, parseApiJson } from '@/lib/queryClient';
 
 interface LaptopDevice {
   deviceId: string;
@@ -45,12 +41,13 @@ interface LaptopDevice {
   lastSeen?: number;
 }
 
+type LaptopOsType = LaptopDevice['osType'];
+
 export function LaptopDeviceSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
   const [deviceForm, setDeviceForm] = useState({
     deviceName: '小星的Windows笔记本',
     osType: 'WINDOWS' as 'WINDOWS' | 'MACOS' | 'LINUX',
@@ -67,33 +64,23 @@ export function LaptopDeviceSettings() {
   const { data: devicesData, refetch } = useQuery({
     queryKey: ['/api/laptop/devices'],
     queryFn: async () => {
-      const res = await fetch('/api/laptop/devices', {
-        headers: { 'X-Avatar-Role': 'MASTER', 'X-Avatar-Secret': 'dev-master-key-change-in-production' }
-      });
-      return res.json();
+      const res = await apiRequest('GET', '/api/laptop/devices');
+      return parseApiJson<{ data?: LaptopDevice[] }>(res, '笔记本设备接口');
     },
   });
 
   const registerMutation = useMutation({
     mutationFn: async (data: typeof deviceForm) => {
-      const res = await fetch('/api/laptop/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Avatar-Role': 'MASTER',
-          'X-Avatar-Secret': 'dev-master-key-change-in-production'
-        },
-        body: JSON.stringify({
-          deviceId: `laptop_${Date.now()}`,
-          ...data,
-        }),
+      const res = await apiRequest('POST', '/api/laptop/register', {
+        deviceId: `laptop_${Date.now()}`,
+        ...data,
       });
-      return res.json();
+      return parseApiJson<{ success?: boolean; error?: string }>(res, '笔记本注册接口');
     },
     onSuccess: (data) => {
       if (data.success) {
         toast({ title: '笔记本注册成功！' });
-        queryClient.invalidateQueries({ queryKey: ['/api/laptop/devices'] });
+        void queryClient.invalidateQueries({ queryKey: ['/api/laptop/devices'] });
         setIsRegistering(false);
       } else {
         toast({ title: '注册失败', description: data.error, variant: 'destructive' });
@@ -103,21 +90,13 @@ export function LaptopDeviceSettings() {
 
   const removeMutation = useMutation({
     mutationFn: async (deviceId: string) => {
-      const res = await fetch('/api/laptop/devices', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Avatar-Role': 'MASTER',
-          'X-Avatar-Secret': 'dev-master-key-change-in-production'
-        },
-        body: JSON.stringify({ deviceId }),
-      });
-      return res.json();
+      const res = await apiRequest('DELETE', '/api/laptop/devices', { deviceId });
+      return parseApiJson<{ success?: boolean }>(res, '笔记本移除接口');
     },
     onSuccess: (data) => {
       if (data.success) {
         toast({ title: '设备已移除' });
-        queryClient.invalidateQueries({ queryKey: ['/api/laptop/devices'] });
+        void queryClient.invalidateQueries({ queryKey: ['/api/laptop/devices'] });
       }
     },
   });
@@ -215,7 +194,7 @@ export function LaptopDeviceSettings() {
                           <select
                             id="laptop-os"
                             value={deviceForm.osType}
-                            onChange={(e) => setDeviceForm({ ...deviceForm, osType: e.target.value as any })}
+                            onChange={(e) => setDeviceForm({ ...deviceForm, osType: e.target.value as LaptopOsType })}
                             className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground"
                             data-testid="select-laptop-os"
                           >
