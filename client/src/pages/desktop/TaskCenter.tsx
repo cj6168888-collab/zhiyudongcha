@@ -1,7 +1,7 @@
 ﻿/**
  * TaskCenterDesktop - 桌面端任务中心
  *
- * 提供桌面端的任务管理、远程控制和告警查看功能
+ * 提供桌面端的任务管理、PC 代理执行和告警查看功能
  *
  * @version 1.0.0
  * @date 2026-03-18
@@ -269,7 +269,7 @@ export default function TaskCenterDesktop() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-white">任务中心</h1>
-            <p className="text-xs text-gray-500 mt-1">任务编排 · 远程控制 · 告警管理</p>
+            <p className="text-xs text-gray-500 mt-1">任务编排 · PC代理执行 · 告警管理</p>
           </div>
 
           <button
@@ -607,7 +607,7 @@ function DevicesPanel({ devices }: { devices: Device[] }) {
         <div className="flex flex-col items-center justify-center h-full text-center">
           <Monitor className="w-16 h-16 text-gray-700 mb-4" />
           <p className="text-gray-500">暂无设备</p>
-          <p className="text-xs text-gray-600 mt-1">连接您的PC设备以开始远程控制</p>
+          <p className="text-xs text-gray-600 mt-1">连接您的PC代理，以接收指令并回传执行结果</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

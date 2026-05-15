@@ -3,7 +3,7 @@
  *
  * 整合三大核心能力：
  * 1. 小星AI - 对话助手
- * 2. OpenClaw - 系统控制
+ * 2. OpenClaw - PC 代理执行
  * 3. Navigator-X - 舰队协同
  */
 import { useState, useEffect } from "react";
@@ -56,7 +56,7 @@ interface QuickAction {
 
 const quickActions: QuickAction[] = [
   { id: 'chat', icon: MessageCircle, label: 'AI对话', description: '与小星对话', color: 'text-indigo-400', bgColor: 'bg-indigo-500/20', path: '/desktop/chat' },
-  { id: 'control', icon: Monitor, label: '远程控制', description: '控制PC设备', color: 'text-blue-400', bgColor: 'bg-blue-500/20', path: '/desktop/control' },
+  { id: 'control', icon: Monitor, label: 'PC代理', description: '指令执行回流', color: 'text-blue-400', bgColor: 'bg-blue-500/20', path: '/desktop/control' },
   { id: 'tasks', icon: Zap, label: '任务中心', description: '自动化任务', color: 'text-amber-400', bgColor: 'bg-amber-500/20', path: '/desktop/tasks' },
   { id: 'terminal', icon: Terminal, label: '命令终端', description: '执行命令', color: 'text-green-400', bgColor: 'bg-green-500/20', path: '/desktop/terminal' },
   { id: 'fleet', icon: Ship, label: '舰队管理', description: 'Navigator-X', color: 'text-purple-400', bgColor: 'bg-purple-500/20', path: '/desktop/fleet', sovereignOnly: true },

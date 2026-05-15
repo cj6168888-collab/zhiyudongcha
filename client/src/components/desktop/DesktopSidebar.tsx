@@ -92,7 +92,7 @@ const allNavItems = [
   { id: 'chat', icon: MessageCircle, label: 'AI对话', path: '/desktop/chat' },
 
   // OpenClaw功能 (SOVEREIGN专有)
-  { id: 'control', icon: Monitor, label: '远程控制', path: '/desktop/control', sovereignOnly: true },
+  { id: 'control', icon: Monitor, label: 'PC代理', path: '/desktop/control', sovereignOnly: true },
   { id: 'tasks', icon: Zap, label: '任务中心', path: '/desktop/tasks' },
   { id: 'terminal', icon: Terminal, label: '命令终端', path: '/desktop/terminal', sovereignOnly: true },
 

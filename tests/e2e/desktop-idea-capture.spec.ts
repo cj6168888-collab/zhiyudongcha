@@ -65,9 +65,18 @@ test.describe('Desktop idea capture', () => {
 
     await expect(page).toHaveURL(`${appUrl}/desktop`);
     await expect(page.getByText('欢迎回来')).toBeVisible();
+    await expect(page.getByRole('button', { name: /PC代理/ }).first()).toBeVisible();
+    await expect(page.getByText('指令执行回流')).toBeVisible();
+    await expect(page.getByText('远程控制')).toHaveCount(0);
     await expect(page.getByRole('button', { name: '想法暂存' })).toBeVisible();
     await expect(page.getByTestId('bottom-nav')).toHaveCount(0);
     await expect(page.getByText('出现错误')).toHaveCount(0);
+
+    await page.getByRole('button', { name: /PC代理/ }).first().click();
+    await expect(page).toHaveURL(`${appUrl}/desktop/control`);
+    await expect(page.getByRole('heading', { name: 'PC 代理执行' })).toBeVisible();
+    await expect(page.getByText('这里不是远程桌面。手机不承担鼠标键盘操作，只负责发出目标、确认风险和接收执行汇报。')).toBeVisible();
+    await expect(page.getByTestId('bottom-nav')).toHaveCount(0);
 
     await page.goto(`${appUrl}/desktop/inspiration`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByPlaceholder('先记下这个想法，再回到和小智的对话里继续展开...')).toBeVisible();

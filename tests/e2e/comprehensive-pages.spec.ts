@@ -15,7 +15,7 @@ test.describe('全面页面路由和功能测试', () => {
     { path: '/evolution', name: '进化仪表盘' },
     { path: '/reports', name: '日报' },
     { path: '/genesis', name: '创世' },
-    { path: '/remote', name: '远程控制' },
+    { path: '/remote', name: 'PC代理执行' },
     { path: '/talk', name: '对话会话' },
     { path: '/inspiration', name: '灵感' },
     { path: '/integrations', name: '集成' },

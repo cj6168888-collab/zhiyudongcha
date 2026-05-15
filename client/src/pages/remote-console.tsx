@@ -167,8 +167,8 @@ export default function RemoteConsole() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-light">远程控制台</h1>
-          <p className="text-sm text-muted-foreground">跨设备洞察穿行</p>
+          <h1 className="text-2xl font-light">PC代理执行台</h1>
+          <p className="text-sm text-muted-foreground">发出目标，等待设备执行并回传结果</p>
         </div>
         <div className="ml-auto flex gap-2">
           <Button variant="outline" size="sm" onClick={() => refetchDevices()} data-testid="button-refresh">
@@ -311,7 +311,7 @@ export default function RemoteConsole() {
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>发送远程指令</DialogTitle>
+                            <DialogTitle>发送代理指令</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4 pt-4">
                             <div className="space-y-2">

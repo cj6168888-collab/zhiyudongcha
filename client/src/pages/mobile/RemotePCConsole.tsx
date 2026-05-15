@@ -60,16 +60,29 @@ const commandSuggestions = [
   "打开本周项目资料，汇总今天最该推进的三件事",
 ];
 
+function readDeviceList(value: unknown): PCDevice[] {
+  if (Array.isArray(value)) return value as PCDevice[];
+  if (!value || typeof value !== "object") return [];
+
+  const payload = value as Record<string, unknown>;
+  for (const key of ["data", "items", "devices"]) {
+    const list = payload[key];
+    if (Array.isArray(list)) return list as PCDevice[];
+  }
+  return [];
+}
+
 export default function RemotePCConsoleMobile() {
   const {
-    data: devices = [],
+    data: devicesResponse,
     isLoading: devicesLoading,
     refetch: refetchDevices,
-  } = useApiQuery(["/api/remote/devices"], async () => {
+  } = useApiQuery<unknown>(["/api/remote/devices"], async () => {
     const response = await fetch("/api/remote/devices");
     const data = await response.json();
-    return (data.data || data.items || []) as PCDevice[];
+    return readDeviceList(data);
   });
+  const devices = useMemo(() => readDeviceList(devicesResponse), [devicesResponse]);
 
   const onlineDevices = useMemo(
     () => devices.filter((device) => device.status === "ONLINE" || device.status === "BUSY"),
