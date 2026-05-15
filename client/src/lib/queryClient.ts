@@ -153,12 +153,9 @@ async function getCsrfHeader(): Promise<Record<string, string>> {
 }
 
 let cachedWsToken: { token: string; expiresAt: number } | null = null;
+let pendingWsToken: Promise<string | null> | null = null;
 
-export async function getWsToken(): Promise<string | null> {
-  if (cachedWsToken && Date.now() < cachedWsToken.expiresAt - 5000) {
-    return cachedWsToken.token;
-  }
-
+async function requestWsToken(): Promise<string | null> {
   try {
     const res = await apiRequest('POST', '/api/auth/ws-token', {});
     const data = await parseApiJson<Record<string, any>>(res, "WebSocket token 接口");
@@ -173,9 +170,23 @@ export async function getWsToken(): Promise<string | null> {
       return token;
     }
   } catch (e) {
-    logger.error('Failed to get WS token', e);
+    logger.warn('WebSocket token unavailable; falling back to unauthenticated URL', e);
   }
   return null;
+}
+
+export async function getWsToken(): Promise<string | null> {
+  if (cachedWsToken && Date.now() < cachedWsToken.expiresAt - 5000) {
+    return cachedWsToken.token;
+  }
+
+  if (!pendingWsToken) {
+    pendingWsToken = requestWsToken().finally(() => {
+      pendingWsToken = null;
+    });
+  }
+
+  return pendingWsToken;
 }
 
 export function getAuthenticatedWsUrl(path: string): string {
@@ -195,7 +206,7 @@ export async function getAuthenticatedWsUrlAsync(path: string): Promise<string> 
       return url.toString();
     }
   } catch (e) {
-    logger.error('Failed to get authenticated WS URL', e);
+    logger.warn('Failed to build authenticated WS URL', e);
   }
   return baseUrl;
 }
@@ -231,7 +242,8 @@ export async function apiRequest(
 
   if (res.status === 403 && !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
     const body = await res.clone().json().catch(() => null);
-    if (body?.code === 'CSRF_TOKEN_MISMATCH') {
+    const errorCode = body?.code ?? body?.error?.code;
+    if (errorCode === 'CSRF_TOKEN_MISSING' || errorCode === 'CSRF_TOKEN_MISMATCH' || !errorCode) {
       cachedCsrf = null;
       const retryHeaders = {
         ...headers,

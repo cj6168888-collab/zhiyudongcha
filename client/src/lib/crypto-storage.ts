@@ -128,7 +128,7 @@ export const cryptoStorage = {
 
       return new TextDecoder().decode(decrypted);
     } catch (error) {
-      logger.error('Decryption failed', error);
+      logger.warn('Decryption failed; stored value will be discarded by caller', error);
       throw new Error(CRYPTO_ERRORS.DECRYPTION_FAILED);
     }
   },
